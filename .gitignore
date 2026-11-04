@@ -30,3 +30,4 @@ core/build/
 
 # Rule sets are downloaded at build time
 android/app/src/main/assets/rulesets/
+core/build/

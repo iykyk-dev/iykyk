@@ -190,14 +190,7 @@ func singBoxTestDialer(s *server, opts options) (dialFunc, func(), error) {
 
 // startHeadlessBox starts sing-box from a config without a TUN inbound.
 func startHeadlessBox(text string) (*box.Box, error) {
-	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(),
-		include.EndpointRegistry(), include.DNSTransportRegistry(), include.ServiceRegistry(),
-		include.CertificateProviderRegistry())
-	options, err := sjson.UnmarshalExtendedContext[option.Options](ctx, []byte(text))
-	if err != nil {
-		return nil, err
-	}
-	instance, err := box.New(box.Options{Context: ctx, Options: options})
+	instance, err := newBox(text)
 	if err != nil {
 		return nil, err
 	}
@@ -206,4 +199,16 @@ func startHeadlessBox(text string) (*box.Box, error) {
 		return nil, err
 	}
 	return instance, nil
+}
+
+// newBox creates sing-box from a config without starting it.
+func newBox(text string) (*box.Box, error) {
+	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(),
+		include.EndpointRegistry(), include.DNSTransportRegistry(), include.ServiceRegistry(),
+		include.CertificateProviderRegistry())
+	options, err := sjson.UnmarshalExtendedContext[option.Options](ctx, []byte(text))
+	if err != nil {
+		return nil, err
+	}
+	return box.New(box.Options{Context: ctx, Options: options})
 }

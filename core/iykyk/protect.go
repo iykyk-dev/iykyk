@@ -19,9 +19,20 @@ type protectorHolder struct {
 
 var currentProtector atomic.Pointer[protectorHolder]
 
+// socketBinder is the desktop counterpart of the Android protector: it binds
+// a socket to the physical network interface so it never enters the TUN.
+var socketBinder atomic.Pointer[func(fd uintptr) error]
+
 func protectSocket(_, _ string, conn syscall.RawConn) error {
 	holder := currentProtector.Load()
 	if holder == nil {
+		if bind := socketBinder.Load(); bind != nil {
+			var bindErr error
+			if err := conn.Control(func(fd uintptr) { bindErr = (*bind)(fd) }); err != nil {
+				return err
+			}
+			return bindErr
+		}
 		return nil
 	}
 	var protectErr error

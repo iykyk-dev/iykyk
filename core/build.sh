@@ -3,6 +3,7 @@
 #
 #   ./build.sh deps      pin core versions into go.mod / go.sum (needs network)
 #   ./build.sh android   build ../android/app/libs/iykyk-core.aar
+#   ./build.sh windows   build build/windows/iykyk-service.exe (Windows x64 core service)
 #
 # Env: ANDROID_HOME and ANDROID_NDK_HOME must point to the SDK and NDK.
 #      ANDROID_TARGETS overrides ABIs (default: arm64 + x86_64 for the emulator).
@@ -85,8 +86,32 @@ android() {
     ls -lh "$OUTPUT"
 }
 
+# Windows: no gomobile; the same core as a standalone service executable.
+# NaiveProxy needs cronet (cgo), so it is left out of the desktop build for now.
+WINDOWS_TAGS=(
+    with_gvisor
+    with_quic
+    with_wireguard
+    with_utls
+    badlinkname
+    tfogo_checklinkname0
+)
+
+windows() {
+    mkdir -p build/windows
+    local IFS=","
+    GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -v \
+        -trimpath -buildvcs=false \
+        -tags "${WINDOWS_TAGS[*]}" \
+        -ldflags "$(IFS=" "; echo "${LDFLAGS[*]}")" \
+        -o build/windows/iykyk-service.exe \
+        ./cmd/iykyk-service
+    ls -lh build/windows/iykyk-service.exe
+}
+
 case "${1:-}" in
     deps) deps ;;
     android) android ;;
-    *) echo "usage: $0 deps|android" >&2; exit 2 ;;
+    windows) windows ;;
+    *) echo "usage: $0 deps|android|windows" >&2; exit 2 ;;
 esac
