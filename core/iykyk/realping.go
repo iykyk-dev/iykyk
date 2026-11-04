@@ -65,7 +65,7 @@ func realPing(link string, opts options) int {
 	}
 	var dial dialFunc
 	var cleanup func()
-	switch engineFor(s) {
+	switch selectEngine(s, opts) {
 	case engineXray:
 		dial, cleanup, err = xrayTestDialer(s, opts)
 	case engineSingBox:

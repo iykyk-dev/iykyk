@@ -68,11 +68,11 @@ func BuildProfileWithOptions(link string, optionsJSON string) (*Profile, error) 
 	if err != nil {
 		return nil, err
 	}
-	profile := &Profile{Name: s.Name, Protocol: s.Protocol, Address: s.address()}
+	profile := &Profile{Name: s.Name, Protocol: s.Protocol, Details: s.details(), Address: s.address()}
 
 	// The proxy is either an outbound or (WireGuard) an endpoint tagged "proxy".
 	var proxyOutbounds, proxyEndpoints []any
-	switch engineFor(s) {
+	switch selectEngine(s, opts) {
 	case engineXray:
 		port, err := freeLoopbackPort()
 		if err != nil {
@@ -266,6 +266,12 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 // singBoxProxy builds the sing-box side of protocols that sing-box runs itself.
 func singBoxProxy(s *server, opts options) (outbounds, endpoints []any, err error) {
 	switch s.Protocol {
+	case "vless", "vmess", "trojan":
+		out, err := singBoxV2Ray(s, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []any{out}, nil, nil
 	case "hysteria2":
 		return []any{singBoxHysteria2(s)}, nil, nil
 	case "tuic":
@@ -315,6 +321,16 @@ func singBoxProxy(s *server, opts options) (outbounds, endpoints []any, err erro
 		}
 		return []any{out}, nil, nil
 	case "shadowsocks":
+		if s.ShadowTLSHost == "" {
+			return []any{jsonObject{
+				"type":        "shadowsocks",
+				"tag":         "proxy",
+				"server":      s.Host,
+				"server_port": s.Port,
+				"method":      s.Method,
+				"password":    s.Password,
+			}}, nil, nil
+		}
 		// Shadowsocks over ShadowTLS: the Shadowsocks outbound is chained
 		// through a ShadowTLS outbound that performs the TLS handshake.
 		ss := jsonObject{

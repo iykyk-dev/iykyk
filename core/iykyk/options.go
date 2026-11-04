@@ -31,6 +31,9 @@ type options struct {
 	DirectDNS string `json:"directDNS"`
 	// Routing is the provider's routing from the subscription (Iykyk-Routing).
 	Routing *providerRouting `json:"routing"`
+	// PreferXray runs VLESS/VMess/Trojan/Shadowsocks in Xray even when sing-box
+	// could handle them natively (a fallback setting in case of trouble).
+	PreferXray bool `json:"preferXray"`
 }
 
 // providerRouting lists rules in the Xray template notation:

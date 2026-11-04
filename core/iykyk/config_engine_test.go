@@ -47,17 +47,20 @@ func TestConfigsAcceptedByEngines(t *testing.T) {
 		"ss://2022-blake3-aes-128-gcm:AAAAAAAAAAAAAAAAAAAAAA==@ss.example.com:8388#ss",
 		"hysteria2://pass@hy.example.com:443?sni=hy.example.com&obfs=salamander&obfs-password=xyz&mport=20000-30000#hy",
 	}
-	for _, link := range links {
-		p, err := BuildProfile(link)
-		if err != nil {
-			t.Fatalf("%s: build: %v", link, err)
-		}
-		if err := libbox.CheckConfig(p.SingBoxConfig); err != nil {
-			t.Errorf("%s: sing-box rejected config: %v\n%s", p.Name, err, p.SingBoxConfig)
-		}
-		if p.UsesXray {
-			if err := CheckXrayConfig(p.XrayConfig); err != nil {
-				t.Errorf("%s: Xray rejected config: %v\n%s", p.Name, err, p.XrayConfig)
+	// Both paths: native sing-box (default) and everything through Xray.
+	for _, options := range []string{"", `{"preferXray":true}`} {
+		for _, link := range links {
+			p, err := BuildProfileWithOptions(link, options)
+			if err != nil {
+				t.Fatalf("%s: build: %v", link, err)
+			}
+			if err := libbox.CheckConfig(p.SingBoxConfig); err != nil {
+				t.Errorf("%s: sing-box rejected config: %v\n%s", p.Name, err, p.SingBoxConfig)
+			}
+			if p.UsesXray {
+				if err := CheckXrayConfig(p.XrayConfig); err != nil {
+					t.Errorf("%s: Xray rejected config: %v\n%s", p.Name, err, p.XrayConfig)
+				}
 			}
 		}
 	}

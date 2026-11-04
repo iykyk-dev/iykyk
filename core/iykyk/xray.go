@@ -1,10 +1,11 @@
 // Package iykyk is the app-specific part of the IYKYK core, bound for Android and iOS
 // with gomobile next to sing-box's libbox.
 //
-// sing-box (libbox) owns the TUN device, DNS and routing. Protocols where Xray is the
-// reference implementation (VLESS with REALITY / XTLS-Vision / XHTTP, VMess, Trojan,
-// Shadowsocks) run in an in-process Xray instance that listens on a loopback SOCKS
-// inbound; sing-box forwards those connections to it.
+// sing-box (libbox) owns the TUN device, DNS and routing, and runs common VLESS,
+// VMess, Trojan and Shadowsocks setups itself (see native.go). What only Xray
+// supports (XHTTP, full Xray JSON configs, VLESS encryption, ...) runs in an
+// in-process Xray instance that listens on a loopback SOCKS inbound; sing-box
+// forwards those connections to it.
 //
 // Sockets Xray opens to proxy servers must bypass the VPN, otherwise they would loop
 // back into the TUN. The app passes a SocketProtector (VpnService.protect on Android)

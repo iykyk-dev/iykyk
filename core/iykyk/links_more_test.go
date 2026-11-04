@@ -12,10 +12,7 @@ func vmessLink(json string) string {
 func TestVMess(t *testing.T) {
 	link := vmessLink(`{"v":"2","ps":"VM ws","add":"vm.example.com","port":"443","id":"11111111-2222-3333-4444-555555555555",` +
 		`"aid":"0","scy":"auto","net":"ws","type":"none","host":"cdn.example.com","path":"/ray","tls":"tls","sni":"cdn.example.com"}`)
-	p, err := BuildProfile(link)
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := buildXray(t, link)
 	if !p.UsesXray || p.Name != "VM ws" {
 		t.Fatalf("profile %+v", p)
 	}

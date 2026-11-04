@@ -103,7 +103,7 @@ func TestXrayJSONSubscription(t *testing.T) {
 }
 
 func TestFragmentOptionForLinks(t *testing.T) {
-	p, _ := BuildProfileWithOptions("trojan://pw@de.example.com:443#DE", `{"fragment":true}`)
+	p, _ := BuildProfileWithOptions("trojan://pw@de.example.com:443#DE", `{"fragment":true,"preferXray":true}`)
 	if path(t, decode(t, p.XrayConfig), "outbounds", 0, "streamSettings", "finalmask", "tcp", 0, "settings", "packets") != "tlshello" {
 		t.Fatal("xray fragment missing")
 	}
@@ -111,7 +111,11 @@ func TestFragmentOptionForLinks(t *testing.T) {
 	if path(t, decode(t, p.SingBoxConfig), "outbounds", 0, "tls", "fragment") != true {
 		t.Fatal("sing-box fragment missing")
 	}
-	p, _ = BuildProfileWithOptions("trojan://pw@de.example.com:443#DE", "")
+	p, _ = BuildProfileWithOptions("trojan://pw@de.example.com:443#DE", `{"fragment":true}`)
+	if path(t, decode(t, p.SingBoxConfig), "outbounds", 0, "tls", "fragment") != true {
+		t.Fatal("native trojan: sing-box fragment missing")
+	}
+	p, _ = BuildProfileWithOptions("trojan://pw@de.example.com:443#DE", `{"preferXray":true}`)
 	if _, ok := path(t, decode(t, p.XrayConfig), "outbounds", 0, "streamSettings").(map[string]any)["finalmask"]; ok {
 		t.Fatal("fragment must be off by default")
 	}
@@ -152,5 +156,21 @@ func TestFragmentConnKeepsData(t *testing.T) {
 	got, _ := io.ReadAll(server)
 	if string(got) != payload+"|second" {
 		t.Fatalf("data corrupted: %q", got)
+	}
+}
+
+func TestSlowObservatory(t *testing.T) {
+	config := `{"outbounds":[{"protocol":"vless","tag":"a"}],"observatory":{"subjectSelector":["a"],"probeInterval":"30s"},` +
+		`"burstObservatory":{"pingConfig":{"interval":"10m"}}}`
+	out, err := xrayConfigFromJSON(config, 1080, "u", "p", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := decode(t, out)
+	if got := path(t, v, "observatory", "probeInterval"); got != "5m0s" {
+		t.Errorf("probeInterval = %v", got)
+	}
+	if got := path(t, v, "burstObservatory", "pingConfig", "interval"); got != "10m" {
+		t.Errorf("a longer interval must stay: %v", got)
 	}
 }

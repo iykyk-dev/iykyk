@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Full Xray JSON configs, as panels serve them to Xray-JSON clients (Remnawave's
@@ -170,6 +171,7 @@ func xrayConfigFromJSON(raw string, port int, user, pass string, fragment bool) 
 	} else {
 		config["inbounds"] = []any{inbound}
 	}
+	slowObservatory(config)
 	delete(config, "api")
 	delete(config, "metrics")
 	delete(config, "remarks")
@@ -183,6 +185,35 @@ func xrayConfigFromJSON(raw string, port int, user, pass string, fragment bool) 
 		}
 	}
 	return marshal(config)
+}
+
+// minProbeInterval is how often an auto-select balancer may test its servers.
+// Panels often use 10-30 s, which keeps the phone's radio awake all day just
+// for probes; 5 minutes still notices a dead server and costs little battery.
+const minProbeInterval = 5 * time.Minute
+
+func slowObservatory(config map[string]any) {
+	if o, ok := config["observatory"].(map[string]any); ok {
+		o["probeInterval"] = atLeast(o["probeInterval"], minProbeInterval)
+	}
+	if b, ok := config["burstObservatory"].(map[string]any); ok {
+		ping, _ := b["pingConfig"].(map[string]any)
+		if ping == nil {
+			ping = map[string]any{}
+			b["pingConfig"] = ping
+		}
+		ping["interval"] = atLeast(ping["interval"], minProbeInterval)
+	}
+}
+
+// atLeast returns the Xray duration string v, raised to min if shorter or missing.
+func atLeast(v any, min time.Duration) string {
+	if text, ok := v.(string); ok {
+		if d, err := time.ParseDuration(text); err == nil && d >= min {
+			return text
+		}
+	}
+	return min.String()
 }
 
 // stripSocketMark removes sockopt.mark: setting SO_MARK needs root on Android,

@@ -1,6 +1,7 @@
 package iykyk
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -37,13 +38,20 @@ func path(t *testing.T, v any, keys ...any) any {
 	return v
 }
 
-func TestVLESSReality(t *testing.T) {
-	link := "vless://11111111-2222-3333-4444-555555555555@nl1.example.com:443?type=tcp&security=reality" +
-		"&pbk=PUBKEY&sid=ab12&sni=www.microsoft.com&fp=chrome&flow=xtls-rprx-vision#%F0%9F%87%B3%F0%9F%87%B1%20Нидерланды"
-	p, err := BuildProfile(link)
+// buildXray builds a profile the old way, with the proxy in Xray.
+func buildXray(t *testing.T, link string) *Profile {
+	t.Helper()
+	p, err := BuildProfileWithOptions(link, `{"preferXray":true}`)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return p
+}
+
+func TestVLESSReality(t *testing.T) {
+	link := "vless://11111111-2222-3333-4444-555555555555@nl1.example.com:443?type=tcp&security=reality" +
+		"&pbk=PUBKEY&sid=ab12&sni=www.microsoft.com&fp=chrome&flow=xtls-rprx-vision#%F0%9F%87%B3%F0%9F%87%B1%20Нидерланды"
+	p := buildXray(t, link)
 	if !p.UsesXray || p.Protocol != "vless" {
 		t.Fatalf("unexpected profile %+v", p)
 	}
@@ -107,10 +115,7 @@ func TestVLESSXHTTP(t *testing.T) {
 }
 
 func TestTrojanWS(t *testing.T) {
-	p, err := BuildProfile("trojan://secret@example.org:443?type=ws&path=%2Fws&host=front.example.org#tr")
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := buildXray(t, "trojan://secret@example.org:443?type=ws&path=%2Fws&host=front.example.org#tr")
 	out := path(t, decode(t, p.XrayConfig), "outbounds", 0)
 	if path(t, out, "settings", "servers", 0, "password") != "secret" {
 		t.Fatal("password")
@@ -132,10 +137,7 @@ func TestShadowsocks(t *testing.T) {
 	}
 	for name, link := range cases {
 		t.Run(name, func(t *testing.T) {
-			p, err := BuildProfile(link)
-			if err != nil {
-				t.Fatal(err)
-			}
+			p := buildXray(t, link)
 			srv := path(t, decode(t, p.XrayConfig), "outbounds", 0, "settings", "servers", 0)
 			if path(t, srv, "method") != "2022-blake3-aes-128-gcm" || path(t, srv, "password") != "a2V5" {
 				t.Fatalf("server = %v", srv)
@@ -202,3 +204,66 @@ func TestDetails(t *testing.T) {
 		}
 	}
 }
+
+func TestNativeSingBox(t *testing.T) {
+	reality := "vless://11111111-2222-3333-4444-555555555555@nl1.example.com:443?type=tcp&security=reality" +
+		"&pbk=PUBKEY&sid=ab12&sni=www.microsoft.com&fp=chrome&flow=xtls-rprx-vision#nl"
+	p, err := BuildProfile(reality)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.UsesXray || p.XrayConfig != "" {
+		t.Fatal("VLESS REALITY must run in sing-box alone")
+	}
+	out := path(t, decode(t, p.SingBoxConfig), "outbounds", 0)
+	if path(t, out, "type") != "vless" || path(t, out, "flow") != "xtls-rprx-vision" {
+		t.Fatalf("outbound = %v", out)
+	}
+	if path(t, out, "tls", "reality", "public_key") != "PUBKEY" || path(t, out, "tls", "server_name") != "www.microsoft.com" {
+		t.Fatalf("tls = %v", path(t, out, "tls"))
+	}
+	if path(t, out, "tls", "utls", "fingerprint") != "chrome" {
+		t.Fatal("REALITY needs uTLS")
+	}
+
+	ws, err := BuildProfile("vmess://" + vmessJSON(`{"v":"2","ps":"w","add":"w.example.com","port":"443","id":"u","net":"ws","path":"/p","host":"h.example.com","tls":"tls","scy":"auto"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport := path(t, decode(t, ws.SingBoxConfig), "outbounds", 0, "transport")
+	if ws.UsesXray || path(t, transport, "type") != "ws" || path(t, transport, "headers", "Host") != "h.example.com" {
+		t.Fatalf("vmess ws: xray=%v transport=%v", ws.UsesXray, transport)
+	}
+
+	ss, err := BuildProfile("ss://2022-blake3-aes-128-gcm:a2V5@ss.example.com:8388#ss")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ss.UsesXray || path(t, decode(t, ss.SingBoxConfig), "outbounds", 0, "method") != "2022-blake3-aes-128-gcm" {
+		t.Fatal("plain Shadowsocks must run in sing-box")
+	}
+
+	// What only Xray can do stays in Xray.
+	for _, link := range []string{
+		"vless://u@h:443?type=xhttp&security=tls#x",
+		"vless://u@h:443?type=grpc&security=tls&serviceName=s&mode=multi#g",
+		"vless://u@h:443?type=tcp&security=none&encryption=mlkem768x25519plus.native.0rtt.abc#e",
+		"vless://u@h:443?type=ws&security=tls&path=%2Fws%3Fed%3D2048#ed",
+		"vmess://" + vmessJSON(`{"v":"2","ps":"k","add":"k.example.com","port":"443","id":"u","net":"tcp","type":"http","host":"a.com"}`),
+	} {
+		p, err := BuildProfile(link)
+		if err != nil {
+			t.Fatalf("%s: %v", link, err)
+		}
+		if !p.UsesXray {
+			t.Errorf("%s: must use Xray", link)
+		}
+	}
+	// REALITY with fragmentation keeps Xray's finalmask.
+	p, err = BuildProfileWithOptions(reality, `{"fragment":true}`)
+	if err != nil || !p.UsesXray {
+		t.Fatalf("REALITY + fragment must use Xray (err %v)", err)
+	}
+}
+
+func vmessJSON(text string) string { return base64.StdEncoding.EncodeToString([]byte(text)) }
