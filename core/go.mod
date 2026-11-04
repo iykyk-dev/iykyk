@@ -6,9 +6,13 @@ go 1.27
 // resolved into go.sum by `./build.sh deps`.
 
 require (
+	github.com/amnezia-vpn/amneziawg-go/v3 v3.1.20260828
+	github.com/enfein/mieru/v3 v3.39.0
 	github.com/sagernet/gomobile v0.1.13
 	github.com/sagernet/sing-box v1.14.4
 	github.com/xtls/xray-core v1.260327.1-0.20261031132019-a4a3dff5b20c
+	golang.zx2c4.com/wireguard v0.0.0-20250521234502-f333402bd9cb
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
@@ -193,12 +197,11 @@ require (
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
-	golang.zx2c4.com/wireguard v0.0.0-20250521234502-f333402bd9cb // indirect
 	golang.zx2c4.com/wireguard/windows v1.1.1 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
 	google.golang.org/grpc v1.84.0 // indirect
-	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gvisor.dev/gvisor v0.0.0-20260122175437-89a5d21be8f0 // indirect
 	layeh.com/gopher-luar v1.0.11 // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
 	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
