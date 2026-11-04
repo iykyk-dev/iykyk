@@ -1,0 +1,32 @@
+name: Debug subscription
+
+# Manual check of the provider's real subscription with the app's core.
+# Needs the repository secret IYKYK_DEBUG_SUB (a subscription URL).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: core/go.sum
+      - name: Download rule sets
+        run: ../scripts/download-rulesets.sh "$RUNNER_TEMP/rulesets"
+      - name: Check the subscription through both engines
+        env:
+          IYKYK_DEBUG_SUB: ${{ secrets.IYKYK_DEBUG_SUB }}
+          IYKYK_RULESET_DIR: ${{ runner.temp }}/rulesets
+        run: |
+          go test -count=1 -v -run TestDebugSubscription \
+            -tags "engine,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0" \
+            -ldflags="-checklinkname=0 -X github.com/iykyk-dev/iykyk/core/iykyk.allowedHosts=dlyasvoih.xyz" ./iykyk/
