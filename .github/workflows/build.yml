@@ -132,25 +132,29 @@ jobs:
       - name: Build
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      - name: Name the APK
+        run: |
+          mkdir -p "$RUNNER_TEMP/apk"
+          cp app/build/outputs/apk/debug/*.apk "$RUNNER_TEMP/apk/IYKYK.apk"
+
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
           name: iykyk-debug-${{ github.run_number }}
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: ${{ runner.temp }}/apk/IYKYK.apk
           if-no-files-found: error
           retention-days: 3
 
       # One release only: every build on main replaces it, so
-      # https://github.com/iykyk-dev/iykyk/releases/latest/download/iykyk.apk
+      # https://github.com/iykyk-dev/iykyk/releases/latest/download/IYKYK.apk
       # always gives the newest APK (the project page will link here).
       - name: Publish as the only release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/*.apk "$RUNNER_TEMP/iykyk.apk"
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest "$RUNNER_TEMP/iykyk.apk" \
+          gh release create latest "$RUNNER_TEMP/apk/IYKYK.apk" \
             --target "$GITHUB_SHA" \
             --latest \
             --title "IYKYK, сборка ${{ github.run_number }}" \
