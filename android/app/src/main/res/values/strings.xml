@@ -184,4 +184,14 @@
     <string name="tunnel_failed">Сервер не отвечает. Попробуйте другой сервер</string>
     <string name="action_send_report">Отправить отчёт в поддержку</string>
     <string name="report_message">Отчёт IYKYK для поддержки «Для своих»</string>
+
+    <string name="menu_other_device">Подключить другое устройство</string>
+    <string name="other_device_text">Отсканируйте этот код в IYKYK на другом телефоне или планшете. Не показывайте его посторонним: это доступ к вашей подписке.</string>
+    <string name="menu_copy_link">Копировать ссылку</string>
+    <string name="link_copied">Ссылка скопирована</string>
+    <string name="menu_delete">Удалить подписку</string>
+    <string name="delete_title">Удалить подписку?</string>
+    <string name="delete_text">Подписка и серверы исчезнут из приложения, VPN отключится. Сама подписка не отменяется: её можно добавить снова.</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_close">Закрыть</string>
 </resources>

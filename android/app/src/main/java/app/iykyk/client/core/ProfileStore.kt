@@ -156,6 +156,13 @@ object ProfileStore {
         downloadSubscription(context, url)
     }
 
+    /** Forgets the subscription and servers. The device ID stays, so adding it back does not take another device slot. */
+    fun clear(context: Context) {
+        val hwid = hwid(context)
+        prefs(context).edit().clear().putString(KEY_HWID, hwid).apply()
+        _profiles.value = Profiles()
+    }
+
     fun select(context: Context, index: Int) {
         val current = _profiles.value
         if (index !in current.servers.indices) return

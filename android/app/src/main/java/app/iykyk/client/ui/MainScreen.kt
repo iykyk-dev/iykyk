@@ -100,6 +100,7 @@ fun MainScreen(
     canBuy: Boolean,
     clipboardLink: String?,
     tunnel: TunnelState?,
+    shareLink: String?,
     onToggle: () -> Unit,
     onPasteLink: () -> Unit,
     onRefresh: () -> Unit,
@@ -114,9 +115,20 @@ fun MainScreen(
     onClipboardDismiss: () -> Unit,
     onCheck: () -> Unit,
     onSendReport: () -> Unit,
+    onCopyLink: () -> Unit,
+    onDelete: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var showLinkInput by remember { mutableStateOf(false) }
+    var showShareQr by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val subscriptionActions = SubscriptionActions(
+        canShare = shareLink != null,
+        onSendToTv = onSendToTv,
+        onShowQr = { showShareQr = true },
+        onCopyLink = onCopyLink,
+        onDelete = { confirmDelete = true },
+    )
     var showReceive by remember { mutableStateOf(false) }
     var expanded by rememberSaveable { mutableStateOf(true) }
     var tab by rememberSaveable { mutableStateOf(0) }
@@ -153,7 +165,7 @@ fun MainScreen(
                             onRefresh = onRefresh,
                             onPing = onPing,
                             onSortChange = onSortChange,
-                            onSendToTv = onSendToTv,
+                            actions = subscriptionActions,
                             onSelectServer = onSelectServer,
                             onOpenSettings = onOpenSettings,
                             onPaste = onPasteLink,
@@ -169,7 +181,7 @@ fun MainScreen(
                             onRefresh = onRefresh,
                             onOpenBot = onOpenBot,
                             onOpenUrl = onOpenUrl,
-                            onSendToTv = onSendToTv,
+                            actions = subscriptionActions,
                             onSendReport = onSendReport,
                             onOpenSettings = onOpenSettings,
                         )
@@ -203,6 +215,30 @@ fun MainScreen(
         )
     }
 
+    if (showShareQr && shareLink != null) {
+        ShareQrDialog(shareLink, onCopyLink = onCopyLink, onDismiss = { showShareQr = false })
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            containerColor = IykykColors.Surface,
+            title = { Text(stringResource(R.string.delete_title), color = IykykColors.Text) },
+            text = { Text(stringResource(R.string.delete_text), color = IykykColors.Muted) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    onDelete()
+                }) { Text(stringResource(R.string.action_delete), color = IykykColors.Error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) {
+                    Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                }
+            },
+        )
+    }
+
     if (clipboardLink != null) {
         // Back from the bot with a subscription link copied: offer to add it.
         AlertDialog(
@@ -228,6 +264,59 @@ fun MainScreen(
             },
         )
     }
+}
+
+/** What the ⋯ menu and the Подписка tab can do with the subscription. */
+private class SubscriptionActions(
+    val canShare: Boolean,
+    val onSendToTv: () -> Unit,
+    val onShowQr: () -> Unit,
+    val onCopyLink: () -> Unit,
+    val onDelete: () -> Unit,
+)
+
+/** A QR code with the subscription link, to add it on another device. */
+@Composable
+private fun ShareQrDialog(link: String, onCopyLink: () -> Unit, onDismiss: () -> Unit) {
+    val qr = remember(link) {
+        runCatching { BarcodeEncoder().encodeBitmap(link, BarcodeFormat.QR_CODE, 640, 640).asImageBitmap() }.getOrNull()
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = IykykColors.Surface,
+        title = { Text(stringResource(R.string.menu_other_device), color = IykykColors.Text) },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                if (qr != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White)
+                            .padding(8.dp),
+                    ) {
+                        Image(bitmap = qr, contentDescription = null, modifier = Modifier.size(220.dp))
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.other_device_text),
+                    color = IykykColors.Muted,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onCopyLink) {
+                Text(stringResource(R.string.menu_copy_link), color = IykykColors.Accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_close), color = IykykColors.Muted)
+            }
+        },
+    )
 }
 
 /** Status bar and side insets; the bottom is taken by the tab bar. */
@@ -271,7 +360,7 @@ private fun ConnectionTab(
     onRefresh: () -> Unit,
     onPing: () -> Unit,
     onSortChange: (Boolean) -> Unit,
-    onSendToTv: () -> Unit,
+    actions: SubscriptionActions,
     onSelectServer: (Int) -> Unit,
     onOpenSettings: () -> Unit,
     onPaste: () -> Unit,
@@ -329,7 +418,7 @@ private fun ConnectionTab(
             onRefresh = onRefresh,
             onPing = onPing,
             onSortChange = onSortChange,
-            onSendToTv = onSendToTv,
+            actions = actions,
             onSelectServer = onSelectServer,
         )
         Spacer(Modifier.height(16.dp))
@@ -404,7 +493,7 @@ private fun SubscriptionCard(
     onRefresh: () -> Unit,
     onPing: () -> Unit,
     onSortChange: (Boolean) -> Unit,
-    onSendToTv: () -> Unit,
+    actions: SubscriptionActions,
     onSelectServer: (Int) -> Unit,
 ) {
     val sub = profiles.subscription
@@ -464,12 +553,21 @@ private fun SubscriptionCard(
                             leadingIcon = {
                                 Icon(painterResource(R.drawable.ic_tv), contentDescription = null, tint = IykykColors.Accent)
                             },
-                            onClick = { menu = false; onSendToTv() },
+                            onClick = { menu = false; actions.onSendToTv() },
                         )
+                        if (actions.canShare) {
+                            MenuItem(stringResource(R.string.menu_other_device)) { menu = false; actions.onShowQr() }
+                            MenuItem(stringResource(R.string.menu_copy_link)) { menu = false; actions.onCopyLink() }
+                        }
                         MenuItem(
                             stringResource(R.string.menu_sort_ping),
                             trailing = if (sortByPing) "✓" else null,
                         ) { menu = false; onSortChange(!sortByPing) }
+                        HorizontalDivider(color = IykykColors.SurfaceHigh)
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.menu_delete), color = IykykColors.Error) },
+                            onClick = { menu = false; actions.onDelete() },
+                        )
                     }
                 }
             }
@@ -605,7 +703,7 @@ private fun SubscriptionTab(
     onRefresh: () -> Unit,
     onOpenBot: () -> Unit,
     onOpenUrl: (String) -> Unit,
-    onSendToTv: () -> Unit,
+    actions: SubscriptionActions,
     onSendReport: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -685,8 +783,23 @@ private fun SubscriptionTab(
                 if (sub?.webPageUrl?.isNotBlank() == true) {
                     ActionRow(null, stringResource(R.string.action_website)) { onOpenUrl(sub.webPageUrl) }
                 }
-                ActionRow(R.drawable.ic_tv, stringResource(R.string.menu_send_tv), onClick = onSendToTv)
+                ActionRow(R.drawable.ic_tv, stringResource(R.string.menu_send_tv), onClick = actions.onSendToTv)
+                if (actions.canShare) {
+                    ActionRow(null, stringResource(R.string.menu_other_device), onClick = actions.onShowQr)
+                    ActionRow(null, stringResource(R.string.menu_copy_link), onClick = actions.onCopyLink)
+                }
                 ActionRow(null, stringResource(R.string.action_send_report), onClick = onSendReport)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Surface(color = IykykColors.Surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = actions.onDelete)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            ) {
+                Text(stringResource(R.string.menu_delete), color = IykykColors.Error)
             }
         }
 
@@ -1175,6 +1288,7 @@ private fun MainScreenPreview() {
             canBuy = true,
             clipboardLink = null,
             tunnel = TunnelState.Ok("5.6.7.8", "NL", 120),
+            shareLink = "https://example.com/sub",
             onToggle = {},
             onPasteLink = {},
             onRefresh = {},
@@ -1189,6 +1303,8 @@ private fun MainScreenPreview() {
             onClipboardDismiss = {},
             onCheck = {},
             onSendReport = {},
+            onCopyLink = {},
+            onDelete = {},
             onOpenSettings = {},
         )
     }

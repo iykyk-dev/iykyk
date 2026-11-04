@@ -114,6 +114,7 @@ class MainActivity : ComponentActivity() {
                         canBuy = canBuy,
                         clipboardLink = clipboardLink.collectAsStateWithLifecycle().value,
                         tunnel = VpnState.tunnel.collectAsStateWithLifecycle().value,
+                        shareLink = ProfileStore.profiles.collectAsStateWithLifecycle().value.let { shareLink(it) },
                         onToggle = ::toggleVpn,
                         onPasteLink = ::pasteLink,
                         onRefresh = ::refreshSubscription,
@@ -125,6 +126,8 @@ class MainActivity : ComponentActivity() {
                         onClipboardDismiss = { clipboardLink.value = null },
                         onCheck = { IykykVpnService.check(this) },
                         onSendReport = ::sendReport,
+                        onCopyLink = ::copyLink,
+                        onDelete = ::deleteSubscription,
                         onOpenUrl = ::openUrl,
                         onImportText = ::importText,
                         onSortChange = { value -> SettingsStore.update(this) { it.copy(sortByPing = value) } },
@@ -322,10 +325,28 @@ class MainActivity : ComponentActivity() {
     }
 
     /** The subscription URL, or the single link in an unlocked build. */
-    private fun tvPayload(): String? {
-        val profiles = ProfileStore.profiles.value
-        return profiles.subscription?.url?.takeIf { it.isNotBlank() }
+    private fun tvPayload(): String? = shareLink(ProfileStore.profiles.value)
+
+    private fun shareLink(profiles: app.iykyk.client.core.Profiles): String? =
+        profiles.subscription?.url?.takeIf { it.isNotBlank() }
             ?: profiles.current?.link?.takeIf { it.isNotBlank() && profiles.servers.size == 1 }
+
+    private fun copyLink() {
+        val link = tvPayload() ?: return
+        val clip = android.content.ClipData.newPlainText(getString(R.string.subscription_label), link)
+        // Keeps the link out of the clipboard preview and keyboard suggestions.
+        clip.description.extras = android.os.PersistableBundle().apply {
+            putBoolean("android.content.extra.IS_SENSITIVE", true)
+        }
+        getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) toast(getString(R.string.link_copied))
+    }
+
+    private fun deleteSubscription() {
+        AppLog.i("subscription deleted by the user")
+        if (VpnState.status.value.isActive) IykykVpnService.stop(this)
+        ProfileStore.clear(this)
+        pings.value = emptyMap()
     }
 
     private fun sendToTv(code: String) {
