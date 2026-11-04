@@ -31,11 +31,23 @@ data class SubscriptionInfo(
     val expire: Long,
     val supportUrl: String,
     val announce: String,
+    /** Provider's site (Profile-Web-Page-Url), used for "Renew". */
+    val webPageUrl: String = "",
     val updatedAt: Long,
     val updateHours: Int = 0,
     /** Backup subscription URLs announced by the panel. */
     val fallbacks: List<String> = emptyList(),
 )
+
+/** Whole days until the subscription expires (negative once expired), or null if it never does. */
+fun SubscriptionInfo.daysLeft(now: Long = System.currentTimeMillis()): Int? {
+    if (expire <= 0) return null
+    val millis = expire * 1000 - now
+    return if (millis < 0) -1 else (millis / 86_400_000L).toInt()
+}
+
+/** Where "Renew" leads: the provider's site, else the support link. */
+val SubscriptionInfo.renewUrl: String get() = webPageUrl.ifBlank { supportUrl }
 
 data class Profiles(
     val subscription: SubscriptionInfo? = null,
@@ -220,6 +232,7 @@ object ProfileStore {
             total = root.optLong("total"),
             expire = root.optLong("expire"),
             supportUrl = root.optString("supportUrl"),
+            webPageUrl = root.optString("webPageUrl"),
             announce = root.optString("announce"),
             updatedAt = updatedAt,
             updateHours = root.optInt("updateHours"),

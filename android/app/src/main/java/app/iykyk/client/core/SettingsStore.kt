@@ -18,6 +18,12 @@ data class AppSettings(
     val fragment: Boolean = false,
     /** Sort the server list by the last ping. */
     val sortByPing: Boolean = false,
+    /** Connect when the app is opened. */
+    val autoConnectOnLaunch: Boolean = false,
+    /** Connect when the phone starts. */
+    val autoConnectOnBoot: Boolean = false,
+    /** Remind before the subscription expires. */
+    val expiryReminders: Boolean = true,
 )
 
 object SettingsStore {
@@ -27,6 +33,9 @@ object SettingsStore {
     private const val KEY_APPS = "apps"
     private const val KEY_FRAGMENT = "fragment"
     private const val KEY_SORT_BY_PING = "sort_by_ping"
+    private const val KEY_AUTO_LAUNCH = "auto_connect_launch"
+    private const val KEY_AUTO_BOOT = "auto_connect_boot"
+    private const val KEY_EXPIRY_REMINDERS = "expiry_reminders"
 
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -40,6 +49,9 @@ object SettingsStore {
             apps = prefs.getStringSet(KEY_APPS, emptySet()).orEmpty().toSet(),
             fragment = prefs.getBoolean(KEY_FRAGMENT, false),
             sortByPing = prefs.getBoolean(KEY_SORT_BY_PING, false),
+            autoConnectOnLaunch = prefs.getBoolean(KEY_AUTO_LAUNCH, false),
+            autoConnectOnBoot = prefs.getBoolean(KEY_AUTO_BOOT, false),
+            expiryReminders = prefs.getBoolean(KEY_EXPIRY_REMINDERS, true),
         )
     }
 
@@ -52,6 +64,9 @@ object SettingsStore {
             .putStringSet(KEY_APPS, updated.apps)
             .putBoolean(KEY_FRAGMENT, updated.fragment)
             .putBoolean(KEY_SORT_BY_PING, updated.sortByPing)
+            .putBoolean(KEY_AUTO_LAUNCH, updated.autoConnectOnLaunch)
+            .putBoolean(KEY_AUTO_BOOT, updated.autoConnectOnBoot)
+            .putBoolean(KEY_EXPIRY_REMINDERS, updated.expiryReminders)
             .apply()
     }
 

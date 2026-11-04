@@ -67,6 +67,31 @@
     <string name="settings_about">О приложении</string>
     <string name="settings_versions">Версии ядер</string>
 
+    <string name="channel_subscription">Подписка</string>
+    <string name="expiry_ended">Подписка закончилась. Продлите её, чтобы VPN продолжил работать.</string>
+    <string name="expiry_today">Подписка заканчивается сегодня</string>
+    <plurals name="expiry_in_days">
+        <item quantity="one">Подписка заканчивается через %d день</item>
+        <item quantity="few">Подписка заканчивается через %d дня</item>
+        <item quantity="many">Подписка заканчивается через %d дней</item>
+        <item quantity="other">Подписка заканчивается через %d дня</item>
+    </plurals>
+    <string name="action_renew">Продлить</string>
+    <string name="action_support">Поддержка</string>
+    <string name="action_website">Сайт</string>
+    <string name="action_scan_qr">QR-код</string>
+    <string name="qr_prompt">Наведите камеру на QR-код подписки</string>
+
+    <string name="settings_connection">Подключение</string>
+    <string name="auto_launch_title">Подключаться при запуске</string>
+    <string name="auto_launch_subtitle">VPN включается сам, когда вы открываете приложение</string>
+    <string name="auto_boot_title">Подключаться при включении телефона</string>
+    <string name="auto_boot_subtitle">VPN включается сам после перезагрузки</string>
+    <string name="reminders_title">Напоминать об окончании подписки</string>
+    <string name="reminders_subtitle">Уведомление за 3 дня до конца подписки</string>
+    <string name="killswitch_title">Блокировать интернет без VPN</string>
+    <string name="killswitch_subtitle">Откроются системные настройки VPN: включите для IYKYK «Постоянная VPN» и «Блокировать соединения без VPN»</string>
+
     <string name="notification_channel">Состояние VPN</string>
     <string name="notification_connected">Защищённое соединение активно</string>
 </resources>

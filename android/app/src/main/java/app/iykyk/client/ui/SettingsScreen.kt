@@ -40,6 +40,10 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onBypassChange: (Boolean) -> Unit,
     onFragmentChange: (Boolean) -> Unit,
+    onAutoLaunchChange: (Boolean) -> Unit,
+    onAutoBootChange: (Boolean) -> Unit,
+    onRemindersChange: (Boolean) -> Unit,
+    onOpenVpnSettings: () -> Unit,
     onAppModeChange: (AppMode) -> Unit,
     onChooseApps: () -> Unit,
 ) {
@@ -54,6 +58,49 @@ fun SettingsScreen(
             TopBar(stringResource(R.string.settings_title), onBack)
             Spacer(Modifier.height(8.dp))
 
+            SectionTitle(stringResource(R.string.settings_connection))
+            Card {
+                Column {
+                    SwitchRow(
+                        title = stringResource(R.string.auto_launch_title),
+                        subtitle = stringResource(R.string.auto_launch_subtitle),
+                        checked = settings.autoConnectOnLaunch,
+                        onChange = onAutoLaunchChange,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.auto_boot_title),
+                        subtitle = stringResource(R.string.auto_boot_subtitle),
+                        checked = settings.autoConnectOnBoot,
+                        onChange = onAutoBootChange,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.reminders_title),
+                        subtitle = stringResource(R.string.reminders_subtitle),
+                        checked = settings.expiryReminders,
+                        onChange = onRemindersChange,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onOpenVpnSettings)
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.killswitch_title), color = IykykColors.Text, fontWeight = FontWeight.Medium)
+                            Text(
+                                stringResource(R.string.killswitch_subtitle),
+                                color = IykykColors.Muted,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text("›", color = IykykColors.Muted, fontSize = 22.sp)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
             SectionTitle(stringResource(R.string.settings_routing))
             Card {
                 Column {

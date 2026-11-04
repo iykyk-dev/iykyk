@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,7 +49,10 @@ import app.iykyk.client.R
 import app.iykyk.client.core.ProfileStore
 import app.iykyk.client.core.Profiles
 import app.iykyk.client.core.ServerInfo
+import app.iykyk.client.core.ExpiryReminder
 import app.iykyk.client.core.SubscriptionInfo
+import app.iykyk.client.core.daysLeft
+import app.iykyk.client.core.renewUrl
 import app.iykyk.client.vpn.VpnStatus
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -69,6 +73,8 @@ fun MainScreen(
     onSelectServer: (Int) -> Unit,
     onPing: () -> Unit,
     onSortChange: (Boolean) -> Unit,
+    onScanQr: () -> Unit,
+    onOpenUrl: (String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var showServers by remember { mutableStateOf(false) }
@@ -104,7 +110,7 @@ fun MainScreen(
             Spacer(Modifier.weight(1f))
 
             profiles.subscription?.let {
-                SubscriptionCard(it, refreshing = refreshing, onRefresh = onRefresh)
+                SubscriptionCard(it, refreshing = refreshing, onRefresh = onRefresh, onOpenUrl = onOpenUrl)
                 Spacer(Modifier.height(12.dp))
             }
             ServerCard(
@@ -122,17 +128,28 @@ fun MainScreen(
                 )
                 Spacer(Modifier.height(8.dp))
             }
-            OutlinedButton(
-                onClick = onPasteLink,
-                border = BorderStroke(1.dp, IykykColors.Accent.copy(alpha = 0.6f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = IykykColors.Accent),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    stringResource(
-                        if (ProfileStore.locked) R.string.action_paste_subscription else R.string.action_paste_link,
-                    ),
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = onPasteLink,
+                    border = BorderStroke(1.dp, IykykColors.Accent.copy(alpha = 0.6f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = IykykColors.Accent),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        stringResource(
+                            if (ProfileStore.locked) R.string.action_paste_subscription else R.string.action_paste_link,
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                OutlinedButton(
+                    onClick = onScanQr,
+                    border = BorderStroke(1.dp, IykykColors.Accent.copy(alpha = 0.6f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = IykykColors.Accent),
+                ) {
+                    Text(stringResource(R.string.action_scan_qr))
+                }
             }
         }
     }
@@ -235,7 +252,13 @@ private fun StatusLabel(status: VpnStatus) {
 }
 
 @Composable
-private fun SubscriptionCard(sub: SubscriptionInfo, refreshing: Boolean, onRefresh: () -> Unit) {
+private fun SubscriptionCard(
+    sub: SubscriptionInfo,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
+    onOpenUrl: (String) -> Unit,
+) {
+    val daysLeft = sub.daysLeft()
     Surface(
         color = IykykColors.Surface,
         shape = RoundedCornerShape(16.dp),
@@ -275,6 +298,18 @@ private fun SubscriptionCard(sub: SubscriptionInfo, refreshing: Boolean, onRefre
                     },
                 )
                 InfoRow(stringResource(R.string.expire_label), expireText(sub.expire))
+                if (daysLeft != null && daysLeft <= ExpiryReminder.REMIND_DAYS) {
+                    Text(
+                        text = when {
+                            daysLeft < 0 -> stringResource(R.string.expiry_ended)
+                            daysLeft == 0 -> stringResource(R.string.expiry_today)
+                            else -> pluralStringResource(R.plurals.expiry_in_days, daysLeft, daysLeft)
+                        },
+                        color = if (daysLeft < 0) IykykColors.Error else IykykColors.Warning,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
                 if (sub.announce.isNotBlank()) {
                     Text(
                         text = sub.announce,
@@ -282,8 +317,41 @@ private fun SubscriptionCard(sub: SubscriptionInfo, refreshing: Boolean, onRefre
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
+                val showRenew = daysLeft != null && daysLeft <= ExpiryReminder.REMIND_DAYS && sub.renewUrl.isNotBlank()
+                if (showRenew || sub.supportUrl.isNotBlank() || sub.webPageUrl.isNotBlank()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (showRenew) {
+                            LinkButton(stringResource(R.string.action_renew), primary = true) { onOpenUrl(sub.renewUrl) }
+                        }
+                        if (sub.supportUrl.isNotBlank()) {
+                            LinkButton(stringResource(R.string.action_support)) { onOpenUrl(sub.supportUrl) }
+                        }
+                        if (sub.webPageUrl.isNotBlank() && !showRenew) {
+                            LinkButton(stringResource(R.string.action_website)) { onOpenUrl(sub.webPageUrl) }
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun LinkButton(text: String, primary: Boolean = false, onClick: () -> Unit) {
+    if (primary) {
+        androidx.compose.material3.Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = IykykColors.Accent,
+                contentColor = IykykColors.OnAccent,
+            ),
+        ) { Text(text) }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            border = BorderStroke(1.dp, IykykColors.Muted.copy(alpha = 0.4f)),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = IykykColors.Text),
+        ) { Text(text) }
     }
 }
 
@@ -552,6 +620,8 @@ private fun MainScreenPreview() {
             onSelectServer = {},
             onPing = {},
             onSortChange = {},
+            onScanQr = {},
+            onOpenUrl = {},
             onOpenSettings = {},
         )
     }

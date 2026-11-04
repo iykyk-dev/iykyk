@@ -2,6 +2,9 @@ package app.iykyk.client
 
 import android.Manifest
 import android.content.ClipboardManager
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
@@ -17,6 +20,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import app.iykyk.client.core.AppMode
@@ -47,6 +52,10 @@ class MainActivity : ComponentActivity() {
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
+    private val qrScanner = registerForActivityResult(ScanContract()) { result ->
+        result.contents?.let { importText(it.trim()) }
+    }
+
     private val refreshing = MutableStateFlow(false)
     private val pinging = MutableStateFlow(false)
     private val pings = MutableStateFlow<Map<String, Int>>(emptyMap())
@@ -56,6 +65,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         askNotificationPermission()
+        if (savedInstanceState == null) {
+            if (!handleImportIntent(intent)) autoConnectOnLaunch()
+        }
 
         setContent {
             IykykTheme {
@@ -78,6 +90,8 @@ class MainActivity : ComponentActivity() {
                         onRefresh = ::refreshSubscription,
                         onSelectServer = ::selectServer,
                         onPing = ::pingServers,
+                        onScanQr = ::scanQr,
+                        onOpenUrl = ::openUrl,
                         onSortChange = { value -> SettingsStore.update(this) { it.copy(sortByPing = value) } },
                         onOpenSettings = { screen = Screen.SETTINGS },
                     )
@@ -87,6 +101,10 @@ class MainActivity : ComponentActivity() {
                         onBack = { screen = Screen.MAIN },
                         onBypassChange = { value -> changeSettings { it.copy(bypassRussia = value) } },
                         onFragmentChange = { value -> changeSettings { it.copy(fragment = value) } },
+                        onAutoLaunchChange = { value -> SettingsStore.update(this) { it.copy(autoConnectOnLaunch = value) } },
+                        onAutoBootChange = { value -> SettingsStore.update(this) { it.copy(autoConnectOnBoot = value) } },
+                        onRemindersChange = { value -> SettingsStore.update(this) { it.copy(expiryReminders = value) } },
+                        onOpenVpnSettings = ::openVpnSettings,
                         onAppModeChange = { mode -> changeSettings { it.copy(appMode = mode) } },
                         onChooseApps = { screen = Screen.APPS },
                     )
@@ -150,6 +168,11 @@ class MainActivity : ComponentActivity() {
             toast(getString(R.string.link_clipboard_empty))
             return
         }
+        importText(text)
+    }
+
+    /** Imports a subscription URL (or, in an unlocked build, a link) from any source. */
+    private fun importText(text: String) {
         if (text.startsWith("http", ignoreCase = true)) toast(getString(R.string.link_loading))
         lifecycleScope.launch {
             try {
@@ -163,6 +186,62 @@ class MainActivity : ComponentActivity() {
                 toast(getString(R.string.link_invalid, e.message ?: e.javaClass.simpleName))
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleImportIntent(intent)
+    }
+
+    /**
+     * iykyk://add/<URL>, iykyk://import?url=<URL> (e.g. a button on the subscription
+     * page or in a Telegram bot), or text shared to IYKYK. Returns true if it imported.
+     */
+    private fun handleImportIntent(intent: Intent?): Boolean {
+        val text = when (intent?.action) {
+            Intent.ACTION_VIEW -> intent.data?.let(::linkFromDeepLink)
+            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)?.let(::firstUrl)
+            else -> null
+        } ?: return false
+        intent.action = null // do not import again on configuration changes
+        importText(text)
+        return true
+    }
+
+    private fun linkFromDeepLink(uri: Uri): String? {
+        if (uri.scheme != "iykyk") return null
+        uri.getQueryParameter("url")?.let { return it }
+        val raw = uri.toString()
+        return listOf("iykyk://add/", "iykyk://import/", "iykyk://sub/")
+            .firstOrNull { raw.startsWith(it) }
+            ?.let { Uri.decode(raw.removePrefix(it)) }
+    }
+
+    private fun firstUrl(text: String): String? =
+        Regex("""https?://\S+""").find(text)?.value?.trimEnd('.', ',', ')', ']') ?: text.trim().ifEmpty { null }
+
+    private fun scanQr() {
+        qrScanner.launch(
+            ScanOptions()
+                .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                .setPrompt(getString(R.string.qr_prompt))
+                .setBeepEnabled(false)
+                .setOrientationLocked(false),
+        )
+    }
+
+    private fun openUrl(url: String) {
+        runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    }
+
+    private fun openVpnSettings() {
+        runCatching { startActivity(Intent(Settings.ACTION_VPN_SETTINGS)) }
+    }
+
+    private fun autoConnectOnLaunch() {
+        if (!SettingsStore.settings.value.autoConnectOnLaunch) return
+        if (VpnState.status.value.isActive || !ProfileStore.profiles.value.hasServers) return
+        toggleVpn()
     }
 
     private fun refreshSubscription() {
