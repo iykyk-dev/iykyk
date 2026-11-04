@@ -13,62 +13,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.util.UUID
 
-data class ServerInfo(
-    val name: String,
-    val protocol: String,
-    val address: String,
-    val link: String = "",
-    /** e.g. "VLESS · gRPC · REALITY". */
-    val details: String = "",
-)
-
-data class SubscriptionInfo(
-    val url: String,
-    val title: String,
-    val upload: Long,
-    val download: Long,
-    /** Bytes; 0 means unlimited. */
-    val total: Long,
-    /** Unix seconds; 0 means no expiry. */
-    val expire: Long,
-    val supportUrl: String,
-    val announce: String,
-    /** Provider's site (Profile-Web-Page-Url), used for "Renew". */
-    val webPageUrl: String = "",
-    val updatedAt: Long,
-    val updateHours: Int = 0,
-    /** Backup subscription URLs announced by the panel. */
-    val fallbacks: List<String> = emptyList(),
-    /** Provider routing (JSON) from the Iykyk-Routing header, or "". */
-    val routing: String = "",
-    /** Remnawave limits devices for this subscription (x-hwid-active). */
-    val hwidLimited: Boolean = false,
-    /** The device limit is reached (x-hwid-max-devices-reached). */
-    val hwidLimitReached: Boolean = false,
-    /** Where to ask about connected devices (Iykyk-Devices-Api), or "". */
-    val devicesApi: String = "",
-)
-
-/** Whole days until the subscription expires (negative once expired), or null if it never does. */
-fun SubscriptionInfo.daysLeft(now: Long = System.currentTimeMillis()): Int? {
-    if (expire <= 0) return null
-    val millis = expire * 1000 - now
-    return if (millis < 0) -1 else (millis / 86_400_000L).toInt()
-}
-
-/** Where "Renew" leads: the provider's site, else the support link. */
-val SubscriptionInfo.renewUrl: String get() = webPageUrl.ifBlank { supportUrl }
-
-data class Profiles(
-    val subscription: SubscriptionInfo? = null,
-    val servers: List<ServerInfo> = emptyList(),
-    val selected: Int = 0,
-) {
-    val current: ServerInfo? get() = servers.getOrNull(selected) ?: servers.firstOrNull()
-
-    val hasServers: Boolean get() = servers.isNotEmpty()
-}
-
 /**
  * Servers come either from a subscription URL (the normal case) or from a single
  * pasted share link. Parsing happens in the Go core so iOS gets the same behavior.

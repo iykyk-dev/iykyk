@@ -4,25 +4,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class VpnStatus {
-    DISCONNECTED,
-    CONNECTING,
-    CONNECTED,
-    DISCONNECTING,
-    ;
-
-    val isActive: Boolean get() = this == CONNECTING || this == CONNECTED
-}
-
-/** What the last tunnel check found (see IykykVpnService.check). */
-sealed interface TunnelState {
-    data object Checking : TunnelState
-    data class Ok(val ip: String, val country: String, val latency: Int) : TunnelState
-    data object NoInternet : TunnelState
-    data object Reconnecting : TunnelState
-    data object Failed : TunnelState
-}
-
 /** Single source of truth for the VPN state, observed by the UI, the tile and the notification. */
 object VpnState {
     private val _status = MutableStateFlow(VpnStatus.DISCONNECTED)
@@ -32,7 +13,7 @@ object VpnState {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    /** When the session started (SystemClock.elapsedRealtime), or 0. Automatic reconnects keep it. */
+    /** When the session started (System.nanoTime() in ms), or 0. Automatic reconnects keep it. */
     private val _connectedAt = MutableStateFlow(0L)
     val connectedAt: StateFlow<Long> = _connectedAt.asStateFlow()
 
@@ -43,7 +24,7 @@ object VpnState {
         if (status == VpnStatus.CONNECTING) _error.value = null
         if (status != VpnStatus.CONNECTED) _tunnel.value = null
         when (status) {
-            VpnStatus.CONNECTED -> if (_connectedAt.value == 0L) _connectedAt.value = android.os.SystemClock.elapsedRealtime()
+            VpnStatus.CONNECTED -> if (_connectedAt.value == 0L) _connectedAt.value = System.nanoTime() / 1_000_000
             VpnStatus.DISCONNECTED, VpnStatus.DISCONNECTING -> _connectedAt.value = 0L
             VpnStatus.CONNECTING -> {}
         }

@@ -57,7 +57,7 @@ object ExpiryReminder {
     private const val NOTIFICATION_ID = 2
     private const val PREFS = "reminders"
     private const val KEY_LAST_DAY = "last_day"
-    const val REMIND_DAYS = 3
+    const val REMIND_DAYS = EXPIRY_REMIND_DAYS
 
     fun check(context: Context) {
         if (!SettingsStore.settings.value.expiryReminders) return

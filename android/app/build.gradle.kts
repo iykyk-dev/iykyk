@@ -72,6 +72,7 @@ android {
 dependencies {
     // Go core built by core/build.sh (sing-box libbox + Xray + app glue).
     implementation(files("libs/iykyk-core.aar"))
+    implementation(project(":shared"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

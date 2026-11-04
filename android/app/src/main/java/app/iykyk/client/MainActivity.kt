@@ -120,6 +120,7 @@ class MainActivity : ComponentActivity() {
                         pinging = pinging.collectAsStateWithLifecycle().value,
                         sortByPing = settings.sortByPing,
                         canBuy = canBuy,
+                        locked = ProfileStore.locked,
                         clipboardLink = clipboardLink.collectAsStateWithLifecycle().value,
                         tunnel = VpnState.tunnel.collectAsStateWithLifecycle().value,
                         connectedAt = VpnState.connectedAt.collectAsStateWithLifecycle().value,

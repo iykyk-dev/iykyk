@@ -55,6 +55,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,21 +64,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.iykyk.client.R
+import app.iykyk.shared.resources.*
 import app.iykyk.client.core.DeviceInfo
 import app.iykyk.client.core.DevicesInfo
-import app.iykyk.client.core.ExpiryReminder
-import app.iykyk.client.core.ProfileStore
+import app.iykyk.client.core.EXPIRY_REMIND_DAYS
 import app.iykyk.client.core.Profiles
 import app.iykyk.client.core.ServerInfo
 import app.iykyk.client.core.SubscriptionInfo
@@ -85,8 +85,7 @@ import app.iykyk.client.core.daysLeft
 import app.iykyk.client.tv.TvShare
 import app.iykyk.client.vpn.TunnelState
 import app.iykyk.client.vpn.VpnStatus
-import com.google.zxing.BarcodeFormat
-import com.journeyapps.barcodescanner.BarcodeEncoder
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -101,6 +100,8 @@ fun MainScreen(
     pinging: Boolean,
     sortByPing: Boolean,
     canBuy: Boolean,
+    /** Official build: only the provider's subscriptions (wording of the hints). */
+    locked: Boolean,
     clipboardLink: String?,
     tunnel: TunnelState?,
     connectedAt: Long,
@@ -146,6 +147,7 @@ fun MainScreen(
         if (!profiles.hasServers) {
             WelcomeScreen(
                 canBuy = canBuy,
+                locked = locked,
                 onOpenBot = onOpenBot,
                 onPaste = onPasteLink,
                 onScanQr = onScanQr,
@@ -201,8 +203,8 @@ fun MainScreen(
                     }
                 }
                 NavigationBar(containerColor = IykykColors.Surface) {
-                    TabItem(tab == 0, R.drawable.ic_tile, R.string.tab_connection) { tab = 0 }
-                    TabItem(tab == 1, R.drawable.ic_card, R.string.tab_subscription) { tab = 1 }
+                    TabItem(tab == 0, Res.drawable.ic_tile, Res.string.tab_connection) { tab = 0 }
+                    TabItem(tab == 1, Res.drawable.ic_card, Res.string.tab_subscription) { tab = 1 }
                 }
             }
         }
@@ -246,17 +248,17 @@ fun MainScreen(
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             containerColor = IykykColors.Surface,
-            title = { Text(stringResource(R.string.delete_title), color = IykykColors.Text) },
-            text = { Text(stringResource(R.string.delete_text), color = IykykColors.Muted) },
+            title = { Text(stringResource(Res.string.delete_title), color = IykykColors.Text) },
+            text = { Text(stringResource(Res.string.delete_text), color = IykykColors.Muted) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
                     onDelete()
-                }) { Text(stringResource(R.string.action_delete), color = IykykColors.Error) }
+                }) { Text(stringResource(Res.string.action_delete), color = IykykColors.Error) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDelete = false }) {
-                    Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                    Text(stringResource(Res.string.action_cancel), color = IykykColors.Muted)
                 }
             },
         )
@@ -267,10 +269,10 @@ fun MainScreen(
         AlertDialog(
             onDismissRequest = onClipboardDismiss,
             containerColor = IykykColors.Surface,
-            title = { Text(stringResource(R.string.clipboard_found_title), color = IykykColors.Text) },
+            title = { Text(stringResource(Res.string.clipboard_found_title), color = IykykColors.Text) },
             text = {
                 Text(
-                    stringResource(R.string.clipboard_found_text, clipboardLink.take(60) + if (clipboardLink.length > 60) "…" else ""),
+                    stringResource(Res.string.clipboard_found_text, clipboardLink.take(60) + if (clipboardLink.length > 60) "…" else ""),
                     color = IykykColors.Muted,
                 )
             },
@@ -278,11 +280,11 @@ fun MainScreen(
                 TextButton(onClick = {
                     onClipboardDismiss()
                     onImportText(clipboardLink)
-                }) { Text(stringResource(R.string.action_add), color = IykykColors.Accent) }
+                }) { Text(stringResource(Res.string.action_add), color = IykykColors.Accent) }
             },
             dismissButton = {
                 TextButton(onClick = onClipboardDismiss) {
-                    Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                    Text(stringResource(Res.string.action_cancel), color = IykykColors.Muted)
                 }
             },
         )
@@ -301,13 +303,11 @@ private class SubscriptionActions(
 /** A QR code with the subscription link, to add it on another device. */
 @Composable
 private fun ShareQrDialog(link: String, onCopyLink: () -> Unit, onDismiss: () -> Unit) {
-    val qr = remember(link) {
-        runCatching { BarcodeEncoder().encodeBitmap(link, BarcodeFormat.QR_CODE, 640, 640).asImageBitmap() }.getOrNull()
-    }
+    val qr = link
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = IykykColors.Surface,
-        title = { Text(stringResource(R.string.menu_other_device), color = IykykColors.Text) },
+        title = { Text(stringResource(Res.string.menu_other_device), color = IykykColors.Text) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 if (qr != null) {
@@ -317,12 +317,12 @@ private fun ShareQrDialog(link: String, onCopyLink: () -> Unit, onDismiss: () ->
                             .background(Color.White)
                             .padding(8.dp),
                     ) {
-                        Image(bitmap = qr, contentDescription = null, modifier = Modifier.size(220.dp))
+                        QrCode(qr, modifier = Modifier.size(220.dp))
                     }
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    stringResource(R.string.other_device_text),
+                    stringResource(Res.string.other_device_text),
                     color = IykykColors.Muted,
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
@@ -331,12 +331,12 @@ private fun ShareQrDialog(link: String, onCopyLink: () -> Unit, onDismiss: () ->
         },
         confirmButton = {
             TextButton(onClick = onCopyLink) {
-                Text(stringResource(R.string.menu_copy_link), color = IykykColors.Accent)
+                Text(stringResource(Res.string.menu_copy_link), color = IykykColors.Accent)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_close), color = IykykColors.Muted)
+                Text(stringResource(Res.string.action_close), color = IykykColors.Muted)
             }
         },
     )
@@ -349,7 +349,7 @@ private val topInsets: Modifier
     )
 
 @Composable
-private fun RowScope.TabItem(selected: Boolean, icon: Int, label: Int, onClick: () -> Unit) {
+private fun RowScope.TabItem(selected: Boolean, icon: DrawableResource, label: StringResource, onClick: () -> Unit) {
     NavigationBarItem(
         selected = selected,
         onClick = onClick,
@@ -421,7 +421,7 @@ private fun ConnectionTab(
         if (failed) {
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(R.string.error_prefix, error ?: ""),
+                text = stringResource(Res.string.error_prefix, error ?: ""),
                 color = IykykColors.Error,
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
@@ -429,7 +429,7 @@ private fun ConnectionTab(
         }
         if (failed || (status == VpnStatus.CONNECTED && tunnel == TunnelState.Failed)) {
             TextButton(onClick = onSendReport) {
-                Text(stringResource(R.string.action_send_report), color = IykykColors.Accent)
+                Text(stringResource(Res.string.action_send_report), color = IykykColors.Accent)
             }
         }
         Spacer(Modifier.height(28.dp))
@@ -464,8 +464,8 @@ private fun TopRow(
     Box(modifier = Modifier.fillMaxWidth()) {
         IconButton(onClick = onOpenSettings, modifier = Modifier.align(Alignment.CenterStart)) {
             Icon(
-                painterResource(R.drawable.ic_settings),
-                contentDescription = stringResource(R.string.cd_settings),
+                painterResource(Res.drawable.ic_settings),
+                contentDescription = stringResource(Res.string.cd_settings),
                 tint = IykykColors.Muted,
             )
         }
@@ -473,8 +473,8 @@ private fun TopRow(
         Box(modifier = Modifier.align(Alignment.CenterEnd)) {
             IconButton(onClick = { menu = true }) {
                 Icon(
-                    painterResource(R.drawable.ic_add),
-                    contentDescription = stringResource(R.string.cd_add),
+                    painterResource(Res.drawable.ic_add),
+                    contentDescription = stringResource(Res.string.cd_add),
                     tint = IykykColors.Accent,
                 )
             }
@@ -483,10 +483,10 @@ private fun TopRow(
                 onDismissRequest = { menu = false },
                 containerColor = IykykColors.Surface,
             ) {
-                MenuItem(stringResource(R.string.menu_paste)) { menu = false; onPaste() }
-                MenuItem(stringResource(R.string.menu_scan_qr)) { menu = false; onScanQr() }
-                MenuItem(stringResource(R.string.menu_manual)) { menu = false; onManual() }
-                MenuItem(stringResource(R.string.menu_receive_tv)) { menu = false; onReceive() }
+                MenuItem(stringResource(Res.string.menu_paste)) { menu = false; onPaste() }
+                MenuItem(stringResource(Res.string.menu_scan_qr)) { menu = false; onScanQr() }
+                MenuItem(stringResource(Res.string.menu_manual)) { menu = false; onManual() }
+                MenuItem(stringResource(Res.string.menu_receive_tv)) { menu = false; onReceive() }
             }
         }
     }
@@ -540,15 +540,15 @@ private fun SubscriptionCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    painterResource(R.drawable.ic_expand),
-                    contentDescription = stringResource(R.string.cd_expand),
+                    painterResource(Res.drawable.ic_expand),
+                    contentDescription = stringResource(Res.string.cd_expand),
                     tint = IykykColors.Muted,
                     modifier = Modifier.rotate(chevron),
                 )
                 Spacer(Modifier.size(8.dp))
                 Text(
                     text = sub?.title?.ifBlank { null } ?: stringResource(
-                        if (sub != null) R.string.subscription_label else R.string.servers_title,
+                        if (sub != null) Res.string.subscription_label else Res.string.servers_title,
                     ),
                     color = IykykColors.Text,
                     fontWeight = FontWeight.SemiBold,
@@ -558,14 +558,14 @@ private fun SubscriptionCard(
                     modifier = Modifier.weight(1f),
                 )
                 if (sub != null) {
-                    HeaderAction(R.drawable.ic_refresh, R.string.cd_refresh, busy = refreshing, onClick = onRefresh)
+                    HeaderAction(Res.drawable.ic_refresh, Res.string.cd_refresh, busy = refreshing, onClick = onRefresh)
                 }
-                HeaderAction(R.drawable.ic_speed, R.string.cd_ping, busy = pinging, onClick = onPing)
+                HeaderAction(Res.drawable.ic_speed, Res.string.cd_ping, busy = pinging, onClick = onPing)
                 Box {
                     IconButton(onClick = { menu = true }) {
                         Icon(
-                            painterResource(R.drawable.ic_more),
-                            contentDescription = stringResource(R.string.cd_more),
+                            painterResource(Res.drawable.ic_more),
+                            contentDescription = stringResource(Res.string.cd_more),
                             tint = IykykColors.Muted,
                         )
                     }
@@ -575,23 +575,23 @@ private fun SubscriptionCard(
                         containerColor = IykykColors.Surface,
                     ) {
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.menu_send_tv), color = IykykColors.Text) },
+                            text = { Text(stringResource(Res.string.menu_send_tv), color = IykykColors.Text) },
                             leadingIcon = {
-                                Icon(painterResource(R.drawable.ic_tv), contentDescription = null, tint = IykykColors.Accent)
+                                Icon(painterResource(Res.drawable.ic_tv), contentDescription = null, tint = IykykColors.Accent)
                             },
                             onClick = { menu = false; actions.onSendToTv() },
                         )
                         if (actions.canShare) {
-                            MenuItem(stringResource(R.string.menu_other_device)) { menu = false; actions.onShowQr() }
-                            MenuItem(stringResource(R.string.menu_copy_link)) { menu = false; actions.onCopyLink() }
+                            MenuItem(stringResource(Res.string.menu_other_device)) { menu = false; actions.onShowQr() }
+                            MenuItem(stringResource(Res.string.menu_copy_link)) { menu = false; actions.onCopyLink() }
                         }
                         MenuItem(
-                            stringResource(R.string.menu_sort_ping),
+                            stringResource(Res.string.menu_sort_ping),
                             trailing = if (sortByPing) "✓" else null,
                         ) { menu = false; onSortChange(!sortByPing) }
                         HorizontalDivider(color = IykykColors.SurfaceHigh)
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.menu_delete), color = IykykColors.Error) },
+                            text = { Text(stringResource(Res.string.menu_delete), color = IykykColors.Error) },
                             onClick = { menu = false; actions.onDelete() },
                         )
                     }
@@ -612,7 +612,7 @@ private fun SubscriptionCard(
 }
 
 @Composable
-private fun HeaderAction(icon: Int, description: Int, busy: Boolean, onClick: () -> Unit) {
+private fun HeaderAction(icon: DrawableResource, description: StringResource, busy: Boolean, onClick: () -> Unit) {
     IconButton(onClick = onClick, enabled = !busy) {
         if (busy) {
             CircularProgressIndicator(color = IykykColors.Accent, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
@@ -626,16 +626,16 @@ private fun HeaderAction(icon: Int, description: Int, busy: Boolean, onClick: ()
 @Composable
 private fun TunnelLine(tunnel: TunnelState, onCheck: () -> Unit) {
     val (text, color) = when (tunnel) {
-        TunnelState.Checking -> stringResource(R.string.tunnel_checking) to IykykColors.Muted
+        TunnelState.Checking -> stringResource(Res.string.tunnel_checking) to IykykColors.Muted
         is TunnelState.Ok -> stringResource(
-            R.string.tunnel_ok,
+            Res.string.tunnel_ok,
             countryLabel(tunnel.country),
             tunnel.ip,
             tunnel.latency,
         ) to IykykColors.Muted
-        TunnelState.NoInternet -> stringResource(R.string.tunnel_no_internet) to IykykColors.Warning
-        TunnelState.Reconnecting -> stringResource(R.string.tunnel_reconnecting) to IykykColors.Warning
-        TunnelState.Failed -> stringResource(R.string.tunnel_failed) to IykykColors.Error
+        TunnelState.NoInternet -> stringResource(Res.string.tunnel_no_internet) to IykykColors.Warning
+        TunnelState.Reconnecting -> stringResource(Res.string.tunnel_reconnecting) to IykykColors.Warning
+        TunnelState.Failed -> stringResource(Res.string.tunnel_failed) to IykykColors.Error
     }
     Text(
         text = text,
@@ -675,7 +675,7 @@ private fun TrafficSummary(sub: SubscriptionInfo) {
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = if (sub.expire > 0) stringResource(R.string.expire_until, shortDate(sub.expire)) else stringResource(R.string.expire_never),
+                text = if (sub.expire > 0) stringResource(Res.string.expire_until, shortDate(sub.expire)) else stringResource(Res.string.expire_never),
                 color = if (daysLeft != null && daysLeft < 0) IykykColors.Error else IykykColors.Muted,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -707,12 +707,12 @@ private fun trafficText(sub: SubscriptionInfo): String =
 
 @Composable
 private fun ExpiryWarning(daysLeft: Int?) {
-    if (daysLeft == null || daysLeft > ExpiryReminder.REMIND_DAYS) return
+    if (daysLeft == null || daysLeft > EXPIRY_REMIND_DAYS) return
     Text(
         text = when {
-            daysLeft < 0 -> stringResource(R.string.expiry_ended)
-            daysLeft == 0 -> stringResource(R.string.expiry_today)
-            else -> pluralStringResource(R.plurals.expiry_in_days, daysLeft, daysLeft)
+            daysLeft < 0 -> stringResource(Res.string.expiry_ended)
+            daysLeft == 0 -> stringResource(Res.string.expiry_today)
+            else -> pluralStringResource(Res.plurals.expiry_in_days, daysLeft, daysLeft)
         },
         color = if (daysLeft < 0) IykykColors.Error else IykykColors.Warning,
         style = MaterialTheme.typography.bodySmall,
@@ -751,10 +751,10 @@ private fun SubscriptionTab(
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             IconButton(onClick = onOpenSettings, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.cd_settings), tint = IykykColors.Muted)
+                Icon(painterResource(Res.drawable.ic_settings), stringResource(Res.string.cd_settings), tint = IykykColors.Muted)
             }
             Text(
-                stringResource(R.string.tab_subscription),
+                stringResource(Res.string.tab_subscription),
                 color = IykykColors.Text,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -769,7 +769,7 @@ private fun SubscriptionTab(
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            sub.title.ifBlank { stringResource(R.string.subscription_label) },
+                            sub.title.ifBlank { stringResource(Res.string.subscription_label) },
                             color = IykykColors.Text,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 18.sp,
@@ -780,18 +780,18 @@ private fun SubscriptionTab(
                         StatusChip(daysLeft)
                     }
                     Text(
-                        if (sub.expire > 0) stringResource(R.string.sub_valid_until, longDate(sub.expire)) else stringResource(R.string.sub_status_unlimited),
+                        if (sub.expire > 0) stringResource(Res.string.sub_valid_until, longDate(sub.expire)) else stringResource(Res.string.sub_status_unlimited),
                         color = IykykColors.Text,
                     )
                     if (daysLeft != null && daysLeft >= 0) {
                         Text(
-                            pluralStringResource(R.plurals.sub_days_left, daysLeft, daysLeft),
-                            color = if (daysLeft <= ExpiryReminder.REMIND_DAYS) IykykColors.Warning else IykykColors.Muted,
+                            pluralStringResource(Res.plurals.sub_days_left, daysLeft, daysLeft),
+                            color = if (daysLeft <= EXPIRY_REMIND_DAYS) IykykColors.Warning else IykykColors.Muted,
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     Spacer(Modifier.height(4.dp))
-                    Text(stringResource(R.string.sub_traffic), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(Res.string.sub_traffic), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
                     TrafficBar(sub)
                     Text(trafficText(sub), color = IykykColors.Text, style = MaterialTheme.typography.bodyMedium)
                     if (devices != null) {
@@ -805,12 +805,12 @@ private fun SubscriptionTab(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(stringResource(R.string.devices_label), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                Text(stringResource(Res.string.devices_label), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
                                 Text(
                                     if (devices.limit > 0) {
-                                        stringResource(R.string.devices_of, devices.used, devices.limit)
+                                        stringResource(Res.string.devices_of, devices.used, devices.limit)
                                     } else {
-                                        stringResource(R.string.devices_unlimited, devices.used)
+                                        stringResource(Res.string.devices_unlimited, devices.used)
                                     },
                                     color = if (devices.limit > 0 && devices.used >= devices.limit) IykykColors.Warning else IykykColors.Text,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -820,14 +820,14 @@ private fun SubscriptionTab(
                         }
                     }
                     if (sub.hwidLimitReached) {
-                        Text(stringResource(R.string.hwid_limit_reached), color = IykykColors.Warning, style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(Res.string.hwid_limit_reached), color = IykykColors.Warning, style = MaterialTheme.typography.bodySmall)
                     }
                     if (sub.announce.isNotBlank()) {
                         Text(sub.announce, color = IykykColors.Warning, style = MaterialTheme.typography.bodySmall)
                     }
                     if (canBuy) {
                         Spacer(Modifier.height(4.dp))
-                        LinkButton(stringResource(R.string.action_renew_bot), primary = true, modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
+                        LinkButton(stringResource(Res.string.action_renew_bot), primary = true, modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
                     }
                 }
             }
@@ -837,20 +837,20 @@ private fun SubscriptionTab(
         Surface(color = IykykColors.Surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
             Column {
                 if (sub != null) {
-                    ActionRow(R.drawable.ic_refresh, stringResource(R.string.sub_refresh), busy = refreshing, onClick = onRefresh)
+                    ActionRow(Res.drawable.ic_refresh, stringResource(Res.string.sub_refresh), busy = refreshing, onClick = onRefresh)
                 }
                 if (sub?.supportUrl?.isNotBlank() == true) {
-                    ActionRow(null, stringResource(R.string.action_support)) { onOpenUrl(sub.supportUrl) }
+                    ActionRow(null, stringResource(Res.string.action_support)) { onOpenUrl(sub.supportUrl) }
                 }
                 if (sub?.webPageUrl?.isNotBlank() == true) {
-                    ActionRow(null, stringResource(R.string.action_website)) { onOpenUrl(sub.webPageUrl) }
+                    ActionRow(null, stringResource(Res.string.action_website)) { onOpenUrl(sub.webPageUrl) }
                 }
-                ActionRow(R.drawable.ic_tv, stringResource(R.string.menu_send_tv), onClick = actions.onSendToTv)
+                ActionRow(Res.drawable.ic_tv, stringResource(Res.string.menu_send_tv), onClick = actions.onSendToTv)
                 if (actions.canShare) {
-                    ActionRow(null, stringResource(R.string.menu_other_device), onClick = actions.onShowQr)
-                    ActionRow(null, stringResource(R.string.menu_copy_link), onClick = actions.onCopyLink)
+                    ActionRow(null, stringResource(Res.string.menu_other_device), onClick = actions.onShowQr)
+                    ActionRow(null, stringResource(Res.string.menu_copy_link), onClick = actions.onCopyLink)
                 }
-                ActionRow(null, stringResource(R.string.action_send_report), onClick = onSendReport)
+                ActionRow(null, stringResource(Res.string.action_send_report), onClick = onSendReport)
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -861,16 +861,16 @@ private fun SubscriptionTab(
                     .clickable(onClick = actions.onDelete)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
             ) {
-                Text(stringResource(R.string.menu_delete), color = IykykColors.Error)
+                Text(stringResource(Res.string.menu_delete), color = IykykColors.Error)
             }
         }
 
         if (sub != null) {
             Spacer(Modifier.height(12.dp))
             val parts = buildList {
-                if (sub.updatedAt > 0) add(stringResource(R.string.sub_updated, dateTime(sub.updatedAt)))
-                add(stringResource(R.string.sub_auto_update, sub.updateHours.takeIf { it > 0 } ?: 12))
-                add(pluralStringResource(R.plurals.servers_count, profiles.servers.size, profiles.servers.size))
+                if (sub.updatedAt > 0) add(stringResource(Res.string.sub_updated, dateTime(sub.updatedAt)))
+                add(stringResource(Res.string.sub_auto_update, sub.updateHours.takeIf { it > 0 } ?: 12))
+                add(pluralStringResource(Res.plurals.servers_count, profiles.servers.size, profiles.servers.size))
             }
             Text(
                 parts.joinToString(" · "),
@@ -892,8 +892,8 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
         containerColor = IykykColors.Surface,
         title = {
             Text(
-                stringResource(R.string.devices_title) + "  " + if (devices.limit > 0) {
-                    stringResource(R.string.devices_of, devices.used, devices.limit)
+                stringResource(Res.string.devices_title) + "  " + if (devices.limit > 0) {
+                    stringResource(Res.string.devices_of, devices.used, devices.limit)
                 } else {
                     devices.used.toString()
                 },
@@ -907,20 +907,20 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 device.model.ifBlank { device.platform.ifBlank { "?" } } +
-                                    if (device.current) " · " + stringResource(R.string.device_current) else "",
+                                    if (device.current) " · " + stringResource(Res.string.device_current) else "",
                                 color = if (device.current) IykykColors.Accent else IykykColors.Text,
                                 fontWeight = FontWeight.Medium,
                             )
                             val details = listOfNotNull(
                                 listOf(device.platform, device.os).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null },
                                 device.app.ifBlank { null },
-                                isoDate(device.added)?.let { stringResource(R.string.device_added, it) },
+                                isoDate(device.added)?.let { stringResource(Res.string.device_added, it) },
                             ).joinToString(" · ")
                             Text(details, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
                         }
                         if (!device.current) {
                             TextButton(onClick = { confirm = device }) {
-                                Text(stringResource(R.string.action_delete), color = IykykColors.Error)
+                                Text(stringResource(Res.string.action_delete), color = IykykColors.Error)
                             }
                         }
                     }
@@ -929,7 +929,7 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_close), color = IykykColors.Muted)
+                Text(stringResource(Res.string.action_close), color = IykykColors.Muted)
             }
         },
     )
@@ -937,10 +937,10 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
         AlertDialog(
             onDismissRequest = { confirm = null },
             containerColor = IykykColors.Surface,
-            title = { Text(stringResource(R.string.device_remove_title), color = IykykColors.Text) },
+            title = { Text(stringResource(Res.string.device_remove_title), color = IykykColors.Text) },
             text = {
                 Text(
-                    stringResource(R.string.device_remove_text, device.model.ifBlank { device.platform }),
+                    stringResource(Res.string.device_remove_text, device.model.ifBlank { device.platform }),
                     color = IykykColors.Muted,
                 )
             },
@@ -948,11 +948,11 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
                 TextButton(onClick = {
                     confirm = null
                     onDelete(device.id)
-                }) { Text(stringResource(R.string.action_delete), color = IykykColors.Error) }
+                }) { Text(stringResource(Res.string.action_delete), color = IykykColors.Error) }
             },
             dismissButton = {
                 TextButton(onClick = { confirm = null }) {
-                    Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                    Text(stringResource(Res.string.action_cancel), color = IykykColors.Muted)
                 }
             },
         )
@@ -969,10 +969,10 @@ private fun isoDate(text: String): String? {
 @Composable
 private fun StatusChip(daysLeft: Int?) {
     val (text, color) = when {
-        daysLeft == null -> stringResource(R.string.sub_status_unlimited) to Color(0xFF3FA66B)
-        daysLeft < 0 -> stringResource(R.string.sub_status_expired) to IykykColors.Error
-        daysLeft <= ExpiryReminder.REMIND_DAYS -> stringResource(R.string.sub_status_ending) to IykykColors.Warning
-        else -> stringResource(R.string.sub_status_active) to Color(0xFF3FA66B)
+        daysLeft == null -> stringResource(Res.string.sub_status_unlimited) to Color(0xFF3FA66B)
+        daysLeft < 0 -> stringResource(Res.string.sub_status_expired) to IykykColors.Error
+        daysLeft <= EXPIRY_REMIND_DAYS -> stringResource(Res.string.sub_status_ending) to IykykColors.Warning
+        else -> stringResource(Res.string.sub_status_active) to Color(0xFF3FA66B)
     }
     Surface(color = color.copy(alpha = 0.15f), shape = CircleShape) {
         Text(
@@ -986,7 +986,7 @@ private fun StatusChip(daysLeft: Int?) {
 }
 
 @Composable
-private fun ActionRow(icon: Int?, text: String, busy: Boolean = false, onClick: () -> Unit) {
+private fun ActionRow(icon: DrawableResource?, text: String, busy: Boolean = false, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1042,11 +1042,11 @@ private fun ServerRow(server: ServerInfo, delay: Int?, selected: Boolean, onClic
     val (flag, name) = splitFlag(server.name)
     val (pingText, pingColor) = when {
         delay == null -> null to IykykColors.Muted
-        delay == -2 -> stringResource(R.string.ping_udp) to IykykColors.Muted
-        delay < 0 -> stringResource(R.string.ping_failed) to IykykColors.Error
-        delay < 150 -> stringResource(R.string.ping_ms, delay) to Color(0xFF3FA66B)
-        delay < 400 -> stringResource(R.string.ping_ms, delay) to IykykColors.Warning
-        else -> stringResource(R.string.ping_ms, delay) to IykykColors.Error
+        delay == -2 -> stringResource(Res.string.ping_udp) to IykykColors.Muted
+        delay < 0 -> stringResource(Res.string.ping_failed) to IykykColors.Error
+        delay < 150 -> stringResource(Res.string.ping_ms, delay) to Color(0xFF3FA66B)
+        delay < 400 -> stringResource(Res.string.ping_ms, delay) to IykykColors.Warning
+        else -> stringResource(Res.string.ping_ms, delay) to IykykColors.Error
     }
     Row(
         modifier = Modifier
@@ -1109,6 +1109,7 @@ internal fun splitFlag(name: String): Pair<String?, String> {
 @Composable
 private fun WelcomeScreen(
     canBuy: Boolean,
+    locked: Boolean,
     onOpenBot: () -> Unit,
     onPaste: () -> Unit,
     onScanQr: () -> Unit,
@@ -1126,28 +1127,28 @@ private fun WelcomeScreen(
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             IconButton(onClick = onOpenSettings, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.cd_settings), tint = IykykColors.Muted)
+                Icon(painterResource(Res.drawable.ic_settings), stringResource(Res.string.cd_settings), tint = IykykColors.Muted)
             }
         }
         Spacer(Modifier.height(24.dp))
         Header()
         Spacer(Modifier.height(40.dp))
-        Text(stringResource(R.string.welcome_title), color = IykykColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.welcome_title), color = IykykColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(
-            stringResource(R.string.welcome_text),
+            stringResource(Res.string.welcome_text),
             color = IykykColors.Muted,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(28.dp))
         if (canBuy) {
-            LinkButton(stringResource(R.string.action_buy), primary = true, modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
+            LinkButton(stringResource(Res.string.action_buy), primary = true, modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
             Spacer(Modifier.height(32.dp))
         }
-        Text(stringResource(R.string.welcome_have), color = IykykColors.Text, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(Res.string.welcome_have), color = IykykColors.Text, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         Text(
-            text = stringResource(if (ProfileStore.locked) R.string.paste_hint_locked else R.string.paste_hint),
+            text = stringResource(if (locked) Res.string.paste_hint_locked else Res.string.paste_hint),
             color = IykykColors.Muted,
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
@@ -1155,21 +1156,21 @@ private fun WelcomeScreen(
         Spacer(Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             if (canBuy) {
-                LinkButton(stringResource(R.string.action_get_in_bot), modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
+                LinkButton(stringResource(Res.string.action_get_in_bot), modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
             }
             LinkButton(
-                stringResource(if (ProfileStore.locked) R.string.action_paste_subscription else R.string.action_paste_link),
+                stringResource(if (locked) Res.string.action_paste_subscription else Res.string.action_paste_link),
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onPaste,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                LinkButton(stringResource(R.string.action_scan_qr), modifier = Modifier.weight(1f), onClick = onScanQr)
-                LinkButton(stringResource(R.string.menu_manual), modifier = Modifier.weight(1f), onClick = onManual)
+                LinkButton(stringResource(Res.string.action_scan_qr), modifier = Modifier.weight(1f), onClick = onScanQr)
+                LinkButton(stringResource(Res.string.menu_manual), modifier = Modifier.weight(1f), onClick = onManual)
             }
         }
         // On a TV: no camera, no clipboard, typing with a remote is painful.
         TextButton(onClick = onReceive) {
-            Text(stringResource(R.string.menu_receive_tv), color = IykykColors.Accent)
+            Text(stringResource(Res.string.menu_receive_tv), color = IykykColors.Accent)
         }
         Spacer(Modifier.height(16.dp))
     }
@@ -1181,28 +1182,28 @@ private fun TvSendDialog(onScan: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = IykykColors.Surface,
-        icon = { Icon(painterResource(R.drawable.ic_tv), contentDescription = null, tint = IykykColors.Accent) },
-        title = { Text(stringResource(R.string.menu_send_tv), color = IykykColors.Text) },
+        icon = { Icon(painterResource(Res.drawable.ic_tv), contentDescription = null, tint = IykykColors.Accent) },
+        title = { Text(stringResource(Res.string.menu_send_tv), color = IykykColors.Text) },
         text = {
             Column {
                 Steps(
-                    stringResource(R.string.tv_send_step1),
-                    stringResource(R.string.tv_send_step2),
-                    stringResource(R.string.tv_send_step3),
+                    stringResource(Res.string.tv_send_step1),
+                    stringResource(Res.string.tv_send_step2),
+                    stringResource(Res.string.tv_send_step3),
                 )
                 Spacer(Modifier.height(12.dp))
-                Text(stringResource(R.string.tv_same_wifi), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.tv_same_wifi), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = {
             Button(
                 onClick = onScan,
                 colors = ButtonDefaults.buttonColors(containerColor = IykykColors.Accent, contentColor = IykykColors.OnAccent),
-            ) { Text(stringResource(R.string.tv_scan_button)) }
+            ) { Text(stringResource(Res.string.tv_scan_button)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                Text(stringResource(Res.string.action_cancel), color = IykykColors.Muted)
             }
         },
     )
@@ -1233,16 +1234,17 @@ private fun Steps(vararg steps: String) {
 /** The TV side of "Send to TV": shows a QR code and waits for the phone. */
 @Composable
 private fun TvReceiveDialog(onReceived: (String) -> Unit, onDismiss: () -> Unit) {
-    val receiver = remember { runCatching { TvShare.Receiver(onReceived) }.getOrNull() }
+    val scope = rememberCoroutineScope()
+    val receiver = remember {
+        runCatching { TvShare.Receiver { text -> scope.launch { onReceived(text) } } }.getOrNull()
+    }
     DisposableEffect(receiver) { onDispose { receiver?.close() } }
     val code = receiver?.code
-    val qr = remember(code) {
-        code?.let { runCatching { BarcodeEncoder().encodeBitmap(it, BarcodeFormat.QR_CODE, 640, 640).asImageBitmap() }.getOrNull() }
-    }
+    val qr = code
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = IykykColors.Surface,
-        title = { Text(stringResource(R.string.tv_receive_title), color = IykykColors.Text) },
+        title = { Text(stringResource(Res.string.tv_receive_title), color = IykykColors.Text) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 if (qr != null) {
@@ -1252,27 +1254,27 @@ private fun TvReceiveDialog(onReceived: (String) -> Unit, onDismiss: () -> Unit)
                             .background(Color.White)
                             .padding(8.dp),
                     ) {
-                        Image(bitmap = qr, contentDescription = null, modifier = Modifier.size(220.dp))
+                        QrCode(qr, modifier = Modifier.size(220.dp))
                     }
                     Spacer(Modifier.height(16.dp))
                     Steps(
-                        stringResource(R.string.tv_receive_step1),
-                        stringResource(R.string.tv_receive_step2),
+                        stringResource(Res.string.tv_receive_step1),
+                        stringResource(Res.string.tv_receive_step2),
                     )
                     Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(color = IykykColors.Accent, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
                         Spacer(Modifier.size(8.dp))
-                        Text(stringResource(R.string.tv_waiting), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(Res.string.tv_waiting), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
                     }
                 } else {
-                    Text(stringResource(R.string.tv_receive_no_network), color = IykykColors.Error)
+                    Text(stringResource(Res.string.tv_receive_no_network), color = IykykColors.Error)
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                Text(stringResource(Res.string.action_cancel), color = IykykColors.Muted)
             }
         },
     )
@@ -1289,8 +1291,8 @@ private fun dateTime(millis: Long): String =
 
 @Composable
 internal fun LinkInputDialog(
-    title: String = stringResource(R.string.enter_link_title),
-    hint: String = stringResource(R.string.enter_link_hint),
+    title: String = stringResource(Res.string.enter_link_title),
+    hint: String = stringResource(Res.string.enter_link_hint),
     initial: String = "",
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -1317,12 +1319,12 @@ internal fun LinkInputDialog(
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(text.trim()) }, enabled = text.isNotBlank()) {
-                Text(stringResource(R.string.action_add), color = IykykColors.Accent)
+                Text(stringResource(Res.string.action_add), color = IykykColors.Accent)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                Text(stringResource(Res.string.action_cancel), color = IykykColors.Muted)
             }
         },
     )
@@ -1332,14 +1334,14 @@ internal fun LinkInputDialog(
 private fun Header(modifier: Modifier = Modifier) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = stringResource(R.string.app_name),
+            text = stringResource(Res.string.app_name),
             color = IykykColors.Text,
             fontSize = 24.sp,
             fontWeight = FontWeight.Black,
             letterSpacing = 5.sp,
         )
         Text(
-            text = stringResource(R.string.tagline),
+            text = stringResource(Res.string.tagline),
             color = IykykColors.Muted,
             style = MaterialTheme.typography.bodyMedium,
         )
@@ -1368,7 +1370,7 @@ private fun ConnectButton(status: VpnStatus, enabled: Boolean, onClick: () -> Un
         label = "buttonIcon",
     )
     val label = stringResource(
-        if (status.isActive) R.string.action_disconnect else R.string.action_connect,
+        if (status.isActive) Res.string.action_disconnect else Res.string.action_connect,
     )
 
     Surface(
@@ -1381,7 +1383,7 @@ private fun ConnectButton(status: VpnStatus, enabled: Boolean, onClick: () -> Un
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(
-                painter = painterResource(R.drawable.ic_tile),
+                painter = painterResource(Res.drawable.ic_tile),
                 contentDescription = label,
                 tint = iconTint,
                 modifier = Modifier.size(52.dp),
@@ -1390,10 +1392,10 @@ private fun ConnectButton(status: VpnStatus, enabled: Boolean, onClick: () -> Un
             Text(
                 text = stringResource(
                     when (status) {
-                        VpnStatus.DISCONNECTED -> R.string.status_disconnected
-                        VpnStatus.CONNECTING -> R.string.status_connecting
-                        VpnStatus.CONNECTED -> R.string.status_connected
-                        VpnStatus.DISCONNECTING -> R.string.status_disconnecting
+                        VpnStatus.DISCONNECTED -> Res.string.status_disconnected
+                        VpnStatus.CONNECTING -> Res.string.status_connecting
+                        VpnStatus.CONNECTED -> Res.string.status_connected
+                        VpnStatus.DISCONNECTING -> Res.string.status_disconnecting
                     },
                 ),
                 color = iconTint,
@@ -1407,10 +1409,10 @@ private fun ConnectButton(status: VpnStatus, enabled: Boolean, onClick: () -> Un
 /** "00:12:34" since the session started; ticks every second while shown. */
 @Composable
 private fun SessionTimer(connectedAt: Long) {
-    var now by remember { mutableStateOf(android.os.SystemClock.elapsedRealtime()) }
+    var now by remember { mutableStateOf((System.nanoTime() / 1_000_000)) }
     LaunchedEffect(connectedAt) {
         while (true) {
-            now = android.os.SystemClock.elapsedRealtime()
+            now = (System.nanoTime() / 1_000_000)
             kotlinx.coroutines.delay(1_000L - now % 1_000L)
         }
     }
@@ -1476,61 +1478,32 @@ private fun protocolTitle(protocol: String): String = when (protocol) {
     else -> protocol
 }
 
-
-@Preview
+/** A QR code drawn from zxing's bit matrix (works the same on Android and desktop). */
 @Composable
-private fun MainScreenPreview() {
-    IykykTheme {
-        MainScreen(
-            status = VpnStatus.CONNECTED,
-            profiles = Profiles(
-                subscription = SubscriptionInfo(
-                    url = "https://example.com/sub",
-                    title = "Для своих",
-                    upload = 1L shl 30,
-                    download = 5L shl 30,
-                    total = 100L shl 30,
-                    expire = 1_893_456_000,
-                    supportUrl = "https://t.me/support",
-                    announce = "",
-                    webPageUrl = "https://example.com",
-                    updatedAt = 1_760_000_000_000,
-                ),
-                servers = listOf(
-                    ServerInfo("🇪🇺 АВТО | Европа", "xray-balancer", "", "a", "VLESS · gRPC · REALITY · Auto"),
-                    ServerInfo("🇳🇱 Нидерланды", "vless", "nl1.example.com:443", "b", "VLESS · TCP · REALITY"),
-                ),
-            ),
-            error = null,
-            refreshing = false,
-            pings = mapOf("b" to 54),
-            pinging = false,
-            sortByPing = false,
-            canBuy = true,
-            clipboardLink = null,
-            tunnel = TunnelState.Ok("5.6.7.8", "NL", 120),
-            connectedAt = 1L,
-            shareLink = "https://example.com/sub",
-            devices = null,
-            onToggle = {},
-            onPasteLink = {},
-            onRefresh = {},
-            onSelectServer = {},
-            onPing = {},
-            onSortChange = {},
-            onScanQr = {},
-            onSendToTv = {},
-            onOpenBot = {},
-            onOpenUrl = {},
-            onImportText = {},
-            onClipboardDismiss = {},
-            onCheck = {},
-            onSendReport = {},
-            onCopyLink = {},
-            onDelete = {},
-            onLoadDevices = {},
-            onDeleteDevice = {},
-            onOpenSettings = {},
-        )
+internal fun QrCode(text: String, modifier: Modifier = Modifier) {
+    val matrix = remember(text) {
+        runCatching {
+            com.google.zxing.qrcode.QRCodeWriter().encode(
+                text,
+                com.google.zxing.BarcodeFormat.QR_CODE,
+                0,
+                0,
+                mapOf(com.google.zxing.EncodeHintType.MARGIN to 0),
+            )
+        }.getOrNull()
+    } ?: return
+    androidx.compose.foundation.Canvas(modifier) {
+        val cell = size.minDimension / matrix.width
+        for (y in 0 until matrix.height) {
+            for (x in 0 until matrix.width) {
+                if (matrix[x, y]) {
+                    drawRect(
+                        color = Color.Black,
+                        topLeft = androidx.compose.ui.geometry.Offset(x * cell, y * cell),
+                        size = androidx.compose.ui.geometry.Size(cell + 0.5f, cell + 0.5f),
+                    )
+                }
+            }
+        }
     }
 }

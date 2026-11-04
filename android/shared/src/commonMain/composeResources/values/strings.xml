@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">IYKYK</string>
+    <string name="tagline">для своих</string>
+
+    <string name="status_disconnected">Отключено</string>
+    <string name="status_connecting">Подключение…</string>
+    <string name="status_connected">Подключено</string>
+    <string name="status_disconnecting">Отключение…</string>
+
+    <string name="action_connect">Подключить</string>
+    <string name="action_disconnect">Отключить</string>
+
+    <string name="server_label">Сервер</string>
+    <string name="server_none">не выбран</string>
+    <string name="protocol_label">Протокол</string>
+    <string name="action_change_server">Сменить</string>
+    <string name="servers_title">Серверы</string>
+    <string name="action_paste_link">Вставить подписку или ссылку</string>
+    <string name="paste_hint">Скопируйте ссылку на подписку (https://…), ссылку на сервер или файл WireGuard/AmneziaWG и нажмите кнопку ниже.</string>
+    <string name="action_paste_subscription">Вставить ссылку на подписку</string>
+    <string name="paste_hint_locked">Скопируйте ссылку на подписку из личного кабинета «Для своих» и нажмите кнопку ниже.</string>
+    <string name="link_not_allowed">Эта ссылка не от «Для своих». IYKYK работает только с подписками нашего сервиса.</string>
+    <string name="link_saved">Добавлено: %1$s</string>
+    <string name="link_loading">Загружаю подписку…</string>
+    <string name="link_clipboard_empty">В буфере обмена нет текста</string>
+    <string name="link_invalid">Не удалось добавить: %1$s</string>
+
+    <string name="subscription_label">Подписка</string>
+    <string name="traffic_label">Трафик</string>
+    <string name="traffic_used_of">%1$s из %2$s</string>
+    <string name="traffic_unlimited">%1$s, без лимита</string>
+    <string name="expire_label">Действует до</string>
+    <string name="expire_never">бессрочно</string>
+    <string name="expire_expired">истекла %1$s</string>
+    <string name="action_refresh">Обновить</string>
+    <string name="refreshing">Обновляю…</string>
+    <string name="refresh_done">Подписка обновлена</string>
+    <string name="refresh_failed">Не удалось обновить: %1$s</string>
+
+    <string name="error_no_server">Сначала добавьте сервер</string>
+    <string name="error_prefix">Не удалось подключиться: %1$s</string>
+
+    <string name="action_ping">Проверить пинг</string>
+    <string name="pinging">Проверяю…</string>
+    <string name="ping_ms">%1$d мс</string>
+    <string name="ping_failed">недоступен</string>
+    <string name="ping_udp">—</string>
+    <string name="sort_by_ping">По пингу</string>
+    <string name="sort_by_order">По порядку</string>
+
+    <string name="settings_title">Настройки</string>
+    <string name="action_back">Назад</string>
+    <string name="settings_routing">Маршрутизация</string>
+    <string name="settings_dns">DNS</string>
+    <string name="remote_dns_title">DNS через VPN</string>
+    <string name="direct_dns_title">DNS для прямых соединений</string>
+    <string name="dns_custom">Свой DoH-сервер</string>
+    <string name="dns_custom_hint">https://dns.example.com/dns-query</string>
+    <string name="dns_cloudflare">Cloudflare (1.1.1.1)</string>
+    <string name="dns_google">Google (8.8.8.8)</string>
+    <string name="dns_quad9">Quad9 (9.9.9.9)</string>
+    <string name="dns_adguard">AdGuard (блокирует рекламу)</string>
+    <string name="dns_yandex">Яндекс (77.88.8.8)</string>
+    <string name="bypass_title">Российские сайты напрямую</string>
+    <string name="bypass_subtitle">Госуслуги, банки, Яндекс и другие сайты в .ru и с российскими IP открываются без VPN</string>
+    <string name="fragment_title">Обход DPI (фрагментация TLS)</string>
+    <string name="fragment_subtitle">Включите, если сервер блокируют по имени: начало защищённого соединения отправляется по частям</string>
+    <string name="settings_apps">Приложения</string>
+    <string name="apps_mode_all">Все приложения через VPN</string>
+    <string name="apps_mode_only">Только выбранные через VPN</string>
+    <string name="apps_mode_except">Все через VPN, кроме выбранных</string>
+    <string name="apps_choose">Выбрать приложения</string>
+    <string name="apps_selected">Выбрано: %1$d</string>
+    <string name="apps_search">Поиск</string>
+    <string name="settings_reconnect_hint">Изменения применяются сразу, VPN переподключится сам</string>
+    <string name="settings_about">О приложении</string>
+    <string name="settings_versions">Версии ядер</string>
+
+    <string name="channel_subscription">Подписка</string>
+    <string name="expiry_ended">Подписка закончилась. Продлите её, чтобы VPN продолжил работать.</string>
+    <string name="expiry_today">Подписка заканчивается сегодня</string>
+    <plurals name="expiry_in_days">
+        <item quantity="one">Подписка заканчивается через %1$d день</item>
+        <item quantity="few">Подписка заканчивается через %1$d дня</item>
+        <item quantity="many">Подписка заканчивается через %1$d дней</item>
+        <item quantity="other">Подписка заканчивается через %1$d дня</item>
+    </plurals>
+    <string name="action_renew">Продлить</string>
+    <string name="action_support">Поддержка</string>
+    <string name="action_website">Сайт</string>
+    <string name="action_scan_qr">QR-код</string>
+    <string name="action_enter_link">Ввести ссылку вручную</string>
+    <string name="enter_link_title">Ссылка на подписку</string>
+    <string name="enter_link_hint">https://…</string>
+    <string name="action_add">Добавить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="qr_prompt">Наведите камеру на QR-код подписки</string>
+
+    <string name="settings_connection">Подключение</string>
+    <string name="auto_launch_title">Подключаться при запуске</string>
+    <string name="auto_launch_subtitle">VPN включается сам, когда вы открываете приложение</string>
+    <string name="auto_boot_title">Подключаться при включении телефона</string>
+    <string name="auto_boot_subtitle">VPN включается сам после перезагрузки</string>
+    <string name="reminders_title">Напоминать об окончании подписки</string>
+    <string name="reminders_subtitle">Уведомление за 3 дня до конца подписки</string>
+    <string name="killswitch_title">Блокировать интернет без VPN</string>
+    <string name="killswitch_subtitle">Откроются системные настройки VPN: включите для IYKYK «Постоянная VPN» и «Блокировать соединения без VPN»</string>
+
+    <string name="notification_channel">Состояние VPN</string>
+    <string name="notification_speed">↓ %1$s  ↑ %2$s · за сеанс %3$s</string>
+    <string name="widget_description">Включение и выключение VPN</string>
+    <string name="notification_connected">Защищённое соединение активно</string>
+
+    <string name="cd_settings">Настройки</string>
+    <string name="cd_add">Добавить</string>
+    <string name="cd_refresh">Обновить подписку</string>
+    <string name="cd_ping">Проверить пинг</string>
+    <string name="cd_more">Ещё</string>
+    <string name="cd_expand">Показать или скрыть серверы</string>
+    <string name="menu_paste">Вставить из буфера</string>
+    <string name="menu_scan_qr">Сканировать QR-код</string>
+    <string name="menu_manual">Ввести вручную</string>
+    <string name="menu_receive_tv">Принять с телефона</string>
+    <string name="menu_send_tv">Отправить на TV</string>
+    <string name="menu_sort_ping">Сортировать по пингу</string>
+    <string name="sub_updated">Обновлено %1$s</string>
+    <string name="sub_auto_update">автообновление %1$d ч</string>
+    <plurals name="servers_count">
+        <item quantity="one">%1$d сервер</item>
+        <item quantity="few">%1$d сервера</item>
+        <item quantity="many">%1$d серверов</item>
+        <item quantity="other">%1$d сервера</item>
+    </plurals>
+    <string name="expire_until">до %1$s</string>
+    <string name="empty_title">Добавьте подписку</string>
+
+    <string name="tv_receive_title">Принять с телефона</string>
+    <string name="tv_receive_text">На телефоне откройте IYKYK, нажмите ⋯ у подписки → «Отправить на TV» и наведите камеру на этот код. Телефон и телевизор должны быть в одной сети Wi-Fi.</string>
+    <string name="tv_receive_no_network">Телевизор не подключён к локальной сети. Подключите его к Wi-Fi или кабелю и попробуйте снова.</string>
+    <string name="tv_scan_prompt">Наведите камеру на QR-код на экране телевизора</string>
+    <string name="tv_sending">Отправляю на телевизор…</string>
+    <string name="tv_sent">Подписка отправлена на телевизор</string>
+    <string name="tv_send_failed">Не удалось отправить: %1$s</string>
+    <string name="tv_nothing_to_send">Сначала добавьте подписку</string>
+
+    <string name="settings_appearance">Оформление</string>
+    <string name="theme_title">Тема</string>
+    <string name="theme_system">Как в системе</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+
+    <string name="tab_connection">Подключение</string>
+    <string name="tab_subscription">Подписка</string>
+    <string name="welcome_title">Добро пожаловать</string>
+    <string name="welcome_text">IYKYK — приложение VPN «Для своих». Чтобы подключиться, нужна подписка.</string>
+    <string name="action_buy">Купить подписку</string>
+    <string name="welcome_have">Уже есть подписка?</string>
+    <string name="action_get_in_bot">Взять ссылку в Telegram-боте</string>
+    <string name="sub_status_active">Активна</string>
+    <string name="sub_status_ending">Скоро закончится</string>
+    <string name="sub_status_expired">Закончилась</string>
+    <string name="sub_status_unlimited">Бессрочная</string>
+    <string name="action_renew_bot">Продлить подписку</string>
+    <plurals name="sub_days_left">
+        <item quantity="one">Остался %1$d день</item>
+        <item quantity="few">Осталось %1$d дня</item>
+        <item quantity="many">Осталось %1$d дней</item>
+        <item quantity="other">Осталось %1$d дня</item>
+    </plurals>
+    <string name="sub_valid_until">Действует до %1$s</string>
+    <string name="sub_traffic">Трафик</string>
+    <string name="sub_actions">Действия</string>
+    <string name="sub_refresh">Обновить подписку</string>
+    <string name="clipboard_found_title">Добавить подписку?</string>
+    <string name="clipboard_found_text">В буфере обмена есть ссылка:\n%1$s</string>
+    <string name="prefer_xray_title">Совместимость: всё через Xray</string>
+    <string name="prefer_xray_subtitle">Включайте, только если сервер перестал подключаться после обновления. Расходует больше батареи</string>
+
+    <string name="tunnel_checking">Проверяю соединение…</string>
+    <string name="tunnel_ok">%1$s · %2$s · %3$d мс</string>
+    <string name="tunnel_no_internet">Нет интернета. VPN заработает, когда сеть появится</string>
+    <string name="tunnel_reconnecting">Нет связи с сервером, переподключаюсь…</string>
+    <string name="tunnel_failed">Сервер не отвечает. Попробуйте другой сервер</string>
+    <string name="action_send_report">Отправить отчёт в поддержку</string>
+    <string name="report_message">Отчёт IYKYK для поддержки «Для своих»</string>
+
+    <string name="menu_other_device">Подключить другое устройство</string>
+    <string name="other_device_text">Отсканируйте этот код в IYKYK на другом телефоне или планшете. Не показывайте его посторонним: это доступ к вашей подписке.</string>
+    <string name="menu_copy_link">Копировать ссылку</string>
+    <string name="link_copied">Ссылка скопирована</string>
+    <string name="menu_delete">Удалить подписку</string>
+    <string name="delete_title">Удалить подписку?</string>
+    <string name="delete_text">Подписка и серверы исчезнут из приложения, VPN отключится. Сама подписка не отменяется: её можно добавить снова.</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_close">Закрыть</string>
+
+    <string name="devices_label">Устройства</string>
+    <string name="devices_of">%1$d из %2$d</string>
+    <string name="devices_unlimited">%1$d, без лимита</string>
+    <string name="devices_title">Устройства</string>
+    <string name="device_current">это устройство</string>
+    <string name="device_added">добавлено %1$s</string>
+    <string name="device_remove_title">Удалить устройство?</string>
+    <string name="device_remove_text">«%1$s» перестанет подключаться, а его место освободится для нового устройства. Подписку на нём можно будет добавить снова.</string>
+    <string name="device_removed">Устройство удалено</string>
+    <string name="device_remove_failed">Не удалось удалить: %1$s</string>
+    <string name="hwid_limit_reached">Достигнут лимит устройств. Удалите старое устройство или напишите в поддержку.</string>
+    <string name="error_device_limit">Достигнут лимит устройств подписки. Удалите старое устройство в IYKYK на другом телефоне или напишите в поддержку.</string>
+
+    <string name="tv_send_step1">Откройте IYKYK на телевизоре</string>
+    <string name="tv_send_step2">Нажмите «Принять с телефона»</string>
+    <string name="tv_send_step3">Наведите камеру на код на экране</string>
+    <string name="tv_same_wifi">Телефон и телевизор — в одной сети Wi-Fi</string>
+    <string name="tv_scan_button">Сканировать код</string>
+    <string name="tv_receive_step1">На телефоне: IYKYK → ⋯ → «Отправить на TV»</string>
+    <string name="tv_receive_step2">Наведите камеру телефона на этот код</string>
+    <string name="tv_waiting">Жду телефон…</string>
+
+    <string name="apps_hint_only">Через VPN будут работать только отмеченные приложения, остальные — напрямую</string>
+    <string name="apps_hint_except">Отмеченные приложения будут работать без VPN. Заблокированные сайты в них не откроются</string>
+</resources>

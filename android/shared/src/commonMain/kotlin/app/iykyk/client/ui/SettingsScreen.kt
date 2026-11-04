@@ -30,11 +30,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.iykyk.client.R
+import app.iykyk.shared.resources.*
 import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.AppSettings
 import app.iykyk.client.core.ThemeMode
@@ -65,18 +65,18 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            TopBar(stringResource(R.string.settings_title), onBack)
+            TopBar(stringResource(Res.string.settings_title), onBack)
             Spacer(Modifier.height(8.dp))
 
-            SectionTitle(stringResource(R.string.settings_appearance))
+            SectionTitle(stringResource(Res.string.settings_appearance))
             Card {
                 ChoiceRow(
-                    title = stringResource(R.string.theme_title),
+                    title = stringResource(Res.string.theme_title),
                     value = settings.themeMode.name,
                     choices = listOf(
-                        ThemeMode.SYSTEM.name to stringResource(R.string.theme_system),
-                        ThemeMode.LIGHT.name to stringResource(R.string.theme_light),
-                        ThemeMode.DARK.name to stringResource(R.string.theme_dark),
+                        ThemeMode.SYSTEM.name to stringResource(Res.string.theme_system),
+                        ThemeMode.LIGHT.name to stringResource(Res.string.theme_light),
+                        ThemeMode.DARK.name to stringResource(Res.string.theme_dark),
                     ),
                     allowCustom = false,
                     onChange = { onThemeChange(ThemeMode.valueOf(it)) },
@@ -84,24 +84,24 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(20.dp))
-            SectionTitle(stringResource(R.string.settings_connection))
+            SectionTitle(stringResource(Res.string.settings_connection))
             Card {
                 Column {
                     SwitchRow(
-                        title = stringResource(R.string.auto_launch_title),
-                        subtitle = stringResource(R.string.auto_launch_subtitle),
+                        title = stringResource(Res.string.auto_launch_title),
+                        subtitle = stringResource(Res.string.auto_launch_subtitle),
                         checked = settings.autoConnectOnLaunch,
                         onChange = onAutoLaunchChange,
                     )
                     SwitchRow(
-                        title = stringResource(R.string.auto_boot_title),
-                        subtitle = stringResource(R.string.auto_boot_subtitle),
+                        title = stringResource(Res.string.auto_boot_title),
+                        subtitle = stringResource(Res.string.auto_boot_subtitle),
                         checked = settings.autoConnectOnBoot,
                         onChange = onAutoBootChange,
                     )
                     SwitchRow(
-                        title = stringResource(R.string.reminders_title),
-                        subtitle = stringResource(R.string.reminders_subtitle),
+                        title = stringResource(Res.string.reminders_title),
+                        subtitle = stringResource(Res.string.reminders_subtitle),
                         checked = settings.expiryReminders,
                         onChange = onRemindersChange,
                     )
@@ -113,9 +113,9 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.killswitch_title), color = IykykColors.Text, fontWeight = FontWeight.Medium)
+                            Text(stringResource(Res.string.killswitch_title), color = IykykColors.Text, fontWeight = FontWeight.Medium)
                             Text(
-                                stringResource(R.string.killswitch_subtitle),
+                                stringResource(Res.string.killswitch_subtitle),
                                 color = IykykColors.Muted,
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -127,24 +127,24 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(20.dp))
-            SectionTitle(stringResource(R.string.settings_routing))
+            SectionTitle(stringResource(Res.string.settings_routing))
             Card {
                 Column {
                     SwitchRow(
-                        title = stringResource(R.string.bypass_title),
-                        subtitle = stringResource(R.string.bypass_subtitle),
+                        title = stringResource(Res.string.bypass_title),
+                        subtitle = stringResource(Res.string.bypass_subtitle),
                         checked = settings.bypassRussia,
                         onChange = onBypassChange,
                     )
                     SwitchRow(
-                        title = stringResource(R.string.fragment_title),
-                        subtitle = stringResource(R.string.fragment_subtitle),
+                        title = stringResource(Res.string.fragment_title),
+                        subtitle = stringResource(Res.string.fragment_subtitle),
                         checked = settings.fragment,
                         onChange = onFragmentChange,
                     )
                     SwitchRow(
-                        title = stringResource(R.string.prefer_xray_title),
-                        subtitle = stringResource(R.string.prefer_xray_subtitle),
+                        title = stringResource(Res.string.prefer_xray_title),
+                        subtitle = stringResource(Res.string.prefer_xray_subtitle),
                         checked = settings.preferXray,
                         onChange = onPreferXrayChange,
                     )
@@ -152,13 +152,13 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(20.dp))
-            SectionTitle(stringResource(R.string.settings_apps))
+            SectionTitle(stringResource(Res.string.settings_apps))
             Card {
                 Column {
                     for ((mode, label) in listOf(
-                        AppMode.ALL to R.string.apps_mode_all,
-                        AppMode.ONLY_SELECTED to R.string.apps_mode_only,
-                        AppMode.EXCEPT_SELECTED to R.string.apps_mode_except,
+                        AppMode.ALL to Res.string.apps_mode_all,
+                        AppMode.ONLY_SELECTED to Res.string.apps_mode_only,
+                        AppMode.EXCEPT_SELECTED to Res.string.apps_mode_except,
                     )) {
                         Row(
                             modifier = Modifier
@@ -178,7 +178,7 @@ fun SettingsScreen(
                     if (settings.appMode != AppMode.ALL) {
                         Text(
                             stringResource(
-                                if (settings.appMode == AppMode.ONLY_SELECTED) R.string.apps_hint_only else R.string.apps_hint_except,
+                                if (settings.appMode == AppMode.ONLY_SELECTED) Res.string.apps_hint_only else Res.string.apps_hint_except,
                             ),
                             color = IykykColors.Muted,
                             style = MaterialTheme.typography.bodySmall,
@@ -192,12 +192,12 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                stringResource(R.string.apps_choose),
+                                stringResource(Res.string.apps_choose),
                                 color = IykykColors.Accent,
                                 modifier = Modifier.weight(1f),
                             )
                             Text(
-                                stringResource(R.string.apps_selected, settings.apps.size) + " ›",
+                                stringResource(Res.string.apps_selected, settings.apps.size) + " ›",
                                 color = IykykColors.Muted,
                             )
                         }
@@ -206,17 +206,17 @@ fun SettingsScreen(
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                stringResource(R.string.settings_reconnect_hint),
+                stringResource(Res.string.settings_reconnect_hint),
                 color = IykykColors.Muted,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
 
             Spacer(Modifier.height(20.dp))
-            SectionTitle(stringResource(R.string.settings_about))
+            SectionTitle(stringResource(Res.string.settings_about))
             Card {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.settings_versions), color = IykykColors.Text, fontWeight = FontWeight.Medium)
+                    Text(stringResource(Res.string.settings_versions), color = IykykColors.Text, fontWeight = FontWeight.Medium)
                     Text(versions, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -309,22 +309,22 @@ private fun ChoiceRow(
                             open = false
                             customInput = true
                         }) {
-                            Text(stringResource(R.string.dns_custom), color = IykykColors.Accent)
+                            Text(stringResource(Res.string.dns_custom), color = IykykColors.Accent)
                         }
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { open = false }) {
-                    Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                    Text(stringResource(Res.string.action_cancel), color = IykykColors.Muted)
                 }
             },
         )
     }
     if (customInput) {
         LinkInputDialog(
-            title = stringResource(R.string.dns_custom),
-            hint = stringResource(R.string.dns_custom_hint),
+            title = stringResource(Res.string.dns_custom),
+            hint = stringResource(Res.string.dns_custom_hint),
             initial = value.takeIf { it.startsWith("https://") }.orEmpty(),
             onConfirm = {
                 customInput = false
@@ -336,10 +336,10 @@ private fun ChoiceRow(
 }
 
 @Composable
-internal fun TopBar(title: String, onBack: () -> Unit) {
+fun TopBar(title: String, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = onBack) {
-            Text("‹ " + stringResource(R.string.action_back), color = IykykColors.Accent)
+            Text("‹ " + stringResource(Res.string.action_back), color = IykykColors.Accent)
         }
         Spacer(Modifier.width(8.dp))
         Text(title, color = IykykColors.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)

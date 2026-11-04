@@ -6,36 +6,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 
-/** Which apps go through the VPN. */
-enum class AppMode { ALL, ONLY_SELECTED, EXCEPT_SELECTED }
-
-/** Light, dark or follow the system. */
-enum class ThemeMode { SYSTEM, LIGHT, DARK }
-
-data class AppSettings(
-    /** Russian sites and IPs go directly, not through the VPN. On by default: many of them block foreign IPs. */
-    val bypassRussia: Boolean = true,
-    val appMode: AppMode = AppMode.ALL,
-    val apps: Set<String> = emptySet(),
-    /** Split TLS handshakes to get past DPI that blocks by server name. */
-    val fragment: Boolean = false,
-    /** Sort the server list by the last ping. */
-    val sortByPing: Boolean = false,
-    /** Connect when the app is opened. */
-    val autoConnectOnLaunch: Boolean = false,
-    /** Connect when the phone starts. */
-    val autoConnectOnBoot: Boolean = false,
-    /** Remind before the subscription expires. */
-    val expiryReminders: Boolean = true,
-    /** DNS for tunnelled traffic: cloudflare, google, quad9, adguard or a DoH URL. */
-    val remoteDns: String = "cloudflare",
-    /** DNS for proxy servers and bypassed sites: yandex, cloudflare, google or an IP. */
-    val directDns: String = "yandex",
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    /** Run VLESS/VMess/Trojan/Shadowsocks through Xray instead of sing-box (uses more battery). */
-    val preferXray: Boolean = false,
-)
-
 object SettingsStore {
     private const val PREFS = "settings"
     private const val KEY_BYPASS = "bypass_russia"

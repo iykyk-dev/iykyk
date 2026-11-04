@@ -1,7 +1,5 @@
 package app.iykyk.client.tv
 
-import android.os.Handler
-import android.os.Looper
 import java.io.BufferedInputStream
 import java.io.Closeable
 import java.io.IOException
@@ -36,11 +34,10 @@ object TvShare {
             ?.hostAddress
     }.getOrNull()
 
-    /** Waits for one subscription from a phone; [onReceived] runs on the main thread. */
+    /** Waits for one subscription from a phone; [onReceived] runs on a background thread. */
     class Receiver(private val onReceived: (String) -> Unit) : Closeable {
         private val token = randomToken()
         private val server = ServerSocket(0)
-        private val main = Handler(Looper.getMainLooper())
 
         /** What the QR code holds, or null without a local network. */
         val code: String? = localAddress()?.let { "$SCHEME$it:${server.localPort}/$token" }
@@ -54,7 +51,7 @@ object TvShare {
                         break
                     }
                     val text = runCatching { socket.use(::handle) }.getOrNull()
-                    if (text != null) main.post { onReceived(text) }
+                    if (text != null) onReceived(text)
                 }
             }
         }

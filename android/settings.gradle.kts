@@ -20,3 +20,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "IYKYK"
 include(":app")
+// Screens, models and logic shared by Android and the Windows app.
+include(":shared")

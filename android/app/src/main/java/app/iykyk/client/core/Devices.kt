@@ -8,20 +8,6 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-data class DeviceInfo(
-    val id: String,
-    val platform: String,
-    val os: String,
-    val model: String,
-    val app: String,
-    val added: String,
-    val lastSeen: String,
-    val current: Boolean,
-)
-
-/** Devices on the subscription: [used] of [limit] (0 = unlimited). */
-data class DevicesInfo(val used: Int, val limit: Int, val devices: List<DeviceInfo>)
-
 /**
  * Asks the provider's small devices service (server/devices in this repo,
  * next to the Remnawave panel) which devices use the subscription, and removes
