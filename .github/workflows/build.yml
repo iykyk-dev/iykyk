@@ -235,6 +235,8 @@ jobs:
             choco install innosetup -y --no-progress
           fi
           ISCC="/c/Program Files (x86)/Inno Setup 6/ISCC.exe"
+          # Git Bash would turn /D... and /O... into paths.
+          export MSYS_NO_PATHCONV=1
           "$ISCC" \
             "/DAppImage=$(cygpath -w "$PWD/android/desktop/build/compose/binaries/main/app/IYKYK")" \
             "/DCoreDir=$(cygpath -w "$PWD/core-dist")" \
