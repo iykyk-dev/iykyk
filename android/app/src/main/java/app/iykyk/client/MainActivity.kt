@@ -1,16 +1,19 @@
 package app.iykyk.client
 
 import android.Manifest
+import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.iykyk.client.core.ProfileStore
 import app.iykyk.client.ui.IykykTheme
 import app.iykyk.client.ui.MainScreen
 import app.iykyk.client.vpn.IykykVpnService
@@ -34,7 +37,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             IykykTheme {
                 val status = VpnState.status.collectAsStateWithLifecycle().value
-                MainScreen(status = status, onToggle = ::toggleVpn)
+                val error = VpnState.error.collectAsStateWithLifecycle().value
+                val server = ProfileStore.current.collectAsStateWithLifecycle().value
+                MainScreen(
+                    status = status,
+                    server = server,
+                    error = error,
+                    onToggle = ::toggleVpn,
+                    onPasteLink = ::pasteLink,
+                )
             }
         }
     }
@@ -51,6 +62,30 @@ class MainActivity : ComponentActivity() {
         } else {
             vpnPermission.launch(consent)
         }
+    }
+
+    private fun pasteLink() {
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        val text = clipboard.primaryClip
+            ?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)
+            ?.coerceToText(this)
+            ?.toString()
+            ?.trim()
+        if (text.isNullOrEmpty()) {
+            toast(getString(R.string.link_clipboard_empty))
+            return
+        }
+        try {
+            val info = ProfileStore.save(this, text)
+            toast(getString(R.string.link_saved, info.name))
+        } catch (e: Exception) {
+            toast(getString(R.string.link_invalid, e.message ?: ""))
+        }
+    }
+
+    private fun toast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     private fun askNotificationPermission() {

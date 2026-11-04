@@ -13,12 +13,17 @@
 
     <string name="server_label">Сервер</string>
     <string name="server_none">не выбран</string>
-    <string name="subscription_label">Подписка</string>
-    <string name="subscription_none">не добавлена</string>
+    <string name="protocol_label">Протокол</string>
+    <string name="action_paste_link">Вставить ссылку из буфера</string>
+    <string name="paste_hint">Скопируйте ссылку на сервер (vless://, trojan://, ss://, hysteria2://) и нажмите кнопку ниже.</string>
+    <string name="link_saved">Сервер добавлен: %1$s</string>
+    <string name="link_clipboard_empty">В буфере обмена нет текста</string>
+    <string name="link_invalid">Ссылка не поддерживается: %1$s</string>
+    <string name="link_reconnect">Переподключитесь, чтобы использовать новый сервер</string>
 
-    <string name="demo_notice">Демо-сборка: ядро ещё не подключено, трафик пока идёт напрямую.</string>
+    <string name="error_no_server">Сначала добавьте сервер</string>
+    <string name="error_prefix">Не удалось подключиться: %1$s</string>
 
     <string name="notification_channel">Состояние VPN</string>
     <string name="notification_connected">Защищённое соединение активно</string>
-    <string name="notification_demo">Демо-режим, ядро ещё не подключено</string>
 </resources>

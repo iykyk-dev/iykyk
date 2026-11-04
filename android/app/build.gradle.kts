@@ -44,9 +44,17 @@ android {
     buildFeatures {
         compose = true
     }
+
+    packaging {
+        // Compressed native libraries: the Go core is large, this roughly halves the APK.
+        jniLibs.useLegacyPackaging = true
+    }
 }
 
 dependencies {
+    // Go core built by core/build.sh (sing-box libbox + Xray + app glue).
+    implementation(files("libs/iykyk-core.aar"))
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)

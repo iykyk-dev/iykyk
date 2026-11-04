@@ -1,1 +1,4 @@
-# Rules for the Go core (gomobile) will be added together with the core.
+# The Go core is called through JNI by name: keep the gomobile runtime and bindings.
+-keep class go.** { *; }
+-keep class app.iykyk.core.** { *; }
+-keepclassmembers class * implements go.Seq$Proxy { *; }

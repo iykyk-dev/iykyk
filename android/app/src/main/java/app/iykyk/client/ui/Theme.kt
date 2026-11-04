@@ -14,6 +14,7 @@ object IykykColors {
     val Text = Color(0xFFE6EEEA)
     val Muted = Color(0xFF7D8C86)
     val Warning = Color(0xFFFFC107)
+    val Error = Color(0xFFFF6B6B)
 }
 
 private val scheme = darkColorScheme(

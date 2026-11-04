@@ -1,0 +1,130 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "core/**"
+      - ".github/workflows/build.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - "core/**"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CORE_TEST_TAGS: engine,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0
+
+jobs:
+  core:
+    name: Core (Go → .aar)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The core takes ~15 minutes to build; reuse it while core/ is unchanged.
+      - name: Restore core from cache
+        id: cache
+        uses: actions/cache@v6
+        with:
+          path: android/app/libs/iykyk-core.aar
+          key: core-android-${{ hashFiles('core/**') }}
+
+      - name: Set up Go
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: core/go.sum
+
+      - name: Set up JDK 21
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Resolve dependencies (only if go.sum is missing)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          if [ ! -f go.sum ]; then
+            ./build.sh deps
+          fi
+
+      - name: Test (link parsing + configs checked by sing-box and Xray)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: go test -count=1 -tags "$CORE_TEST_TAGS" -ldflags=-checklinkname=0 ./iykyk/
+
+      - name: Build .aar
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          ./build.sh android
+
+      - name: Upload .aar
+        uses: actions/upload-artifact@v7
+        with:
+          name: iykyk-core-android
+          path: android/app/libs/iykyk-core.aar
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Commit go.sum if it was created
+        if: steps.cache.outputs.cache-hit != 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add go.mod go.sum
+            git commit -m "Core: pin dependencies in go.sum"
+            git push
+          fi
+
+  android:
+    name: Android APK
+    needs: core
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download core
+        uses: actions/download-artifact@v8
+        with:
+          name: iykyk-core-android
+          path: android/app/libs
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: iykyk-debug-${{ github.run_number }}
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
