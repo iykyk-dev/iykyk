@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">IYKYK</string>
+    <string name="tagline">для своих</string>
+
+    <string name="status_disconnected">Отключено</string>
+    <string name="status_connecting">Подключение…</string>
+    <string name="status_connected">Подключено</string>
+    <string name="status_disconnecting">Отключение…</string>
+
+    <string name="action_connect">Подключить</string>
+    <string name="action_disconnect">Отключить</string>
+
+    <string name="server_label">Сервер</string>
+    <string name="server_none">не выбран</string>
+    <string name="subscription_label">Подписка</string>
+    <string name="subscription_none">не добавлена</string>
+
+    <string name="demo_notice">Демо-сборка: ядро ещё не подключено, трафик пока идёт напрямую.</string>
+
+    <string name="notification_channel">Состояние VPN</string>
+    <string name="notification_connected">Защищённое соединение активно</string>
+    <string name="notification_demo">Демо-режим, ядро ещё не подключено</string>
+</resources>
