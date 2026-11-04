@@ -44,6 +44,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
     companion object {
         const val ACTION_CONNECT = "app.iykyk.client.action.CONNECT"
         const val ACTION_DISCONNECT = "app.iykyk.client.action.DISCONNECT"
+        const val ACTION_RECONNECT = "app.iykyk.client.action.RECONNECT"
 
         private const val TAG = "IykykVpn"
         private const val CHANNEL_ID = "vpn_status"
@@ -56,6 +57,13 @@ class IykykVpnService : VpnService(), CommandServerHandler {
 
         fun stop(context: Context) {
             val intent = Intent(context, IykykVpnService::class.java).setAction(ACTION_DISCONNECT)
+            context.startService(intent)
+        }
+
+        /** Restarts the tunnel with the currently selected server, if it is running. */
+        fun reconnect(context: Context) {
+            if (!VpnState.status.value.isActive) return
+            val intent = Intent(context, IykykVpnService::class.java).setAction(ACTION_RECONNECT)
             context.startService(intent)
         }
     }
@@ -71,12 +79,15 @@ class IykykVpnService : VpnService(), CommandServerHandler {
     private var serverName: String? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_DISCONNECT) {
-            disconnect()
-            return START_NOT_STICKY
+        when (intent?.action) {
+            ACTION_DISCONNECT -> {
+                disconnect()
+                return START_NOT_STICKY
+            }
+            ACTION_RECONNECT -> reconnect()
+            // ACTION_CONNECT, or a start by the system for Always-on VPN (no action).
+            else -> connect()
         }
-        // ACTION_CONNECT, or a start by the system for Always-on VPN (no action).
-        connect()
         return START_STICKY
     }
 
@@ -89,6 +100,21 @@ class IykykVpnService : VpnService(), CommandServerHandler {
             buildNotification(getString(R.string.status_connecting)),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED,
         )
+        launchStart()
+    }
+
+    private fun reconnect() {
+        if (commandServer == null) {
+            connect()
+            return
+        }
+        VpnState.set(VpnStatus.CONNECTING)
+        updateNotification(getString(R.string.status_connecting))
+        scope.launch { stopCore() }
+        launchStart()
+    }
+
+    private fun launchStart() {
         scope.launch {
             try {
                 startCore()
@@ -105,7 +131,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
 
     private fun startCore() {
         Core.setup(this)
-        val link = ProfileStore.link(this) ?: error(getString(R.string.error_no_server))
+        val link = ProfileStore.currentLink(this) ?: error(getString(R.string.error_no_server))
         val profile = Iykyk.buildProfile(link)
         serverName = profile.name
 

@@ -13,11 +13,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import app.iykyk.client.core.ProfileStore
 import app.iykyk.client.ui.IykykTheme
 import app.iykyk.client.ui.MainScreen
 import app.iykyk.client.vpn.IykykVpnService
 import app.iykyk.client.vpn.VpnState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -29,6 +32,8 @@ class MainActivity : ComponentActivity() {
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
+    private val refreshing = MutableStateFlow(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -36,15 +41,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             IykykTheme {
-                val status = VpnState.status.collectAsStateWithLifecycle().value
-                val error = VpnState.error.collectAsStateWithLifecycle().value
-                val server = ProfileStore.current.collectAsStateWithLifecycle().value
                 MainScreen(
-                    status = status,
-                    server = server,
-                    error = error,
+                    status = VpnState.status.collectAsStateWithLifecycle().value,
+                    profiles = ProfileStore.profiles.collectAsStateWithLifecycle().value,
+                    error = VpnState.error.collectAsStateWithLifecycle().value,
+                    refreshing = refreshing.collectAsStateWithLifecycle().value,
                     onToggle = ::toggleVpn,
                     onPasteLink = ::pasteLink,
+                    onRefresh = ::refreshSubscription,
+                    onSelectServer = ::selectServer,
                 )
             }
         }
@@ -76,12 +81,37 @@ class MainActivity : ComponentActivity() {
             toast(getString(R.string.link_clipboard_empty))
             return
         }
-        try {
-            val info = ProfileStore.save(this, text)
-            toast(getString(R.string.link_saved, info.name))
-        } catch (e: Exception) {
-            toast(getString(R.string.link_invalid, e.message ?: ""))
+        if (text.startsWith("http", ignoreCase = true)) toast(getString(R.string.link_loading))
+        lifecycleScope.launch {
+            try {
+                val description = ProfileStore.import(this@MainActivity, text)
+                toast(getString(R.string.link_saved, description))
+                IykykVpnService.reconnect(this@MainActivity)
+            } catch (e: Exception) {
+                toast(getString(R.string.link_invalid, e.message ?: e.javaClass.simpleName))
+            }
         }
+    }
+
+    private fun refreshSubscription() {
+        if (refreshing.value) return
+        refreshing.value = true
+        lifecycleScope.launch {
+            try {
+                ProfileStore.refresh(this@MainActivity)
+                toast(getString(R.string.refresh_done))
+            } catch (e: Exception) {
+                toast(getString(R.string.refresh_failed, e.message ?: e.javaClass.simpleName))
+            } finally {
+                refreshing.value = false
+            }
+        }
+    }
+
+    private fun selectServer(index: Int) {
+        val previous = ProfileStore.profiles.value.selected
+        ProfileStore.select(this, index)
+        if (index != previous) IykykVpnService.reconnect(this)
     }
 
     private fun toast(message: String) {

@@ -14,12 +14,26 @@
     <string name="server_label">Сервер</string>
     <string name="server_none">не выбран</string>
     <string name="protocol_label">Протокол</string>
-    <string name="action_paste_link">Вставить ссылку из буфера</string>
-    <string name="paste_hint">Скопируйте ссылку на сервер (vless://, trojan://, ss://, hysteria2://) и нажмите кнопку ниже.</string>
-    <string name="link_saved">Сервер добавлен: %1$s</string>
+    <string name="action_change_server">Сменить</string>
+    <string name="servers_title">Серверы</string>
+    <string name="action_paste_link">Вставить подписку или ссылку</string>
+    <string name="paste_hint">Скопируйте ссылку на подписку (https://…) или на сервер (vless://, trojan://, ss://, hysteria2://) и нажмите кнопку ниже.</string>
+    <string name="link_saved">Добавлено: %1$s</string>
+    <string name="link_loading">Загружаю подписку…</string>
     <string name="link_clipboard_empty">В буфере обмена нет текста</string>
-    <string name="link_invalid">Ссылка не поддерживается: %1$s</string>
-    <string name="link_reconnect">Переподключитесь, чтобы использовать новый сервер</string>
+    <string name="link_invalid">Не удалось добавить: %1$s</string>
+
+    <string name="subscription_label">Подписка</string>
+    <string name="traffic_label">Трафик</string>
+    <string name="traffic_used_of">%1$s из %2$s</string>
+    <string name="traffic_unlimited">%1$s, без лимита</string>
+    <string name="expire_label">Действует до</string>
+    <string name="expire_never">бессрочно</string>
+    <string name="expire_expired">истекла %1$s</string>
+    <string name="action_refresh">Обновить</string>
+    <string name="refreshing">Обновляю…</string>
+    <string name="refresh_done">Подписка обновлена</string>
+    <string name="refresh_failed">Не удалось обновить: %1$s</string>
 
     <string name="error_no_server">Сначала добавьте сервер</string>
     <string name="error_prefix">Не удалось подключиться: %1$s</string>
