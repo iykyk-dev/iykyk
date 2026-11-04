@@ -104,19 +104,8 @@ func BuildProfileWithOptions(link string, optionsJSON string) (*Profile, error) 
 			return nil, err
 		}
 		xrayConfig := jsonObject{
-			"log": xrayLog(opts.logFile("xray.log")),
-			"inbounds": []any{jsonObject{
-				"tag":      "socks-in",
-				"listen":   "127.0.0.1",
-				"port":     port,
-				"protocol": "socks",
-				"settings": jsonObject{
-					"auth":     "password",
-					"accounts": []any{jsonObject{"user": user, "pass": pass}},
-					"udp":      true,
-					"ip":       "127.0.0.1",
-				},
-			}},
+			"log":       xrayLog(opts.logFile("xray.log")),
+			"inbounds":  []any{xraySocksInbound("socks-in", port, user, pass)},
 			"outbounds": []any{xrayOutbound},
 		}
 		profile.UsesXray = true

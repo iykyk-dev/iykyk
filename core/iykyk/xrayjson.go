@@ -164,7 +164,7 @@ func xrayConfigFromJSON(raw string, port int, user, pass string, fragment bool, 
 	}
 	inbound := xraySocksInbound(tag, port, user, pass)
 	if sniffing != nil {
-		inbound["sniffing"] = sniffing
+		inbound["sniffing"] = sniffing // the provider's own choice wins
 	}
 	if port == 0 {
 		delete(config, "inbounds") // real ping dials through the instance directly
@@ -271,6 +271,14 @@ func xraySocksInbound(tag string, port int, user, pass string) jsonObject {
 			"accounts": []any{jsonObject{"user": user, "pass": pass}},
 			"udp":      true,
 			"ip":       "127.0.0.1",
+		},
+		// Connections from the TUN arrive with the destination IP only.
+		// Sniffing restores the site's name from the TLS/HTTP/QUIC handshake,
+		// so the server gets "example.org:443" as it does from Happ or INCY.
+		// Servers that route or balance by domain otherwise drop the traffic.
+		"sniffing": jsonObject{
+			"enabled":      true,
+			"destOverride": []string{"http", "tls", "quic"},
 		},
 	}
 }

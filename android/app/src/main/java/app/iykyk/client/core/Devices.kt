@@ -55,6 +55,8 @@ object Devices {
                 when (connection.responseCode) {
                     200 -> parse(connection.inputStream.bufferedReader().use { it.readText() })
                     404 -> if (body == null) null else error("device not found")
+                    // No devices service in front of the panel (yet): no row, no noise.
+                    in 500..599 -> if (body == null) null else error("HTTP ${connection.responseCode}")
                     else -> error("HTTP ${connection.responseCode}")
                 }
             } finally {
