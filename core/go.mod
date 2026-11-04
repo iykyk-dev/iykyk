@@ -13,6 +13,7 @@ require (
 	github.com/sagernet/sing-box v1.14.4
 	github.com/xtls/xray-core v1.260327.1-0.20261031132019-a4a3dff5b20c
 	golang.org/x/net v0.61.0
+	golang.org/x/sys v0.49.0
 	golang.zx2c4.com/wireguard v0.0.0-20250521234502-f333402bd9cb
 	google.golang.org/protobuf v1.36.12
 )
@@ -192,7 +193,6 @@ require (
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
