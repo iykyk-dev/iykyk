@@ -30,6 +30,8 @@ import androidx.lifecycle.lifecycleScope
 import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.ProfileStore
 import app.iykyk.client.core.AppLog
+import app.iykyk.client.core.Devices
+import app.iykyk.client.core.DevicesInfo
 import app.iykyk.client.core.Purchase
 import app.iykyk.client.core.Report
 import app.iykyk.client.core.SettingsStore
@@ -68,6 +70,7 @@ class MainActivity : ComponentActivity() {
     private val pinging = MutableStateFlow(false)
     private val pings = MutableStateFlow<Map<String, Int>>(emptyMap())
     private val clipboardLink = MutableStateFlow<String?>(null)
+    private val devices = MutableStateFlow<DevicesInfo?>(null)
     private val canBuy by lazy { Purchase.allowed(this) }
     /** Set when the user leaves for the Telegram bot; checked when they come back. */
     private var openedBot = false
@@ -115,6 +118,7 @@ class MainActivity : ComponentActivity() {
                         clipboardLink = clipboardLink.collectAsStateWithLifecycle().value,
                         tunnel = VpnState.tunnel.collectAsStateWithLifecycle().value,
                         shareLink = ProfileStore.profiles.collectAsStateWithLifecycle().value.let { shareLink(it) },
+                        devices = devices.collectAsStateWithLifecycle().value,
                         onToggle = ::toggleVpn,
                         onPasteLink = ::pasteLink,
                         onRefresh = ::refreshSubscription,
@@ -128,6 +132,8 @@ class MainActivity : ComponentActivity() {
                         onSendReport = ::sendReport,
                         onCopyLink = ::copyLink,
                         onDelete = ::deleteSubscription,
+                        onLoadDevices = ::loadDevices,
+                        onDeleteDevice = ::deleteDevice,
                         onOpenUrl = ::openUrl,
                         onImportText = ::importText,
                         onSortChange = { value -> SettingsStore.update(this) { it.copy(sortByPing = value) } },
@@ -275,7 +281,7 @@ class MainActivity : ComponentActivity() {
                 toast(getString(R.string.link_not_allowed))
             } catch (e: Exception) {
                 AppLog.i("import failed: ${e.message ?: e.javaClass.simpleName}")
-                toast(getString(R.string.link_invalid, e.message ?: e.javaClass.simpleName))
+                toast(friendlyError(e) ?: getString(R.string.link_invalid, e.message ?: e.javaClass.simpleName))
             }
         }
     }
@@ -342,11 +348,33 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) toast(getString(R.string.link_copied))
     }
 
+    private fun loadDevices() {
+        val sub = ProfileStore.profiles.value.subscription ?: return
+        lifecycleScope.launch {
+            devices.value = runCatching { Devices.load(this@MainActivity, sub) }
+                .onFailure { AppLog.i("devices: ${it.message}") }
+                .getOrNull()
+        }
+    }
+
+    private fun deleteDevice(id: String) {
+        val sub = ProfileStore.profiles.value.subscription ?: return
+        lifecycleScope.launch {
+            try {
+                devices.value = Devices.delete(this@MainActivity, sub, id)
+                toast(getString(R.string.device_removed))
+            } catch (e: Exception) {
+                toast(getString(R.string.device_remove_failed, e.message ?: e.javaClass.simpleName))
+            }
+        }
+    }
+
     private fun deleteSubscription() {
         AppLog.i("subscription deleted by the user")
         if (VpnState.status.value.isActive) IykykVpnService.stop(this)
         ProfileStore.clear(this)
         pings.value = emptyMap()
+        devices.value = null
     }
 
     private fun sendToTv(code: String) {
@@ -399,7 +427,7 @@ class MainActivity : ComponentActivity() {
                 toast(getString(R.string.refresh_done))
             } catch (e: Exception) {
                 AppLog.i("refresh failed: ${e.message ?: e.javaClass.simpleName}")
-                toast(getString(R.string.refresh_failed, e.message ?: e.javaClass.simpleName))
+                toast(friendlyError(e) ?: getString(R.string.refresh_failed, e.message ?: e.javaClass.simpleName))
             } finally {
                 refreshing.value = false
             }
@@ -431,6 +459,12 @@ class MainActivity : ComponentActivity() {
                 pinging.value = false
             }
         }
+    }
+
+    /** Errors the user can act on, in plain words. */
+    private fun friendlyError(e: Exception): String? = when {
+        e.message.orEmpty().startsWith("hwid:") -> getString(R.string.error_device_limit)
+        else -> null
     }
 
     private fun toast(message: String) {

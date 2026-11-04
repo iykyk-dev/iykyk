@@ -41,6 +41,12 @@ data class SubscriptionInfo(
     val fallbacks: List<String> = emptyList(),
     /** Provider routing (JSON) from the Iykyk-Routing header, or "". */
     val routing: String = "",
+    /** Remnawave limits devices for this subscription (x-hwid-active). */
+    val hwidLimited: Boolean = false,
+    /** The device limit is reached (x-hwid-max-devices-reached). */
+    val hwidLimitReached: Boolean = false,
+    /** Where to ask about connected devices (Iykyk-Devices-Api), or "". */
+    val devicesApi: String = "",
 )
 
 /** Whole days until the subscription expires (negative once expired), or null if it never does. */
@@ -252,6 +258,9 @@ object ProfileStore {
                 (0 until arr.length()).map { arr.getString(it) }
             }.orEmpty(),
             routing = root.optJSONObject("routing")?.toString().orEmpty(),
+            hwidLimited = root.optBoolean("hwidLimited"),
+            hwidLimitReached = root.optBoolean("hwidLimitReached"),
+            devicesApi = root.optString("devicesApi"),
         )
         return Profiles(subscription = subscription.takeIf { url.isNotEmpty() }, servers = servers)
     }
@@ -260,6 +269,9 @@ object ProfileStore {
         val profile = Iykyk.describeLink(link)
         return ServerInfo(profile.name, profile.protocol, profile.address, link, profile.details)
     }
+
+    /** This install's device ID as the panel sees it (x-hwid). */
+    fun deviceId(context: Context): String = hwid(context)
 
     /** A random per-install device ID for panels with a device limit (Remnawave HWID). */
     private fun hwid(context: Context): String {

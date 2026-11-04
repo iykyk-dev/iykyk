@@ -90,3 +90,20 @@ func TestSubscriptionErrors(t *testing.T) {
 		t.Fatal("expected invalid URL error")
 	}
 }
+
+func TestHwidHeaders(t *testing.T) {
+	header := http.Header{}
+	header.Set("X-Hwid-Active", "true")
+	header.Set("Iykyk-Devices-Api", "https://sub.example.com/iykyk/api")
+	sub, err := parseSubscription(sampleLinks, header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sub.HwidLimited || sub.HwidLimitReached || sub.DevicesAPI != "https://sub.example.com/iykyk/api" {
+		t.Fatalf("%+v", sub)
+	}
+	header.Set("X-Hwid-Max-Devices-Reached", "true")
+	if _, err := parseSubscription("", header); err != ErrDeviceLimit {
+		t.Fatalf("err = %v, want ErrDeviceLimit", err)
+	}
+}

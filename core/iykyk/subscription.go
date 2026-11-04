@@ -28,7 +28,12 @@ type subscription struct {
 	// Backup subscription URLs (header "Fallback-Urls" or "Iykyk-Fallback-Urls").
 	Fallbacks []string `json:"fallbacks,omitempty"`
 	// Provider routing (header "Iykyk-Routing": JSON, plain or "base64:...").
-	Routing     json.RawMessage      `json:"routing,omitempty"`
+	Routing json.RawMessage `json:"routing,omitempty"`
+	// Remnawave HWID device limit (x-hwid-* response headers).
+	HwidLimited      bool `json:"hwidLimited,omitempty"`
+	HwidLimitReached bool `json:"hwidLimitReached,omitempty"`
+	// Where the app asks how many devices are connected (Iykyk-Devices-Api).
+	DevicesAPI  string               `json:"devicesApi,omitempty"`
 	Servers     []subscriptionServer `json:"servers"`
 	Unsupported []string             `json:"unsupported,omitempty"` // schemes we skipped
 }
@@ -182,10 +187,21 @@ func ParseSubscriptionText(body string) (string, error) {
 	return marshal(sub)
 }
 
+// ErrDeviceLimit: Remnawave refused this device because the subscription's
+// device limit is reached. The app shows a clear message instead of "no servers".
+var ErrDeviceLimit = errors.New("hwid: device limit reached")
+
 func parseSubscription(body string, header http.Header) (*subscription, error) {
 	sub := &subscription{Servers: []subscriptionServer{}}
 	readSubscriptionHeaders(sub, header)
+	sub2, err := parseSubscriptionBody(sub, body)
+	if err != nil && sub.HwidLimitReached {
+		return nil, ErrDeviceLimit
+	}
+	return sub2, err
+}
 
+func parseSubscriptionBody(sub *subscription, body string) (*subscription, error) {
 	text := strings.TrimSpace(body)
 	if !strings.Contains(text, "://") {
 		if decoded, err := decodeBase64(strings.Join(strings.Fields(text), "")); err == nil {
@@ -247,6 +263,13 @@ func readSubscriptionHeaders(sub *subscription, header http.Header) {
 	sub.Announce = decodeHeaderText(header.Get("Announce"))
 	sub.SupportURL = header.Get("Support-Url")
 	sub.WebPageURL = header.Get("Profile-Web-Page-Url")
+	sub.HwidLimited = isTrue(header.Get("X-Hwid-Active"))
+	sub.HwidLimitReached = isTrue(header.Get("X-Hwid-Max-Devices-Reached")) || isTrue(header.Get("X-Hwid-Limit"))
+	if api := strings.TrimSpace(header.Get("Iykyk-Devices-Api")); strings.HasPrefix(api, "https://") {
+		if u, err := url.Parse(api); err == nil && subscriptionHostAllowed(u.Hostname()) {
+			sub.DevicesAPI = api
+		}
+	}
 	if routing := decodeHeaderText(header.Get("Iykyk-Routing")); routing != "" {
 		if decoded, err := decodeBase64(routing); err == nil && strings.HasPrefix(strings.TrimSpace(decoded), "{") {
 			routing = decoded

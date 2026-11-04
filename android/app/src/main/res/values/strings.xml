@@ -194,4 +194,17 @@
     <string name="delete_text">Подписка и серверы исчезнут из приложения, VPN отключится. Сама подписка не отменяется: её можно добавить снова.</string>
     <string name="action_delete">Удалить</string>
     <string name="action_close">Закрыть</string>
+
+    <string name="devices_label">Устройства</string>
+    <string name="devices_of">%1$d из %2$d</string>
+    <string name="devices_unlimited">%1$d, без лимита</string>
+    <string name="devices_title">Устройства</string>
+    <string name="device_current">это устройство</string>
+    <string name="device_added">добавлено %1$s</string>
+    <string name="device_remove_title">Удалить устройство?</string>
+    <string name="device_remove_text">«%1$s» перестанет подключаться, а его место освободится для нового устройства. Подписку на нём можно будет добавить снова.</string>
+    <string name="device_removed">Устройство удалено</string>
+    <string name="device_remove_failed">Не удалось удалить: %1$s</string>
+    <string name="hwid_limit_reached">Достигнут лимит устройств. Удалите старое устройство или напишите в поддержку.</string>
+    <string name="error_device_limit">Достигнут лимит устройств подписки. Удалите старое устройство в IYKYK на другом телефоне или напишите в поддержку.</string>
 </resources>

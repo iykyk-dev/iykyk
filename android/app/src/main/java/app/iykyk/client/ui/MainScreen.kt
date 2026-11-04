@@ -51,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,6 +74,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.iykyk.client.R
+import app.iykyk.client.core.DeviceInfo
+import app.iykyk.client.core.DevicesInfo
 import app.iykyk.client.core.ExpiryReminder
 import app.iykyk.client.core.ProfileStore
 import app.iykyk.client.core.Profiles
@@ -101,6 +104,7 @@ fun MainScreen(
     clipboardLink: String?,
     tunnel: TunnelState?,
     shareLink: String?,
+    devices: DevicesInfo?,
     onToggle: () -> Unit,
     onPasteLink: () -> Unit,
     onRefresh: () -> Unit,
@@ -117,6 +121,8 @@ fun MainScreen(
     onSendReport: () -> Unit,
     onCopyLink: () -> Unit,
     onDelete: () -> Unit,
+    onLoadDevices: () -> Unit,
+    onDeleteDevice: (String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var showLinkInput by remember { mutableStateOf(false) }
@@ -182,6 +188,9 @@ fun MainScreen(
                             onOpenBot = onOpenBot,
                             onOpenUrl = onOpenUrl,
                             actions = subscriptionActions,
+                            devices = devices,
+                            onLoadDevices = onLoadDevices,
+                            onDeleteDevice = onDeleteDevice,
                             onSendReport = onSendReport,
                             onOpenSettings = onOpenSettings,
                         )
@@ -704,10 +713,18 @@ private fun SubscriptionTab(
     onOpenBot: () -> Unit,
     onOpenUrl: (String) -> Unit,
     actions: SubscriptionActions,
+    devices: DevicesInfo?,
+    onLoadDevices: () -> Unit,
+    onDeleteDevice: (String) -> Unit,
     onSendReport: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val sub = profiles.subscription
+    var showDevices by remember { mutableStateOf(false) }
+    LaunchedEffect(sub?.url, sub?.updatedAt) { onLoadDevices() }
+    if (showDevices && devices != null) {
+        DevicesDialog(devices, onDelete = onDeleteDevice, onDismiss = { showDevices = false })
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -760,6 +777,34 @@ private fun SubscriptionTab(
                     Text(stringResource(R.string.sub_traffic), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
                     TrafficBar(sub)
                     Text(trafficText(sub), color = IykykColors.Text, style = MaterialTheme.typography.bodyMedium)
+                    if (devices != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { showDevices = true }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.devices_label), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    if (devices.limit > 0) {
+                                        stringResource(R.string.devices_of, devices.used, devices.limit)
+                                    } else {
+                                        stringResource(R.string.devices_unlimited, devices.used)
+                                    },
+                                    color = if (devices.limit > 0 && devices.used >= devices.limit) IykykColors.Warning else IykykColors.Text,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            Text("›", color = IykykColors.Muted, fontSize = 22.sp)
+                        }
+                    }
+                    if (sub.hwidLimitReached) {
+                        Text(stringResource(R.string.hwid_limit_reached), color = IykykColors.Warning, style = MaterialTheme.typography.bodySmall)
+                    }
                     if (sub.announce.isNotBlank()) {
                         Text(sub.announce, color = IykykColors.Warning, style = MaterialTheme.typography.bodySmall)
                     }
@@ -819,6 +864,89 @@ private fun SubscriptionTab(
         }
         Spacer(Modifier.height(16.dp))
     }
+}
+
+/** The subscription's devices; any but this one can be removed to free a slot. */
+@Composable
+private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDismiss: () -> Unit) {
+    var confirm by remember { mutableStateOf<DeviceInfo?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = IykykColors.Surface,
+        title = {
+            Text(
+                stringResource(R.string.devices_title) + "  " + if (devices.limit > 0) {
+                    stringResource(R.string.devices_of, devices.used, devices.limit)
+                } else {
+                    devices.used.toString()
+                },
+                color = IykykColors.Text,
+            )
+        },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                for (device in devices.devices) {
+                    Row(modifier = Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                device.model.ifBlank { device.platform.ifBlank { "?" } } +
+                                    if (device.current) " · " + stringResource(R.string.device_current) else "",
+                                color = if (device.current) IykykColors.Accent else IykykColors.Text,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            val details = listOfNotNull(
+                                listOf(device.platform, device.os).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null },
+                                device.app.ifBlank { null },
+                                isoDate(device.added)?.let { stringResource(R.string.device_added, it) },
+                            ).joinToString(" · ")
+                            Text(details, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (!device.current) {
+                            TextButton(onClick = { confirm = device }) {
+                                Text(stringResource(R.string.action_delete), color = IykykColors.Error)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_close), color = IykykColors.Muted)
+            }
+        },
+    )
+    confirm?.let { device ->
+        AlertDialog(
+            onDismissRequest = { confirm = null },
+            containerColor = IykykColors.Surface,
+            title = { Text(stringResource(R.string.device_remove_title), color = IykykColors.Text) },
+            text = {
+                Text(
+                    stringResource(R.string.device_remove_text, device.model.ifBlank { device.platform }),
+                    color = IykykColors.Muted,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirm = null
+                    onDelete(device.id)
+                }) { Text(stringResource(R.string.action_delete), color = IykykColors.Error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirm = null }) {
+                    Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                }
+            },
+        )
+    }
+}
+
+/** "2026-10-01T10:00:00Z" → "01.10.2026". */
+private fun isoDate(text: String): String? {
+    val match = Regex("""^(\d{4})-(\d{2})-(\d{2})""").find(text) ?: return null
+    val (y, m, d) = match.destructured
+    return "$d.$m.$y"
 }
 
 @Composable
@@ -1289,6 +1417,7 @@ private fun MainScreenPreview() {
             clipboardLink = null,
             tunnel = TunnelState.Ok("5.6.7.8", "NL", 120),
             shareLink = "https://example.com/sub",
+            devices = null,
             onToggle = {},
             onPasteLink = {},
             onRefresh = {},
@@ -1305,6 +1434,8 @@ private fun MainScreenPreview() {
             onSendReport = {},
             onCopyLink = {},
             onDelete = {},
+            onLoadDevices = {},
+            onDeleteDevice = {},
             onOpenSettings = {},
         )
     }
