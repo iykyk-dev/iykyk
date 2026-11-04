@@ -1,6 +1,10 @@
 package app.iykyk.desktop
 
 import app.iykyk.client.core.AppSettings
+import app.iykyk.client.core.DevicesApi
+import app.iykyk.client.core.DevicesInfo
+import app.iykyk.client.core.EXPIRY_REMIND_DAYS
+import app.iykyk.client.core.daysLeft
 import app.iykyk.client.core.Profiles
 import app.iykyk.client.vpn.TunnelState
 import app.iykyk.client.vpn.VpnStatus
@@ -45,10 +49,15 @@ class DesktopController {
     val pings = MutableStateFlow<Map<String, Int>>(emptyMap())
     val message = MutableStateFlow<String?>(null)
     val versions = MutableStateFlow("")
+    val devices = MutableStateFlow<DevicesInfo?>(null)
+    /** A Windows notification to show from the tray: title to text. */
+    val notification = MutableStateFlow<Pair<String, String>?>(null)
     val locked = MutableStateFlow(true)
 
     private var busy = false
     private var checkJob: Job? = null
+    private var hadWorkingTunnel = false
+    private var autoReconnects = 0
 
     init {
         scope.launch {
@@ -61,6 +70,7 @@ class DesktopController {
         }
         scope.launch {
             refreshIfStale()
+            remindIfExpiring()
             pingServers()
             if (settings.value.autoConnectOnLaunch && profiles.value.hasServers) connect()
         }
@@ -100,7 +110,13 @@ class DesktopController {
     // --- Connect --------------------------------------------------------------------
 
     fun toggle() {
-        if (status.value == VpnStatus.CONNECTED || status.value == VpnStatus.CONNECTING) disconnect() else connect()
+        if (status.value == VpnStatus.CONNECTED || status.value == VpnStatus.CONNECTING) {
+            disconnect()
+        } else {
+            hadWorkingTunnel = false
+            autoReconnects = 0
+            connect()
+        }
     }
 
     fun connect() {
@@ -170,6 +186,44 @@ class DesktopController {
         tunnel.value = null
     }
 
+    /** "Your subscription ends in N days", once a day, from 3 days before. */
+    private fun remindIfExpiring() {
+        if (!settings.value.expiryReminders) return
+        val sub = profiles.value.subscription ?: return
+        val days = sub.daysLeft() ?: return
+        if (days > EXPIRY_REMIND_DAYS) return
+        val today = java.time.LocalDate.now().toString()
+        if (store.lastReminderDay == today) return
+        store.lastReminderDay = today
+        val text = when {
+            days < 0 -> "Подписка закончилась. Продлите её, чтобы VPN продолжил работать."
+            days == 0 -> "Подписка заканчивается сегодня"
+            days == 1 -> "Подписка заканчивается через 1 день"
+            days in 2..4 -> "Подписка заканчивается через $days дня"
+            else -> "Подписка заканчивается через $days дней"
+        }
+        notification.value = sub.title.ifBlank { "IYKYK" } to text
+    }
+
+    // --- Devices --------------------------------------------------------------------
+
+    fun loadDevices() {
+        val sub = profiles.value.subscription ?: return
+        scope.launch { devices.value = runCatching { DevicesApi.load(sub, store.hwid) }.getOrNull() }
+    }
+
+    fun deleteDevice(id: String) {
+        val sub = profiles.value.subscription ?: return
+        scope.launch {
+            try {
+                devices.value = DevicesApi.delete(sub, store.hwid, id)
+                message.value = "Устройство удалено"
+            } catch (e: Exception) {
+                message.value = "Не удалось удалить: ${e.message}"
+            }
+        }
+    }
+
     fun check() {
         if (status.value != VpnStatus.CONNECTED) return
         scope.launch {
@@ -178,11 +232,21 @@ class DesktopController {
                 val result = runCatching { JSONObject(io { core.post("/v1/check") }) }.getOrNull()
                 if (result != null) {
                     tunnel.value = TunnelState.Ok(result.optString("ip"), result.optString("country"), result.optInt("latency"))
+                    hadWorkingTunnel = true
+                    autoReconnects = 0
                     return@launch
                 }
                 if (attempt < 2) delay(3_000)
             }
-            tunnel.value = TunnelState.Failed
+            // As on Android: restart only a tunnel that worked and then died
+            // (sleep, network switch), at most twice in a row.
+            if (hadWorkingTunnel && autoReconnects < 2) {
+                autoReconnects++
+                tunnel.value = TunnelState.Reconnecting
+                connect()
+            } else {
+                tunnel.value = TunnelState.Failed
+            }
         }
     }
 
@@ -216,6 +280,7 @@ class DesktopController {
             try {
                 download(url)
                 message.value = "Подписка обновлена"
+                remindIfExpiring()
             } catch (e: Exception) {
                 message.value = friendly(e) ?: "Не удалось обновить: ${e.message}"
             } finally {
@@ -267,6 +332,7 @@ class DesktopController {
         if (status.value != VpnStatus.DISCONNECTED) disconnect()
         store.clearSubscription()
         profiles.value = Profiles()
+        devices.value = null
         pings.value = emptyMap()
     }
 
@@ -292,8 +358,12 @@ class DesktopController {
     // --- Settings -------------------------------------------------------------------
 
     fun updateSettings(reconnect: Boolean = false, transform: (AppSettings) -> AppSettings) {
+        val before = settings.value
         settings.value = transform(settings.value)
         store.saveSettings(settings.value)
+        if (before.autoConnectOnBoot != settings.value.autoConnectOnBoot) {
+            WindowsIntegration.setAutostart(settings.value.autoConnectOnBoot)
+        }
         if (reconnect) reconnectIfConnected()
     }
 

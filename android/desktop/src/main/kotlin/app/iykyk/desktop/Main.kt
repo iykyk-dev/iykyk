@@ -19,9 +19,11 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Notification
 import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.rememberWindowState
 import app.iykyk.client.core.ThemeMode
 import app.iykyk.client.ui.IykykTheme
@@ -31,9 +33,28 @@ import app.iykyk.client.vpn.VpnStatus
 import kotlinx.coroutines.delay
 import javax.imageio.ImageIO
 
-fun main() = application {
+/** Shown or hidden; another copy of the app started asks to show it. */
+private val windowVisible = kotlinx.coroutines.flow.MutableStateFlow(true)
+
+fun main(args: Array<String>) {
+    if (!WindowsIntegration.acquireSingleInstance { windowVisible.value = true }) return
+    // Started with Windows: stay in the tray.
+    if ("--minimized" in args) windowVisible.value = false
+    runApp()
+}
+
+private fun runApp() = application {
     val app = remember { DesktopController() }
-    var visible by remember { mutableStateOf(true) }
+    var visible by remember { mutableStateOf(windowVisible.value) }
+    LaunchedEffect(Unit) { windowVisible.collect { visible = it } }
+    val trayState = rememberTrayState()
+    val notification by app.notification.collectAsState()
+    LaunchedEffect(notification) {
+        notification?.let { (title, text) ->
+            trayState.sendNotification(Notification(title, text, Notification.Type.Info))
+            app.notification.value = null
+        }
+    }
     val icon = remember {
         BitmapPainter(ImageIO.read(Thread.currentThread().contextClassLoader.getResource("icon.png")).toComposeImageBitmap())
     }
@@ -41,10 +62,11 @@ fun main() = application {
 
     Tray(
         icon = icon,
+        state = trayState,
         tooltip = "IYKYK",
-        onAction = { visible = true },
+        onAction = { windowVisible.value = true },
         menu = {
-            Item("Открыть IYKYK", onClick = { visible = true })
+            Item("Открыть IYKYK", onClick = { windowVisible.value = true })
             Item(if (status == VpnStatus.DISCONNECTED) "Подключить" else "Отключить", onClick = app::toggle)
             Separator()
             Item("Выход", onClick = {
@@ -56,7 +78,7 @@ fun main() = application {
 
     Window(
         // Closing the window keeps the VPN and the tray icon; "Выход" quits.
-        onCloseRequest = { visible = false },
+        onCloseRequest = { windowVisible.value = false },
         visible = visible,
         title = "IYKYK",
         icon = icon,
@@ -96,7 +118,7 @@ private fun App(app: DesktopController) {
                     tunnel = app.tunnel.collectAsState().value,
                     connectedAt = app.connectedAt.collectAsState().value,
                     shareLink = app.profiles.collectAsState().value.subscription?.url,
-                    devices = null,
+                    devices = app.devices.collectAsState().value,
                     onToggle = app::toggle,
                     onPasteLink = app::pasteFromClipboard,
                     onRefresh = app::refresh,
@@ -115,8 +137,8 @@ private fun App(app: DesktopController) {
                     onSendReport = app::saveReport,
                     onCopyLink = app::copyLink,
                     onDelete = app::deleteSubscription,
-                    onLoadDevices = {},
-                    onDeleteDevice = {},
+                    onLoadDevices = app::loadDevices,
+                    onDeleteDevice = app::deleteDevice,
                     onOpenSettings = { screen = Screen.SETTINGS },
                 )
                 Screen.SETTINGS -> SettingsScreen(
@@ -127,8 +149,8 @@ private fun App(app: DesktopController) {
                     onFragmentChange = { value -> app.updateSettings(reconnect = true) { it.copy(fragment = value) } },
                     onPreferXrayChange = { value -> app.updateSettings(reconnect = true) { it.copy(preferXray = value) } },
                     onAutoLaunchChange = { value -> app.updateSettings { it.copy(autoConnectOnLaunch = value) } },
-                    onAutoBootChange = {},
-                    onRemindersChange = {},
+                    onAutoBootChange = { value -> app.updateSettings { it.copy(autoConnectOnBoot = value) } },
+                    onRemindersChange = { value -> app.updateSettings { it.copy(expiryReminders = value) } },
                     onOpenVpnSettings = {},
                     onRemoteDnsChange = {},
                     onDirectDnsChange = {},

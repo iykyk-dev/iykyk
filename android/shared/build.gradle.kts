@@ -34,6 +34,8 @@ kotlin {
             implementation(libs.jetbrains.compose.components.resources)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.zxing.core)
+            // Android has org.json built in; the desktop app adds the library.
+            compileOnly(libs.json)
         }
     }
 }

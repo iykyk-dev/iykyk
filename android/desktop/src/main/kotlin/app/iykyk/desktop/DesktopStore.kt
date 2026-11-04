@@ -33,6 +33,8 @@ class DesktopStore {
         preferXray = props.getProperty("preferXray", "false").toBoolean(),
         sortByPing = props.getProperty("sortByPing", "false").toBoolean(),
         autoConnectOnLaunch = props.getProperty("autoConnectOnLaunch", "false").toBoolean(),
+        autoConnectOnBoot = props.getProperty("startWithWindows", "false").toBoolean(),
+        expiryReminders = props.getProperty("expiryReminders", "true").toBoolean(),
         themeMode = runCatching { ThemeMode.valueOf(props.getProperty("themeMode")) }.getOrDefault(ThemeMode.SYSTEM),
     )
 
@@ -42,6 +44,8 @@ class DesktopStore {
         props.setProperty("preferXray", settings.preferXray.toString())
         props.setProperty("sortByPing", settings.sortByPing.toString())
         props.setProperty("autoConnectOnLaunch", settings.autoConnectOnLaunch.toString())
+        props.setProperty("startWithWindows", settings.autoConnectOnBoot.toString())
+        props.setProperty("expiryReminders", settings.expiryReminders.toString())
         props.setProperty("themeMode", settings.themeMode.name)
         save()
     }
@@ -61,6 +65,14 @@ class DesktopStore {
         props.setProperty("selected", selected.toString())
         save()
     }
+
+    /** The day ("2026-11-04") the expiry reminder was last shown. */
+    var lastReminderDay: String?
+        get() = props.getProperty("lastReminderDay")
+        set(value) {
+            props.setProperty("lastReminderDay", value ?: "")
+            save()
+        }
 
     fun saveSelected(index: Int) {
         props.setProperty("selected", index.toString())

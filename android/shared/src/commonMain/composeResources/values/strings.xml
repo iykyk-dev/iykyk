@@ -219,4 +219,7 @@
 
     <string name="apps_hint_only">Через VPN будут работать только отмеченные приложения, остальные — напрямую</string>
     <string name="apps_hint_except">Отмеченные приложения будут работать без VPN. Заблокированные сайты в них не откроются</string>
+
+    <string name="win_autostart_title">Запускать вместе с Windows</string>
+    <string name="win_autostart_subtitle">IYKYK будет в трее сразу после входа в Windows. Включите «Подключаться при запуске», чтобы VPN включался сам</string>
 </resources>

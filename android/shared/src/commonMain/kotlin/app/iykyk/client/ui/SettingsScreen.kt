@@ -95,19 +95,19 @@ fun SettingsScreen(
                         checked = settings.autoConnectOnLaunch,
                         onChange = onAutoLaunchChange,
                     )
+                    SwitchRow(
+                        title = stringResource(if (mobile) Res.string.auto_boot_title else Res.string.win_autostart_title),
+                        subtitle = stringResource(if (mobile) Res.string.auto_boot_subtitle else Res.string.win_autostart_subtitle),
+                        checked = settings.autoConnectOnBoot,
+                        onChange = onAutoBootChange,
+                    )
+                    SwitchRow(
+                        title = stringResource(Res.string.reminders_title),
+                        subtitle = stringResource(Res.string.reminders_subtitle),
+                        checked = settings.expiryReminders,
+                        onChange = onRemindersChange,
+                    )
                     if (mobile) {
-                        SwitchRow(
-                            title = stringResource(Res.string.auto_boot_title),
-                            subtitle = stringResource(Res.string.auto_boot_subtitle),
-                            checked = settings.autoConnectOnBoot,
-                            onChange = onAutoBootChange,
-                        )
-                        SwitchRow(
-                            title = stringResource(Res.string.reminders_title),
-                            subtitle = stringResource(Res.string.reminders_subtitle),
-                            checked = settings.expiryReminders,
-                            onChange = onRemindersChange,
-                        )
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
