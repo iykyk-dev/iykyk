@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
+	"sync"
 	"time"
 
 	awgconn "github.com/amnezia-vpn/amneziawg-go/v3/conn"
@@ -75,13 +76,85 @@ func startAmnezia(s *server, port int, user, pass string) (io.Closer, error) {
 		device.Close()
 		return nil, fmt.Errorf("amneziawg: %w", err)
 	}
-	socks, err := listenSocks(port, user, pass, tnet.DialContext)
+	// UDP goes through the tunnel's network stack, from its IPv4 address.
+	var localV4 netip.Addr
+	for _, a := range local {
+		if a.Is4() {
+			localV4 = a
+			break
+		}
+	}
+	var udp socksUDPFunc
+	if localV4.IsValid() {
+		udp = func(ctx context.Context) (udpSession, error) {
+			conn, err := tnet.ListenUDPAddrPort(netip.AddrPortFrom(localV4, 0))
+			if err != nil {
+				return nil, err
+			}
+			return &netstackUDPSession{conn: conn, tnet: tnet, ctx: ctx, resolved: map[string]net.IP{}}, nil
+		}
+	}
+	socks, err := listenSocksUDP(port, user, pass, tnet.DialContext, udp)
 	if err != nil {
 		device.Close()
 		return nil, err
 	}
 	return &amneziaEngine{device: device, socks: socks}, nil
 }
+
+// netstackUDPSession sends SOCKS5 UDP datagrams through the WireGuard network
+// stack, resolving names over the tunnel's DNS.
+type netstackUDPSession struct {
+	conn     net.PacketConn
+	tnet     *wgnetstack.Net
+	ctx      context.Context
+	mu       sync.Mutex
+	resolved map[string]net.IP
+	readBuf  [65535]byte
+}
+
+func (u *netstackUDPSession) Send(datagram []byte) error {
+	host, port, payload, err := parseSocksUDP(datagram)
+	if err != nil {
+		return nil // drop malformed packets, keep the session
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		u.mu.Lock()
+		ip = u.resolved[host]
+		u.mu.Unlock()
+		if ip == nil {
+			addrs, err := u.tnet.LookupContextHost(u.ctx, host)
+			if err != nil || len(addrs) == 0 {
+				return nil
+			}
+			ip = net.ParseIP(addrs[0])
+			u.mu.Lock()
+			u.resolved[host] = ip
+			u.mu.Unlock()
+		}
+	}
+	if ip.To4() == nil {
+		return nil // the session is IPv4-only
+	}
+	_, err = u.conn.WriteTo(payload, &net.UDPAddr{IP: ip, Port: port})
+	return err
+}
+
+func (u *netstackUDPSession) Receive(buf []byte) (int, error) {
+	n, addr, err := u.conn.ReadFrom(u.readBuf[:])
+	if err != nil {
+		return 0, err
+	}
+	source, ok := addr.(*net.UDPAddr)
+	if !ok {
+		return 0, nil
+	}
+	out := appendSocksUDP(nil, source.IP, source.Port, u.readBuf[:n])
+	return copy(buf, out), nil
+}
+
+func (u *netstackUDPSession) Close() error { return u.conn.Close() }
 
 // resolveEndpoint turns the peer host into an IP: the WireGuard config format
 // only accepts addresses. Runs before the tunnel exists, so DNS goes direct.

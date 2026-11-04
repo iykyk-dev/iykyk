@@ -175,3 +175,25 @@ func TestRealPing(t *testing.T) {
 	}
 	t.Logf("real ping: sing-box %d ms, Xray %d ms", results[0], results[1])
 }
+
+// TestRoutingAndDNSAcceptedBySingBox checks provider routing and DNS presets.
+func TestRoutingAndDNSAcceptedBySingBox(t *testing.T) {
+	dir := os.Getenv("IYKYK_RULESET_DIR")
+	routing := `"routing":{"block":["domain:ads.example","keyword:tracker"],"proxy":["full:youtube.ru"],` +
+		`"direct":["domain:bank.example","regexp:^.+\\.local$","10.0.0.0/8","2001:db8::/32","geoip:ru","geosite:category-ru"]}`
+	for _, dns := range []string{
+		`"remoteDNS":"cloudflare","directDNS":"yandex"`,
+		`"remoteDNS":"adguard","directDNS":"google"`,
+		`"remoteDNS":"quad9","directDNS":"1.1.1.1"`,
+		`"remoteDNS":"https://dns.example.net/dns-query","directDNS":"cloudflare"`,
+	} {
+		opts := `{"bypassRussia":true,"ruleSetDir":"` + dir + `",` + dns + `,` + routing + `}`
+		p, err := BuildProfileWithOptions("hysteria2://pass@fi.example.com:443#FI", opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := libbox.CheckConfig(p.SingBoxConfig); err != nil {
+			t.Errorf("%s: sing-box rejected config: %v\n%s", dns, err, p.SingBoxConfig)
+		}
+	}
+}

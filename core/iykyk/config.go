@@ -213,18 +213,24 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 		jsonObject{"ip_is_private": true, "outbound": "direct"},
 	}
 	var ruleSets []any
+	// The provider's rules come first, then the user's Russia bypass.
+	providerDNS, providerRoute, providerSets := opts.Routing.rules(opts.RuleSetDir)
+	dnsRules = append(dnsRules, providerDNS...)
+	routeRules = append(routeRules, providerRoute...)
 	if opts.BypassRussia {
 		bypassDNS, bypassRoute, sets := russiaBypass(opts.RuleSetDir)
 		dnsRules = append(dnsRules, bypassDNS...)
 		routeRules = append(routeRules, bypassRoute...)
 		ruleSets = sets
+	} else if providerSets && opts.RuleSetDir != "" {
+		_, _, ruleSets = russiaBypass(opts.RuleSetDir) // only the rule-set definitions
 	}
 	config := jsonObject{
 		"log": jsonObject{"level": "info"},
 		"dns": jsonObject{
 			"servers": []any{
-				jsonObject{"type": "https", "tag": "remote-dns", "server": remoteDNSServer, "detour": "proxy"},
-				jsonObject{"type": "udp", "tag": "direct-dns", "server": directDNSServer},
+				opts.remoteDNSServer(),
+				opts.directDNSServer(),
 			},
 			"rules":    dnsRules,
 			"final":    "remote-dns",

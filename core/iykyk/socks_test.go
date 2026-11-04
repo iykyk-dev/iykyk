@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
@@ -100,5 +101,94 @@ func TestSocksServerRejectsWrongPassword(t *testing.T) {
 	_, _ = io.ReadFull(c, b)
 	if b[1] == 0 {
 		t.Fatal("wrong password accepted")
+	}
+}
+
+// echoSession returns every datagram it is sent, as if the destination echoed it.
+type echoSession struct {
+	ch   chan []byte
+	done chan struct{}
+	once sync.Once
+}
+
+func newEchoSession() *echoSession {
+	return &echoSession{ch: make(chan []byte, 4), done: make(chan struct{})}
+}
+
+func (e *echoSession) Send(d []byte) error {
+	select {
+	case e.ch <- append([]byte(nil), d...):
+		return nil
+	case <-e.done:
+		return io.EOF
+	}
+}
+
+func (e *echoSession) Receive(buf []byte) (int, error) {
+	select {
+	case d := <-e.ch:
+		return copy(buf, d), nil
+	case <-e.done:
+		return 0, io.EOF
+	}
+}
+
+func (e *echoSession) Close() error {
+	e.once.Do(func() { close(e.done) })
+	return nil
+}
+
+func TestSocksUDPAssociate(t *testing.T) {
+	port, _ := freeLoopbackPort()
+	srv, err := listenSocksUDP(port, "u", "p", nil, func(ctx context.Context) (udpSession, error) {
+		return newEchoSession(), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+
+	c, err := net.Dial("tcp", srv.listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+	read := func(n int) []byte {
+		b := make([]byte, n)
+		if _, err := io.ReadFull(c, b); err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	_, _ = c.Write([]byte{5, 1, 2})
+	read(2)
+	_, _ = c.Write([]byte{1, 1, 'u', 1, 'p'})
+	read(2)
+	_, _ = c.Write([]byte{5, 3, 0, 1, 0, 0, 0, 0, 0, 0}) // UDP ASSOCIATE 0.0.0.0:0
+	reply := read(10)
+	if reply[1] != 0 {
+		t.Fatalf("associate reply %v", reply)
+	}
+	relay := &net.UDPAddr{IP: net.IP(reply[4:8]), Port: int(binary.BigEndian.Uint16(reply[8:10]))}
+
+	u, err := net.DialUDP("udp", nil, relay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer u.Close()
+	datagram := appendSocksUDP(nil, net.IPv4(8, 8, 8, 8), 53, []byte("query"))
+	if _, err := u.Write(datagram); err != nil {
+		t.Fatal(err)
+	}
+	_ = u.SetReadDeadline(time.Now().Add(3 * time.Second))
+	buf := make([]byte, 1500)
+	n, err := u.Read(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	host, dport, payload, err := parseSocksUDP(buf[:n])
+	if err != nil || host != "8.8.8.8" || dport != 53 || string(payload) != "query" {
+		t.Fatalf("echo %q %d %q %v", host, dport, payload, err)
 	}
 }

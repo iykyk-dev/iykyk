@@ -2,6 +2,7 @@ package iykyk
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -9,22 +10,36 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
+
+func bytesReader(b []byte) *bytes.Reader { return bytes.NewReader(b) }
 
 // socksDialFunc opens a connection through an in-process engine (Mieru, AmneziaWG).
 type socksDialFunc func(ctx context.Context, network, address string) (net.Conn, error)
 
+// udpSession carries SOCKS5 UDP datagrams (RFC 1928 section 7, header included)
+// through an engine for one UDP ASSOCIATE.
+type udpSession interface {
+	Send(datagram []byte) error
+	Receive(buf []byte) (int, error)
+	Close() error
+}
+
+// socksUDPFunc opens a UDP session through an engine; nil means no UDP support.
+type socksUDPFunc func(ctx context.Context) (udpSession, error)
+
 // socksServer is a minimal SOCKS5 server on 127.0.0.1 that sing-box uses to
 // hand TCP connections to an in-process engine. It requires username/password
 // authentication (RFC 1929) so other apps on the device cannot use it.
-// UDP ASSOCIATE is not supported: UDP apps fall back to TCP (QUIC → HTTPS)
-// and DNS goes over DNS-over-HTTPS.
+// UDP ASSOCIATE is supported when the engine provides a socksUDPFunc.
 type socksServer struct {
 	listener net.Listener
 	user     string
 	pass     string
 	dial     socksDialFunc
+	udp      socksUDPFunc
 
 	mu     sync.Mutex
 	conns  map[net.Conn]struct{}
@@ -32,11 +47,15 @@ type socksServer struct {
 }
 
 func listenSocks(port int, user, pass string, dial socksDialFunc) (*socksServer, error) {
+	return listenSocksUDP(port, user, pass, dial, nil)
+}
+
+func listenSocksUDP(port int, user, pass string, dial socksDialFunc, udp socksUDPFunc) (*socksServer, error) {
 	listener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
 	if err != nil {
 		return nil, err
 	}
-	s := &socksServer{listener: listener, user: user, pass: pass, dial: dial, conns: map[net.Conn]struct{}{}}
+	s := &socksServer{listener: listener, user: user, pass: pass, dial: dial, udp: udp, conns: map[net.Conn]struct{}{}}
 	go s.serve()
 	return s, nil
 }
@@ -149,7 +168,11 @@ func (s *socksServer) handle(conn net.Conn) {
 	if _, err := io.ReadFull(r, portBytes); err != nil {
 		return
 	}
-	if request[1] != 1 { // only CONNECT
+	if request[1] == 3 && s.udp != nil { // UDP ASSOCIATE
+		s.associate(conn, r)
+		return
+	}
+	if request[1] != 1 { // CONNECT
 		writeSocksReply(conn, socksReplyCommandNotSupported)
 		return
 	}
@@ -168,6 +191,95 @@ func (s *socksServer) handle(conn net.Conn) {
 	}
 	_ = conn.SetDeadline(time.Time{})
 	relay(conn, r, remote)
+}
+
+// associate serves one UDP ASSOCIATE: datagrams from the client's UDP port go
+// through the engine and back, until the control TCP connection closes.
+func (s *socksServer) associate(conn net.Conn, r *bufio.Reader) {
+	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		writeSocksReply(conn, socksReplyGeneralFailure)
+		return
+	}
+	defer udpConn.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	session, err := s.udp(ctx)
+	if err != nil {
+		writeSocksReply(conn, socksReplyGeneralFailure)
+		return
+	}
+	defer session.Close()
+
+	port := udpConn.LocalAddr().(*net.UDPAddr).Port
+	reply := []byte{5, socksReplySucceeded, 0, 1, 127, 0, 0, 1, byte(port >> 8), byte(port)}
+	if _, err := conn.Write(reply); err != nil {
+		return
+	}
+	_ = conn.SetDeadline(time.Time{})
+
+	var client atomic.Pointer[net.UDPAddr]
+	go func() {
+		buf := make([]byte, 65535)
+		for {
+			n, addr, err := udpConn.ReadFromUDP(buf)
+			if err != nil {
+				return
+			}
+			// Only the local client may use this association; fragments are not supported.
+			if !addr.IP.IsLoopback() || n < 4 || buf[2] != 0 {
+				continue
+			}
+			client.Store(addr)
+			if err := session.Send(buf[:n]); err != nil {
+				return
+			}
+		}
+	}()
+	go func() {
+		buf := make([]byte, 65535)
+		for {
+			n, err := session.Receive(buf)
+			if err != nil {
+				return
+			}
+			if addr := client.Load(); addr != nil {
+				_, _ = udpConn.WriteToUDP(buf[:n], addr)
+			}
+		}
+	}()
+	// The association lives as long as the TCP connection (RFC 1928).
+	_, _ = io.Copy(io.Discard, r)
+}
+
+// parseSocksUDP splits a SOCKS5 UDP datagram into destination and payload.
+func parseSocksUDP(datagram []byte) (host string, port int, payload []byte, err error) {
+	if len(datagram) < 4 {
+		return "", 0, nil, errors.New("short datagram")
+	}
+	r := bufio.NewReader(bytesReader(datagram[4:]))
+	host, err = readSocksAddress(r, datagram[3])
+	if err != nil {
+		return "", 0, nil, err
+	}
+	portBytes := make([]byte, 2)
+	if _, err = io.ReadFull(r, portBytes); err != nil {
+		return "", 0, nil, err
+	}
+	payload, err = io.ReadAll(r)
+	return host, int(binary.BigEndian.Uint16(portBytes)), payload, err
+}
+
+// appendSocksUDP builds a SOCKS5 UDP datagram from a source address and payload.
+func appendSocksUDP(buf []byte, ip net.IP, port int, payload []byte) []byte {
+	buf = append(buf[:0], 0, 0, 0)
+	if v4 := ip.To4(); v4 != nil {
+		buf = append(append(buf, 1), v4...)
+	} else {
+		buf = append(append(buf, 4), ip.To16()...)
+	}
+	buf = append(buf, byte(port>>8), byte(port))
+	return append(buf, payload...)
 }
 
 func readSocksCredentials(r *bufio.Reader) (string, string, error) {

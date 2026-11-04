@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/url"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -21,6 +23,190 @@ type options struct {
 	// Fragment splits TLS handshakes into small pieces to get past DPI that
 	// blocks by server name. Applies to TCP-based TLS/REALITY connections.
 	Fragment bool `json:"fragment"`
+	// RemoteDNS resolves names for traffic through the tunnel: "cloudflare"
+	// (default), "google", "quad9", "adguard" (blocks ads), or a DoH URL.
+	RemoteDNS string `json:"remoteDNS"`
+	// DirectDNS resolves proxy servers and bypassed sites: "yandex" (default),
+	// "cloudflare", "google", or an IP address (plain DNS).
+	DirectDNS string `json:"directDNS"`
+	// Routing is the provider's routing from the subscription (Iykyk-Routing).
+	Routing *providerRouting `json:"routing"`
+}
+
+// providerRouting lists rules in the Xray template notation:
+// "domain:example.com", "full:host.example.com", "keyword:ads", "regexp:...",
+// a bare domain (= domain:), an IP or CIDR, and "geosite:category-ru" /
+// "geoip:ru" (backed by the rule sets shipped with the app).
+type providerRouting struct {
+	Direct []string `json:"direct"`
+	Proxy  []string `json:"proxy"`
+	Block  []string `json:"block"`
+}
+
+func (o options) remoteDNSServer() jsonObject {
+	server := jsonObject{"type": "https", "tag": "remote-dns", "detour": "proxy"}
+	switch v := strings.ToLower(strings.TrimSpace(o.RemoteDNS)); {
+	case v == "" || v == "cloudflare":
+		server["server"] = remoteDNSServer
+	case v == "google":
+		server["server"] = "8.8.8.8"
+	case v == "quad9":
+		server["server"] = "9.9.9.9"
+	case v == "adguard":
+		server["server"] = "dns.adguard-dns.com"
+		server["domain_resolver"] = "direct-dns"
+	case strings.HasPrefix(v, "https://"):
+		u, err := url.Parse(strings.TrimSpace(o.RemoteDNS))
+		if err != nil || u.Host == "" {
+			server["server"] = remoteDNSServer
+			break
+		}
+		server["server"] = u.Hostname()
+		if u.Port() != "" {
+			port, _ := strconv.Atoi(u.Port())
+			server["server_port"] = port
+		}
+		if u.Path != "" && u.Path != "/" {
+			server["path"] = u.Path
+		}
+		if net.ParseIP(u.Hostname()) == nil {
+			server["domain_resolver"] = "direct-dns"
+		}
+	default:
+		server["server"] = remoteDNSServer
+	}
+	return server
+}
+
+func (o options) directDNSServer() jsonObject {
+	server := jsonObject{"type": "udp", "tag": "direct-dns"}
+	switch v := strings.ToLower(strings.TrimSpace(o.DirectDNS)); {
+	case v == "cloudflare":
+		server["server"] = "1.1.1.1"
+	case v == "google":
+		server["server"] = "8.8.8.8"
+	case net.ParseIP(v) != nil:
+		server["server"] = v
+	default:
+		server["server"] = directDNSServer
+	}
+	return server
+}
+
+// routeRules turns the provider's routing into sing-box DNS and route rules.
+// Blocking comes first, then explicit proxying, then direct.
+func (r *providerRouting) rules(ruleSetDir string) (dnsRules, routeRules []any, usesRuleSets bool) {
+	if r == nil {
+		return nil, nil, false
+	}
+	for _, group := range []struct {
+		entries []string
+		rule    jsonObject
+	}{
+		{r.Block, jsonObject{"action": "reject"}},
+		{r.Proxy, jsonObject{"outbound": "proxy"}},
+		{r.Direct, jsonObject{"outbound": "direct"}},
+	} {
+		match, ruleSets := matchFromEntries(group.entries, ruleSetDir)
+		if len(match) == 0 && len(ruleSets) == 0 {
+			continue
+		}
+		// Domain/IP lists and rule sets are separate rules: sing-box ANDs fields
+		// of different kinds inside one rule.
+		for _, m := range splitMatch(match) {
+			rule := jsonObject{}
+			for k, v := range m {
+				rule[k] = v
+			}
+			for k, v := range group.rule {
+				rule[k] = v
+			}
+			routeRules = append(routeRules, rule)
+		}
+		if len(ruleSets) > 0 {
+			usesRuleSets = true
+			rule := jsonObject{"rule_set": ruleSets}
+			for k, v := range group.rule {
+				rule[k] = v
+			}
+			routeRules = append(routeRules, rule)
+		}
+		if group.rule["outbound"] == "direct" {
+			// Directly reached names resolve with the direct DNS server.
+			for _, m := range splitMatch(match) {
+				if _, isIP := m["ip_cidr"]; isIP {
+					continue
+				}
+				rule := jsonObject{"server": "direct-dns"}
+				for k, v := range m {
+					rule[k] = v
+				}
+				dnsRules = append(dnsRules, rule)
+			}
+		}
+	}
+	return dnsRules, routeRules, usesRuleSets
+}
+
+// matchFromEntries groups entries by sing-box match field.
+func matchFromEntries(entries []string, ruleSetDir string) (map[string][]string, []string) {
+	match := map[string][]string{}
+	var ruleSets []string
+	for _, entry := range entries {
+		entry = strings.TrimSpace(entry)
+		// IPs and CIDRs first: IPv6 addresses contain colons too.
+		if _, _, err := net.ParseCIDR(entry); err == nil || net.ParseIP(entry) != nil {
+			match["ip_cidr"] = append(match["ip_cidr"], entry)
+			continue
+		}
+		kind, value, hasKind := strings.Cut(entry, ":")
+		if !hasKind || strings.Contains(kind, ".") || strings.Contains(kind, "/") {
+			kind, value = "", entry
+		}
+		switch strings.ToLower(kind) {
+		case "domain", "":
+			if _, _, err := net.ParseCIDR(value); err == nil {
+				match["ip_cidr"] = append(match["ip_cidr"], value)
+			} else if ip := net.ParseIP(value); ip != nil {
+				match["ip_cidr"] = append(match["ip_cidr"], value)
+			} else if value != "" {
+				match["domain_suffix"] = append(match["domain_suffix"], strings.TrimPrefix(value, "*."))
+			}
+		case "full":
+			match["domain"] = append(match["domain"], value)
+		case "keyword":
+			match["domain_keyword"] = append(match["domain_keyword"], value)
+		case "regexp":
+			match["domain_regex"] = append(match["domain_regex"], value)
+		case "geosite":
+			if ruleSetDir != "" && strings.EqualFold(value, "category-ru") {
+				ruleSets = append(ruleSets, "geosite-ru")
+			}
+		case "geoip":
+			if ruleSetDir != "" && strings.EqualFold(value, "ru") {
+				ruleSets = append(ruleSets, "geoip-ru")
+			}
+		}
+	}
+	return match, ruleSets
+}
+
+// splitMatch keeps domain fields together (sing-box ORs them) and IPs apart.
+func splitMatch(match map[string][]string) []jsonObject {
+	var result []jsonObject
+	domains := jsonObject{}
+	for _, key := range []string{"domain", "domain_suffix", "domain_keyword", "domain_regex"} {
+		if values := match[key]; len(values) > 0 {
+			domains[key] = values
+		}
+	}
+	if len(domains) > 0 {
+		result = append(result, domains)
+	}
+	if ips := match["ip_cidr"]; len(ips) > 0 {
+		result = append(result, jsonObject{"ip_cidr": ips})
+	}
+	return result
 }
 
 func parseOptions(text string) (options, error) {

@@ -1,8 +1,10 @@
 package iykyk
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net"
+	"net/http"
 	"testing"
 )
 
@@ -81,3 +83,71 @@ func TestPingServers(t *testing.T) {
 }
 
 func itoa(n int) string { b, _ := json.Marshal(n); return string(b) }
+
+func TestProviderRoutingAndDNS(t *testing.T) {
+	opts := `{"bypassRussia":false,"ruleSetDir":"/rs","remoteDNS":"adguard","directDNS":"google","routing":{
+		"block":["domain:ads.example","keyword:tracker"],
+		"proxy":["full:youtube.ru"],
+		"direct":["domain:my-bank.example","regexp:^.+\\.local$","10.0.0.0/8","2001:db8::/32","geoip:ru","geosite:unknown"]}}`
+	p, err := BuildProfileWithOptions("trojan://pw@de.example.com:443#DE", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sb := decode(t, p.SingBoxConfig)
+	rules := path(t, sb, "route", "rules").([]any)
+	// sniff, hijack-dns, private, then: block(domains), proxy(domains), direct(domains), direct(ips), direct(rule set)
+	got := func(i int) map[string]any { return rules[i].(map[string]any) }
+	if got(3)["action"] != "reject" || got(3)["domain_suffix"].([]any)[0] != "ads.example" || got(3)["domain_keyword"].([]any)[0] != "tracker" {
+		t.Fatalf("block rule %v", got(3))
+	}
+	if got(4)["outbound"] != "proxy" || got(4)["domain"].([]any)[0] != "youtube.ru" {
+		t.Fatalf("proxy rule %v", got(4))
+	}
+	if got(5)["outbound"] != "direct" || got(5)["domain_regex"] == nil {
+		t.Fatalf("direct domains %v", got(5))
+	}
+	ips := got(6)["ip_cidr"].([]any)
+	if got(6)["outbound"] != "direct" || len(ips) != 2 || ips[1] != "2001:db8::/32" {
+		t.Fatalf("direct ips %v", got(6))
+	}
+	if got(7)["rule_set"].([]any)[0] != "geoip-ru" || len(rules) != 8 {
+		t.Fatalf("rule set rule %v (rules %d)", got(7), len(rules))
+	}
+	// Rule-set definitions are present even with the bypass off.
+	if path(t, sb, "route", "rule_set", 1, "tag") != "geoip-ru" {
+		t.Fatal("rule-set definitions missing")
+	}
+	// DNS presets.
+	if path(t, sb, "dns", "servers", 0, "server") != "dns.adguard-dns.com" || path(t, sb, "dns", "servers", 1, "server") != "8.8.8.8" {
+		t.Fatalf("dns servers %v", path(t, sb, "dns", "servers"))
+	}
+	// Direct domains resolve with the direct DNS, IPs do not create DNS rules.
+	dnsRules := path(t, sb, "dns", "rules").([]any)
+	if len(dnsRules) != 2 || dnsRules[1].(map[string]any)["domain_suffix"].([]any)[0] != "my-bank.example" {
+		t.Fatalf("dns rules %v", dnsRules)
+	}
+
+	custom, _ := BuildProfileWithOptions("trojan://pw@de.example.com:443#DE", `{"remoteDNS":"https://doh.example.net:8443/q"}`)
+	server := path(t, decode(t, custom.SingBoxConfig), "dns", "servers", 0).(map[string]any)
+	if server["server"] != "doh.example.net" || server["server_port"].(float64) != 8443 || server["path"] != "/q" {
+		t.Fatalf("custom DoH %v", server)
+	}
+}
+
+func TestRoutingHeader(t *testing.T) {
+	routing := `{"direct":["domain:a.example"]}`
+	header := http.Header{}
+	header.Set("Iykyk-Routing", "base64:"+base64.StdEncoding.EncodeToString([]byte(routing)))
+	sub, err := parseSubscription(sampleLinks, header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(sub.Routing) != routing {
+		t.Fatalf("routing %q", sub.Routing)
+	}
+	header.Set("Iykyk-Routing", "not json")
+	sub, _ = parseSubscription(sampleLinks, header)
+	if sub.Routing != nil {
+		t.Fatal("invalid routing must be ignored")
+	}
+}

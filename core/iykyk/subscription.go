@@ -26,7 +26,9 @@ type subscription struct {
 	Announce    string `json:"announce,omitempty"`
 	UpdateHours int    `json:"updateHours,omitempty"`
 	// Backup subscription URLs (header "Fallback-Urls" or "Iykyk-Fallback-Urls").
-	Fallbacks   []string             `json:"fallbacks,omitempty"`
+	Fallbacks []string `json:"fallbacks,omitempty"`
+	// Provider routing (header "Iykyk-Routing": JSON, plain or "base64:...").
+	Routing     json.RawMessage      `json:"routing,omitempty"`
 	Servers     []subscriptionServer `json:"servers"`
 	Unsupported []string             `json:"unsupported,omitempty"` // schemes we skipped
 }
@@ -243,6 +245,15 @@ func readSubscriptionHeaders(sub *subscription, header http.Header) {
 	sub.Announce = decodeHeaderText(header.Get("Announce"))
 	sub.SupportURL = header.Get("Support-Url")
 	sub.WebPageURL = header.Get("Profile-Web-Page-Url")
+	if routing := decodeHeaderText(header.Get("Iykyk-Routing")); routing != "" {
+		if decoded, err := decodeBase64(routing); err == nil && strings.HasPrefix(strings.TrimSpace(decoded), "{") {
+			routing = decoded
+		}
+		var check providerRouting
+		if json.Unmarshal([]byte(routing), &check) == nil {
+			sub.Routing = json.RawMessage(routing)
+		}
+	}
 	for _, name := range []string{"Iykyk-Fallback-Urls", "Fallback-Urls"} {
 		for _, u := range splitList(header.Get(name)) {
 			if strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://") {
