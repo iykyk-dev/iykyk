@@ -33,7 +33,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 
 /**
  * The VPN service.
@@ -137,14 +136,9 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         Core.setup(this)
         val profiles = ProfileStore.snapshot(this)
         val options = SettingsStore.coreOptions(this)
-        val profile = if (profiles.isAuto) {
-            val links = JSONArray(profiles.autoServers.map { it.link }).toString()
-            Iykyk.buildAutoProfile(links, options)
-        } else {
-            val link = profiles.current?.link ?: error(getString(R.string.error_no_server))
-            Iykyk.buildProfileWithOptions(link, options)
-        }
-        serverName = if (profile.isAuto) getString(R.string.auto_mode) else profile.name
+        val link = profiles.current?.link ?: error(getString(R.string.error_no_server))
+        val profile = Iykyk.buildProfileWithOptions(link, options)
+        serverName = profile.name
 
         Iykyk.setSocketProtector { fd -> protect(fd) }
         Iykyk.startEngines(profile)

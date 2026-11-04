@@ -54,9 +54,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** What auto mode is doing right now (from the core's AutoStatus). */
-data class AutoStatus(val now: String, val delays: Map<String, Int>)
-
 @Composable
 fun MainScreen(
     status: VpnStatus,
@@ -65,7 +62,6 @@ fun MainScreen(
     refreshing: Boolean,
     pings: Map<String, Int>,
     pinging: Boolean,
-    autoStatus: AutoStatus?,
     onToggle: () -> Unit,
     onPasteLink: () -> Unit,
     onRefresh: () -> Unit,
@@ -111,7 +107,6 @@ fun MainScreen(
             }
             ServerCard(
                 profiles = profiles,
-                autoStatus = if (status == VpnStatus.CONNECTED) autoStatus else null,
                 canChange = profiles.servers.size > 1,
                 onClick = { if (profiles.servers.size > 1) showServers = true },
             )
@@ -145,7 +140,6 @@ fun MainScreen(
             profiles = profiles,
             pings = pings,
             pinging = pinging,
-            autoDelays = autoStatus?.delays.orEmpty(),
             onPing = onPing,
             onSelect = {
                 showServers = false
@@ -314,29 +308,12 @@ private fun formatBytes(bytes: Long): String {
 @Composable
 private fun ServerCard(
     profiles: Profiles,
-    autoStatus: AutoStatus?,
     canChange: Boolean,
     onClick: () -> Unit,
 ) {
     val server = profiles.current
-    val title = when {
-        profiles.isAuto -> stringResource(R.string.auto_mode)
-        server != null -> server.name
-        else -> stringResource(R.string.server_none)
-    }
-    val subtitle = when {
-        profiles.isAuto && autoStatus != null && autoStatus.now.isNotEmpty() -> {
-            val delay = autoStatus.delays[autoStatus.now]
-            if (delay != null && delay > 0) {
-                stringResource(R.string.auto_now_delay, autoStatus.now, delay)
-            } else {
-                stringResource(R.string.auto_now, autoStatus.now)
-            }
-        }
-        profiles.isAuto -> stringResource(R.string.auto_hint, profiles.autoServers.size)
-        server != null -> protocolTitle(server.protocol)
-        else -> null
-    }
+    val title = server?.name ?: stringResource(R.string.server_none)
+    val subtitle = server?.let { protocolTitle(it.protocol) }
     Surface(
         color = IykykColors.Surface,
         shape = RoundedCornerShape(16.dp),
@@ -384,7 +361,6 @@ private fun ServerPicker(
     profiles: Profiles,
     pings: Map<String, Int>,
     pinging: Boolean,
-    autoDelays: Map<String, Int>,
     onPing: () -> Unit,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
@@ -412,21 +388,8 @@ private fun ServerPicker(
             }
         }
         LazyColumn(modifier = Modifier.navigationBarsPadding()) {
-            if (profiles.autoServers.size > 1) {
-                item(key = "auto") {
-                    PickerRow(
-                        title = stringResource(R.string.auto_mode),
-                        subtitle = stringResource(R.string.auto_hint, profiles.autoServers.size),
-                        trailing = null,
-                        trailingColor = IykykColors.Muted,
-                        selected = profiles.isAuto,
-                        onClick = { onSelect(Profiles.AUTO) },
-                    )
-                }
-            }
             itemsIndexed(profiles.servers) { index, item ->
-                // A live delay from auto mode wins over the last manual ping.
-                val delay = autoDelays[item.name]?.takeIf { it > 0 } ?: pings[item.link]
+                val delay = pings[item.link]
                 val (text, color) = when {
                     delay == null -> null to IykykColors.Muted
                     delay == -2 -> stringResource(R.string.ping_udp) to IykykColors.Muted
@@ -435,14 +398,12 @@ private fun ServerPicker(
                     delay < 400 -> stringResource(R.string.ping_ms, delay) to IykykColors.Warning
                     else -> stringResource(R.string.ping_ms, delay) to IykykColors.Error
                 }
-                val excluded = profiles.autoServers.size > 1 && item !in profiles.autoServers
                 PickerRow(
                     title = item.name,
-                    subtitle = protocolTitle(item.protocol) +
-                        if (excluded) " · " + stringResource(R.string.auto_excluded) else "",
+                    subtitle = protocolTitle(item.protocol),
                     trailing = text,
                     trailingColor = color,
-                    selected = !profiles.isAuto && index == profiles.selected,
+                    selected = index == profiles.selected,
                     onClick = { onSelect(index) },
                 )
             }
@@ -554,7 +515,6 @@ private fun MainScreenPreview() {
             refreshing = false,
             pings = emptyMap(),
             pinging = false,
-            autoStatus = null,
             onToggle = {},
             onPasteLink = {},
             onRefresh = {},

@@ -41,16 +41,11 @@
     <string name="error_no_server">Сначала добавьте сервер</string>
     <string name="error_prefix">Не удалось подключиться: %1$s</string>
 
-    <string name="auto_mode">⚡ Автовыбор</string>
-    <string name="auto_hint">Лучший из %1$d серверов, переключение при сбое</string>
-    <string name="auto_now">Сейчас: %1$s</string>
-    <string name="auto_now_delay">Сейчас: %1$s · %2$d мс</string>
     <string name="action_ping">Проверить пинг</string>
     <string name="pinging">Проверяю…</string>
     <string name="ping_ms">%1$d мс</string>
     <string name="ping_failed">недоступен</string>
     <string name="ping_udp">UDP</string>
-    <string name="auto_excluded">не участвует в автовыборе</string>
 
     <string name="settings_title">Настройки</string>
     <string name="action_back">Назад</string>

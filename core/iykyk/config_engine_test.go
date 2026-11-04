@@ -88,25 +88,23 @@ func TestSidecarEnginesStart(t *testing.T) {
 	}
 }
 
-// TestAutoAndBypassAcceptedBySingBox checks auto mode and the Russia bypass.
-// CI downloads the real rule-set files into IYKYK_RULESET_DIR.
-func TestAutoAndBypassAcceptedBySingBox(t *testing.T) {
-	links := `["vless://11111111-2222-3333-4444-555555555555@nl.example.com:443?type=tcp&security=reality&pbk=` +
-		`Z84J2IelR9ch3k8VtlVhhs5ycBUlXA7wHBWcBrjqnAw&sid=ab12&sni=www.microsoft.com#NL",` +
-		`"trojan://pw@de.example.com:443#DE","hysteria2://pass@fi.example.com:443#FI",` +
-		`"tuic://11111111-2222-3333-4444-555555555555:pw@tu.example.com:443#TU"]`
-	opts := `{"bypassRussia":true}`
-	if dir := os.Getenv("IYKYK_RULESET_DIR"); dir != "" {
-		opts = `{"bypassRussia":true,"ruleSetDir":"` + dir + `"}`
+// TestBypassAcceptedBySingBox checks the Russia bypass with the real rule-set
+// files, which CI downloads into IYKYK_RULESET_DIR.
+func TestBypassAcceptedBySingBox(t *testing.T) {
+	dir := os.Getenv("IYKYK_RULESET_DIR")
+	if dir == "" {
+		t.Skip("IYKYK_RULESET_DIR not set")
 	}
-	p, err := BuildAutoProfile(links, opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := libbox.CheckConfig(p.SingBoxConfig); err != nil {
-		t.Fatalf("sing-box rejected auto config: %v\n%s", err, p.SingBoxConfig)
-	}
-	if err := CheckXrayConfig(p.XrayConfig); err != nil {
-		t.Fatalf("Xray rejected auto config: %v\n%s", err, p.XrayConfig)
+	for _, link := range []string{
+		"trojan://pw@de.example.com:443#DE",
+		"hysteria2://pass@fi.example.com:443#FI",
+	} {
+		p, err := BuildProfileWithOptions(link, `{"bypassRussia":true,"ruleSetDir":"`+dir+`"}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := libbox.CheckConfig(p.SingBoxConfig); err != nil {
+			t.Fatalf("sing-box rejected bypass config: %v\n%s", err, p.SingBoxConfig)
+		}
 	}
 }

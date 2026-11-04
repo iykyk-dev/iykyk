@@ -38,24 +38,11 @@ data class SubscriptionInfo(
 data class Profiles(
     val subscription: SubscriptionInfo? = null,
     val servers: List<ServerInfo> = emptyList(),
-    /** Index of the chosen server, or [AUTO]. */
     val selected: Int = 0,
 ) {
-    /** Auto mode: the core tests the servers and uses the best working one. */
-    val isAuto: Boolean get() = selected == AUTO && autoServers.size > 1
-
-    /** Servers auto mode can use (Mieru and AmneziaWG run one at a time). */
-    val autoServers: List<ServerInfo> get() = servers.filter { it.protocol !in SINGLE_ONLY }
-
-    val current: ServerInfo?
-        get() = if (isAuto) null else servers.getOrNull(selected) ?: servers.firstOrNull()
+    val current: ServerInfo? get() = servers.getOrNull(selected) ?: servers.firstOrNull()
 
     val hasServers: Boolean get() = servers.isNotEmpty()
-
-    companion object {
-        const val AUTO = -1
-        private val SINGLE_ONLY = setOf("mieru", "amneziawg")
-    }
 }
 
 /**
@@ -151,10 +138,9 @@ object ProfileStore {
         downloadSubscription(context, url)
     }
 
-    /** Selects a server by index, or auto mode with [Profiles.AUTO]. */
     fun select(context: Context, index: Int) {
         val current = _profiles.value
-        if (index != Profiles.AUTO && index !in current.servers.indices) return
+        if (index !in current.servers.indices) return
         prefs(context).edit().putInt(KEY_SELECTED, index).apply()
         _profiles.value = current.copy(selected = index)
     }
@@ -176,15 +162,7 @@ object ProfileStore {
         val now = System.currentTimeMillis()
         var profiles = parse(url, json, now)
         val keep = profiles.servers.indexOfFirst { it.name == previous.current?.name }
-        profiles = profiles.copy(
-            selected = when {
-                previous.selected == Profiles.AUTO -> Profiles.AUTO
-                keep >= 0 -> keep
-                // New subscriptions start in auto mode when there is a choice.
-                previous.servers.isEmpty() && profiles.copy(selected = Profiles.AUTO).isAuto -> Profiles.AUTO
-                else -> 0
-            },
-        )
+        profiles = profiles.copy(selected = if (keep >= 0) keep else 0)
         saveSubscription(context, url, json, profiles.selected, now)
         _profiles.value = profiles
         return profiles

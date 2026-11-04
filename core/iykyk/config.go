@@ -29,17 +29,6 @@ type Profile struct {
 	sidecarPort int
 	sidecarUser string
 	sidecarPass string
-
-	// Auto mode: sing-box urltest over several servers, observed through the
-	// local Clash API. autoNames maps outbound tags to server names.
-	autoNames       map[string]string
-	clashController string
-	clashSecret     string
-}
-
-// IsAuto reports whether this profile picks the best of several servers itself.
-func (p *Profile) IsAuto() bool {
-	return p.clashController != ""
 }
 
 // Server-name resolution and plain DNS for direct traffic. Yandex DNS answers
@@ -250,12 +239,6 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 	}
 	if len(ruleSets) > 0 {
 		config["route"].(jsonObject)["rule_set"] = ruleSets
-	}
-	if opts.clashController != "" {
-		config["experimental"] = jsonObject{"clash_api": jsonObject{
-			"external_controller": opts.clashController,
-			"secret":              opts.clashSecret,
-		}}
 	}
 	return config
 }
