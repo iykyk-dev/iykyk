@@ -10,7 +10,12 @@ import (
 // sing-box implements the common variants itself, so those now run in sing-box
 // alone and Xray starts only for what it alone supports: XHTTP, mKCP, HTTP
 // header obfuscation, gRPC multi mode, VLESS encryption, early data, full Xray
-// JSON configs, and REALITY with fragmentation (Xray's finalmask is proven there).
+// JSON configs, and REALITY.
+//
+// REALITY stays in Xray: since September 2026 the REALITY server rejects
+// ClientHellos without an X25519MLKEM768 key share, and sing-box's REALITY
+// client removes that share, so it cannot connect to current Xray servers
+// (interop_engine_test.go checks this against a real server).
 
 // selectEngine is engineFor with the native sing-box path applied.
 func selectEngine(s *server, opts options) engine {
@@ -55,14 +60,9 @@ func nativeInSingBox(s *server, opts options) bool {
 	}
 	switch s.Security {
 	case "", "none", "tls":
-	case "reality":
-		if opts.Fragment {
-			return false
-		}
-	default:
-		return false
+		return true
 	}
-	return true
+	return false // reality and anything unknown
 }
 
 // singBoxV2Ray builds a native sing-box outbound for VLESS, VMess or Trojan.
@@ -108,12 +108,7 @@ func singBoxV2Ray(s *server, opts options) (jsonObject, error) {
 	case "tls":
 		out["tls"] = singBoxTLS(s, s.ALPN, true, opts.Fragment)
 	case "reality":
-		if s.PublicKey == "" {
-			return nil, errors.New("reality: missing public key (pbk)")
-		}
-		tls := singBoxTLS(s, nil, true, false)
-		tls["reality"] = jsonObject{"enabled": true, "public_key": s.PublicKey, "short_id": s.ShortID}
-		out["tls"] = tls
+		return nil, errors.New("reality runs in Xray")
 	}
 	return out, nil
 }

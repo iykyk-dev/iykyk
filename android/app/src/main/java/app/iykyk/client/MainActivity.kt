@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.ProfileStore
+import app.iykyk.client.core.Purchase
 import app.iykyk.client.core.SettingsStore
 import app.iykyk.client.core.ThemeMode
 import app.iykyk.client.tv.TvShare
@@ -64,6 +65,10 @@ class MainActivity : ComponentActivity() {
     private val refreshing = MutableStateFlow(false)
     private val pinging = MutableStateFlow(false)
     private val pings = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val clipboardLink = MutableStateFlow<String?>(null)
+    private val canBuy by lazy { Purchase.allowed(this) }
+    /** Set when the user leaves for the Telegram bot; checked when they come back. */
+    private var openedBot = false
     private val versions by lazy { runCatching { Iykyk.versions() }.getOrDefault("") }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,6 +109,8 @@ class MainActivity : ComponentActivity() {
                         pings = pings.collectAsStateWithLifecycle().value,
                         pinging = pinging.collectAsStateWithLifecycle().value,
                         sortByPing = settings.sortByPing,
+                        canBuy = canBuy,
+                        clipboardLink = clipboardLink.collectAsStateWithLifecycle().value,
                         onToggle = ::toggleVpn,
                         onPasteLink = ::pasteLink,
                         onRefresh = ::refreshSubscription,
@@ -111,6 +118,8 @@ class MainActivity : ComponentActivity() {
                         onPing = ::pingServers,
                         onScanQr = ::scanQr,
                         onSendToTv = ::scanTvCode,
+                        onOpenBot = ::openBot,
+                        onClipboardDismiss = { clipboardLink.value = null },
                         onOpenUrl = ::openUrl,
                         onImportText = ::importText,
                         onSortChange = { value -> SettingsStore.update(this) { it.copy(sortByPing = value) } },
@@ -122,6 +131,7 @@ class MainActivity : ComponentActivity() {
                         onBack = { screen = Screen.MAIN },
                         onBypassChange = { value -> changeSettings { it.copy(bypassRussia = value) } },
                         onFragmentChange = { value -> changeSettings { it.copy(fragment = value) } },
+                        onPreferXrayChange = { value -> changeSettings { it.copy(preferXray = value) } },
                         onAutoLaunchChange = { value -> SettingsStore.update(this) { it.copy(autoConnectOnLaunch = value) } },
                         onAutoBootChange = { value -> SettingsStore.update(this) { it.copy(autoConnectOnBoot = value) } },
                         onRemindersChange = { value -> SettingsStore.update(this) { it.copy(expiryReminders = value) } },
@@ -158,6 +168,38 @@ class MainActivity : ComponentActivity() {
             ProfileStore.refreshIfStale(this@MainActivity)
             // Re-test the servers when the app opens, at most every 10 minutes.
             if (System.currentTimeMillis() - lastPingAt > 10 * 60_000L) pingServers()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!openedBot) return
+        openedBot = false
+        if (ProfileStore.profiles.value.subscription != null) {
+            // Back from "Renew": show the new expiry date right away.
+            refreshSubscription()
+        } else {
+            offerClipboardLink()
+        }
+    }
+
+    private fun openBot() {
+        openedBot = true
+        openUrl(Purchase.botUrl)
+    }
+
+    /** A new user copied their subscription link in the bot: offer to add it. */
+    private fun offerClipboardLink() {
+        val text = runCatching {
+            getSystemService(ClipboardManager::class.java).primaryClip
+                ?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)
+                ?.coerceToText(this)
+                ?.toString()
+                ?.trim()
+        }.getOrNull() ?: return
+        if (text.startsWith("https://", ignoreCase = true) && text.length < 1000 && text.none { it.isWhitespace() }) {
+            clipboardLink.value = text
         }
     }
 

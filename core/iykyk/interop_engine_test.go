@@ -25,7 +25,8 @@ import (
 // TestNativeClientsAgainstXrayServers is the safety net for running VLESS,
 // VMess, Trojan and Shadowsocks in sing-box instead of Xray: it starts real
 // Xray servers (as on the provider's nodes) and does a real HTTPS request
-// through each of them with the native sing-box client.
+// through each of them with the client IYKYK picks: native sing-box where
+// possible, Xray for REALITY (current REALITY servers reject sing-box).
 func TestNativeClientsAgainstXrayServers(t *testing.T) {
 	const uuid = "11111111-2222-3333-4444-555555555555"
 	certPEM, keyPEM := selfSignedCert(t, "example.com")
@@ -118,10 +119,23 @@ func TestNativeClientsAgainstXrayServers(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if selectEngine(s, options{}) != engineSingBox {
-				t.Fatal("expected the native sing-box client")
+			var dial dialFunc
+			var cleanup func()
+			wantXray := s.Security == "reality"
+			switch selectEngine(s, options{}) {
+			case engineSingBox:
+				if wantXray {
+					t.Fatal("REALITY must use Xray")
+				}
+				dial, cleanup, err = singBoxTestDialer(s, options{})
+			case engineXray:
+				if !wantXray {
+					t.Fatal("expected the native sing-box client")
+				}
+				dial, cleanup, err = xrayTestDialer(s, options{})
+			default:
+				t.Fatal("unexpected engine")
 			}
-			dial, cleanup, err := singBoxTestDialer(s, options{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -133,7 +147,7 @@ func TestNativeClientsAgainstXrayServers(t *testing.T) {
 			start := time.Now()
 			resp, err := client.Get("https://www.gstatic.com/generate_204")
 			if err != nil {
-				t.Fatalf("no traffic through the native client: %v", err)
+				t.Fatalf("no traffic: %v", err)
 			}
 			resp.Body.Close()
 			t.Logf("%s: HTTP %d in %d ms", c.name, resp.StatusCode, time.Since(start).Milliseconds())

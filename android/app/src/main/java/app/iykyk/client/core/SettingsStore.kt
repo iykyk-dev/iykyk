@@ -32,6 +32,8 @@ data class AppSettings(
     /** DNS for proxy servers and bypassed sites: yandex, cloudflare, google or an IP. */
     val directDns: String = "yandex",
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    /** Run VLESS/VMess/Trojan/Shadowsocks through Xray instead of sing-box (uses more battery). */
+    val preferXray: Boolean = false,
 )
 
 object SettingsStore {
@@ -47,6 +49,7 @@ object SettingsStore {
     private const val KEY_REMOTE_DNS = "remote_dns"
     private const val KEY_DIRECT_DNS = "direct_dns"
     private const val KEY_THEME = "theme"
+    private const val KEY_PREFER_XRAY = "prefer_xray"
 
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -67,6 +70,7 @@ object SettingsStore {
             directDns = prefs.getString(KEY_DIRECT_DNS, null) ?: "yandex",
             themeMode = runCatching { ThemeMode.valueOf(prefs.getString(KEY_THEME, null)!!) }
                 .getOrDefault(ThemeMode.SYSTEM),
+            preferXray = prefs.getBoolean(KEY_PREFER_XRAY, false),
         )
     }
 
@@ -85,6 +89,7 @@ object SettingsStore {
             .putString(KEY_REMOTE_DNS, updated.remoteDns)
             .putString(KEY_DIRECT_DNS, updated.directDns)
             .putString(KEY_THEME, updated.themeMode.name)
+            .putBoolean(KEY_PREFER_XRAY, updated.preferXray)
             .apply()
     }
 
@@ -95,6 +100,7 @@ object SettingsStore {
         .put("fragment", _settings.value.fragment)
         .put("remoteDNS", _settings.value.remoteDns)
         .put("directDNS", _settings.value.directDns)
+        .put("preferXray", _settings.value.preferXray)
         .apply {
             // The provider's routing from the subscription (Iykyk-Routing header).
             ProfileStore.profiles.value.subscription?.routing

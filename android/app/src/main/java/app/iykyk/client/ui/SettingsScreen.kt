@@ -46,6 +46,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onBypassChange: (Boolean) -> Unit,
     onFragmentChange: (Boolean) -> Unit,
+    onPreferXrayChange: (Boolean) -> Unit,
     onAutoLaunchChange: (Boolean) -> Unit,
     onAutoBootChange: (Boolean) -> Unit,
     onRemindersChange: (Boolean) -> Unit,
@@ -140,6 +141,12 @@ fun SettingsScreen(
                         subtitle = stringResource(R.string.fragment_subtitle),
                         checked = settings.fragment,
                         onChange = onFragmentChange,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.prefer_xray_title),
+                        subtitle = stringResource(R.string.prefer_xray_subtitle),
+                        checked = settings.preferXray,
+                        onChange = onPreferXrayChange,
                     )
                 }
             }

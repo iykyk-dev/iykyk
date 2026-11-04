@@ -95,11 +95,12 @@ object ExpiryReminder {
             .setContentText(text)
             .setContentIntent(openApp)
             .setAutoCancel(true)
-        if (sub.renewUrl.isNotBlank()) {
+        val renewUrl = Purchase.renewUrl(context, sub)
+        if (renewUrl != null) {
             val renew = PendingIntent.getActivity(
                 context,
                 11,
-                Intent(Intent.ACTION_VIEW, Uri.parse(sub.renewUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                Intent(Intent.ACTION_VIEW, Uri.parse(renewUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 PendingIntent.FLAG_IMMUTABLE,
             )
             builder.addAction(R.drawable.ic_tile, context.getString(R.string.action_renew), renew)

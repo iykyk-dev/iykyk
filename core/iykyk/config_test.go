@@ -206,24 +206,21 @@ func TestDetails(t *testing.T) {
 }
 
 func TestNativeSingBox(t *testing.T) {
-	reality := "vless://11111111-2222-3333-4444-555555555555@nl1.example.com:443?type=tcp&security=reality" +
-		"&pbk=PUBKEY&sid=ab12&sni=www.microsoft.com&fp=chrome&flow=xtls-rprx-vision#nl"
-	p, err := BuildProfile(reality)
+	vision := "vless://11111111-2222-3333-4444-555555555555@nl1.example.com:443?type=tcp&security=tls" +
+		"&sni=nl1.example.com&fp=chrome&flow=xtls-rprx-vision#nl"
+	p, err := BuildProfile(vision)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if p.UsesXray || p.XrayConfig != "" {
-		t.Fatal("VLESS REALITY must run in sing-box alone")
+		t.Fatal("VLESS TLS Vision must run in sing-box alone")
 	}
 	out := path(t, decode(t, p.SingBoxConfig), "outbounds", 0)
 	if path(t, out, "type") != "vless" || path(t, out, "flow") != "xtls-rprx-vision" {
 		t.Fatalf("outbound = %v", out)
 	}
-	if path(t, out, "tls", "reality", "public_key") != "PUBKEY" || path(t, out, "tls", "server_name") != "www.microsoft.com" {
+	if path(t, out, "tls", "server_name") != "nl1.example.com" || path(t, out, "tls", "utls", "fingerprint") != "chrome" {
 		t.Fatalf("tls = %v", path(t, out, "tls"))
-	}
-	if path(t, out, "tls", "utls", "fingerprint") != "chrome" {
-		t.Fatal("REALITY needs uTLS")
 	}
 
 	ws, err := BuildProfile("vmess://" + vmessJSON(`{"v":"2","ps":"w","add":"w.example.com","port":"443","id":"u","net":"ws","path":"/p","host":"h.example.com","tls":"tls","scy":"auto"}`))
@@ -250,6 +247,7 @@ func TestNativeSingBox(t *testing.T) {
 		"vless://u@h:443?type=tcp&security=none&encryption=mlkem768x25519plus.native.0rtt.abc#e",
 		"vless://u@h:443?type=ws&security=tls&path=%2Fws%3Fed%3D2048#ed",
 		"vmess://" + vmessJSON(`{"v":"2","ps":"k","add":"k.example.com","port":"443","id":"u","net":"tcp","type":"http","host":"a.com"}`),
+		"vless://u@h:443?type=tcp&security=reality&pbk=PUBKEY&sid=ab12&sni=www.microsoft.com&flow=xtls-rprx-vision#r",
 	} {
 		p, err := BuildProfile(link)
 		if err != nil {
@@ -258,11 +256,6 @@ func TestNativeSingBox(t *testing.T) {
 		if !p.UsesXray {
 			t.Errorf("%s: must use Xray", link)
 		}
-	}
-	// REALITY with fragmentation keeps Xray's finalmask.
-	p, err = BuildProfileWithOptions(reality, `{"fragment":true}`)
-	if err != nil || !p.UsesXray {
-		t.Fatalf("REALITY + fragment must use Xray (err %v)", err)
 	}
 }
 

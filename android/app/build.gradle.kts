@@ -19,6 +19,12 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
+
+        // Where this build is distributed: "site" (APK from the project page),
+        // "play" or "appstore". Store rules decide whether "Buy"/"Renew" may lead
+        // to the Telegram bot (see Purchase.kt). Build with -Pdistribution=play.
+        buildConfigField("String", "DISTRIBUTION", "\"${project.findProperty("distribution") ?: "site"}\"")
+        buildConfigField("String", "BOT_URL", "\"https://t.me/dlyasvoihVPS_bot\"")
     }
 
     signingConfigs {
@@ -54,6 +60,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

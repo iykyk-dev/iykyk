@@ -149,4 +149,31 @@
     <string name="theme_system">Как в системе</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
+
+    <string name="tab_connection">Подключение</string>
+    <string name="tab_subscription">Подписка</string>
+    <string name="welcome_title">Добро пожаловать</string>
+    <string name="welcome_text">IYKYK — приложение VPN «Для своих». Чтобы подключиться, нужна подписка.</string>
+    <string name="action_buy">Купить подписку</string>
+    <string name="welcome_have">Уже есть подписка?</string>
+    <string name="action_get_in_bot">Взять ссылку в Telegram-боте</string>
+    <string name="sub_status_active">Активна</string>
+    <string name="sub_status_ending">Скоро закончится</string>
+    <string name="sub_status_expired">Закончилась</string>
+    <string name="sub_status_unlimited">Бессрочная</string>
+    <string name="action_renew_bot">Продлить подписку</string>
+    <plurals name="sub_days_left">
+        <item quantity="one">Остался %d день</item>
+        <item quantity="few">Осталось %d дня</item>
+        <item quantity="many">Осталось %d дней</item>
+        <item quantity="other">Осталось %d дня</item>
+    </plurals>
+    <string name="sub_valid_until">Действует до %1$s</string>
+    <string name="sub_traffic">Трафик</string>
+    <string name="sub_actions">Действия</string>
+    <string name="sub_refresh">Обновить подписку</string>
+    <string name="clipboard_found_title">Добавить подписку?</string>
+    <string name="clipboard_found_text">В буфере обмена есть ссылка:\n%1$s</string>
+    <string name="prefer_xray_title">Совместимость: всё через Xray</string>
+    <string name="prefer_xray_subtitle">Включайте, только если сервер перестал подключаться после обновления. Расходует больше батареи</string>
 </resources>

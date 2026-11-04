@@ -12,6 +12,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,6 +40,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -70,7 +79,6 @@ import app.iykyk.client.core.Profiles
 import app.iykyk.client.core.ServerInfo
 import app.iykyk.client.core.SubscriptionInfo
 import app.iykyk.client.core.daysLeft
-import app.iykyk.client.core.renewUrl
 import app.iykyk.client.tv.TvShare
 import app.iykyk.client.vpn.VpnStatus
 import com.google.zxing.BarcodeFormat
@@ -88,6 +96,8 @@ fun MainScreen(
     pings: Map<String, Int>,
     pinging: Boolean,
     sortByPing: Boolean,
+    canBuy: Boolean,
+    clipboardLink: String?,
     onToggle: () -> Unit,
     onPasteLink: () -> Unit,
     onRefresh: () -> Unit,
@@ -96,70 +106,72 @@ fun MainScreen(
     onSortChange: (Boolean) -> Unit,
     onScanQr: () -> Unit,
     onSendToTv: () -> Unit,
+    onOpenBot: () -> Unit,
     onOpenUrl: (String) -> Unit,
     onImportText: (String) -> Unit,
+    onClipboardDismiss: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var showLinkInput by remember { mutableStateOf(false) }
     var showReceive by remember { mutableStateOf(false) }
     var expanded by rememberSaveable { mutableStateOf(true) }
+    var tab by rememberSaveable { mutableStateOf(0) }
 
     Surface(color = IykykColors.Background, modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            TopRow(
-                onOpenSettings = onOpenSettings,
+        if (!profiles.hasServers) {
+            WelcomeScreen(
+                canBuy = canBuy,
+                onOpenBot = onOpenBot,
                 onPaste = onPasteLink,
                 onScanQr = onScanQr,
                 onManual = { showLinkInput = true },
                 onReceive = { showReceive = true },
+                onOpenSettings = onOpenSettings,
             )
-            Spacer(Modifier.height(28.dp))
-            ConnectButton(status = status, enabled = profiles.hasServers, onClick = onToggle)
-            Spacer(Modifier.height(16.dp))
-            StatusLabel(status)
-            if (error != null && status == VpnStatus.DISCONNECTED) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.error_prefix, error),
-                    color = IykykColors.Error,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                )
+        } else {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.weight(1f)) {
+                    if (tab == 0) {
+                        ConnectionTab(
+                            status = status,
+                            profiles = profiles,
+                            error = error,
+                            expanded = expanded,
+                            onExpandChange = { expanded = it },
+                            refreshing = refreshing,
+                            pings = pings,
+                            pinging = pinging,
+                            sortByPing = sortByPing,
+                            onToggle = onToggle,
+                            onRefresh = onRefresh,
+                            onPing = onPing,
+                            onSortChange = onSortChange,
+                            onSendToTv = onSendToTv,
+                            onSelectServer = onSelectServer,
+                            onOpenSettings = onOpenSettings,
+                            onPaste = onPasteLink,
+                            onScanQr = onScanQr,
+                            onManual = { showLinkInput = true },
+                            onReceive = { showReceive = true },
+                        )
+                    } else {
+                        SubscriptionTab(
+                            profiles = profiles,
+                            canBuy = canBuy,
+                            refreshing = refreshing,
+                            onRefresh = onRefresh,
+                            onOpenBot = onOpenBot,
+                            onOpenUrl = onOpenUrl,
+                            onSendToTv = onSendToTv,
+                            onOpenSettings = onOpenSettings,
+                        )
+                    }
+                }
+                NavigationBar(containerColor = IykykColors.Surface) {
+                    TabItem(tab == 0, R.drawable.ic_tile, R.string.tab_connection) { tab = 0 }
+                    TabItem(tab == 1, R.drawable.ic_card, R.string.tab_subscription) { tab = 1 }
+                }
             }
-            Spacer(Modifier.height(28.dp))
-
-            if (profiles.hasServers) {
-                SubscriptionCard(
-                    profiles = profiles,
-                    expanded = expanded,
-                    onExpandChange = { expanded = it },
-                    refreshing = refreshing,
-                    pings = pings,
-                    pinging = pinging,
-                    sortByPing = sortByPing,
-                    onRefresh = onRefresh,
-                    onPing = onPing,
-                    onSortChange = onSortChange,
-                    onSendToTv = onSendToTv,
-                    onSelectServer = onSelectServer,
-                    onOpenUrl = onOpenUrl,
-                )
-            } else {
-                EmptyCard(
-                    onPaste = onPasteLink,
-                    onScanQr = onScanQr,
-                    onManual = { showLinkInput = true },
-                    onReceive = { showReceive = true },
-                )
-            }
-            Spacer(Modifier.height(16.dp))
         }
     }
 
@@ -181,6 +193,125 @@ fun MainScreen(
             },
             onDismiss = { showReceive = false },
         )
+    }
+
+    if (clipboardLink != null) {
+        // Back from the bot with a subscription link copied: offer to add it.
+        AlertDialog(
+            onDismissRequest = onClipboardDismiss,
+            containerColor = IykykColors.Surface,
+            title = { Text(stringResource(R.string.clipboard_found_title), color = IykykColors.Text) },
+            text = {
+                Text(
+                    stringResource(R.string.clipboard_found_text, clipboardLink.take(60) + if (clipboardLink.length > 60) "…" else ""),
+                    color = IykykColors.Muted,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onClipboardDismiss()
+                    onImportText(clipboardLink)
+                }) { Text(stringResource(R.string.action_add), color = IykykColors.Accent) }
+            },
+            dismissButton = {
+                TextButton(onClick = onClipboardDismiss) {
+                    Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                }
+            },
+        )
+    }
+}
+
+/** Status bar and side insets; the bottom is taken by the tab bar. */
+private val topInsets: Modifier
+    @Composable get() = Modifier.windowInsetsPadding(
+        WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
+    )
+
+@Composable
+private fun RowScope.TabItem(selected: Boolean, icon: Int, label: Int, onClick: () -> Unit) {
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = { Icon(painterResource(icon), contentDescription = null) },
+        label = { Text(stringResource(label)) },
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor = IykykColors.Accent,
+            selectedTextColor = IykykColors.Accent,
+            indicatorColor = IykykColors.Accent.copy(alpha = 0.14f),
+            unselectedIconColor = IykykColors.Muted,
+            unselectedTextColor = IykykColors.Muted,
+        ),
+    )
+}
+
+@Composable
+private fun ConnectionTab(
+    status: VpnStatus,
+    profiles: Profiles,
+    error: String?,
+    expanded: Boolean,
+    onExpandChange: (Boolean) -> Unit,
+    refreshing: Boolean,
+    pings: Map<String, Int>,
+    pinging: Boolean,
+    sortByPing: Boolean,
+    onToggle: () -> Unit,
+    onRefresh: () -> Unit,
+    onPing: () -> Unit,
+    onSortChange: (Boolean) -> Unit,
+    onSendToTv: () -> Unit,
+    onSelectServer: (Int) -> Unit,
+    onOpenSettings: () -> Unit,
+    onPaste: () -> Unit,
+    onScanQr: () -> Unit,
+    onManual: () -> Unit,
+    onReceive: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(topInsets)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        TopRow(
+            onOpenSettings = onOpenSettings,
+            onPaste = onPaste,
+            onScanQr = onScanQr,
+            onManual = onManual,
+            onReceive = onReceive,
+        )
+        Spacer(Modifier.height(28.dp))
+        ConnectButton(status = status, enabled = profiles.hasServers, onClick = onToggle)
+        Spacer(Modifier.height(16.dp))
+        StatusLabel(status)
+        if (error != null && status == VpnStatus.DISCONNECTED) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.error_prefix, error),
+                color = IykykColors.Error,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Spacer(Modifier.height(28.dp))
+        SubscriptionCard(
+            profiles = profiles,
+            expanded = expanded,
+            onExpandChange = onExpandChange,
+            refreshing = refreshing,
+            pings = pings,
+            pinging = pinging,
+            sortByPing = sortByPing,
+            onRefresh = onRefresh,
+            onPing = onPing,
+            onSortChange = onSortChange,
+            onSendToTv = onSendToTv,
+            onSelectServer = onSelectServer,
+        )
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -254,7 +385,6 @@ private fun SubscriptionCard(
     onSortChange: (Boolean) -> Unit,
     onSendToTv: () -> Unit,
     onSelectServer: (Int) -> Unit,
-    onOpenUrl: (String) -> Unit,
 ) {
     val sub = profiles.subscription
     var menu by remember { mutableStateOf(false) }
@@ -323,7 +453,7 @@ private fun SubscriptionCard(
                 }
             }
 
-            if (sub != null) SubscriptionDetails(sub, profiles.servers.size, onOpenUrl)
+            if (sub != null) TrafficSummary(sub)
 
             AnimatedVisibility(visible = expanded) {
                 Column {
@@ -347,30 +477,18 @@ private fun HeaderAction(icon: Int, description: Int, busy: Boolean, onClick: ()
     }
 }
 
+/** The traffic bar and expiry date under the card header. */
 @Composable
-private fun SubscriptionDetails(sub: SubscriptionInfo, serverCount: Int, onOpenUrl: (String) -> Unit) {
+private fun TrafficSummary(sub: SubscriptionInfo) {
     val daysLeft = sub.daysLeft()
-    val used = sub.upload + sub.download
-    val fraction = if (sub.total > 0) (used.toFloat() / sub.total).coerceIn(0f, 1f) else 0f
     Column(
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        LinearProgressIndicator(
-            progress = { fraction },
-            color = if (fraction > 0.9f) IykykColors.Warning else IykykColors.Accent,
-            trackColor = IykykColors.SurfaceHigh,
-            strokeCap = StrokeCap.Round,
-            gapSize = 0.dp,
-            drawStopIndicator = {},
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(CircleShape),
-        )
+        TrafficBar(sub)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = formatBytes(used) + " / " + (if (sub.total > 0) formatBytes(sub.total) else "∞"),
+                text = trafficText(sub),
                 color = IykykColors.Text,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
@@ -381,51 +499,193 @@ private fun SubscriptionDetails(sub: SubscriptionInfo, serverCount: Int, onOpenU
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
-        if (daysLeft != null && daysLeft <= ExpiryReminder.REMIND_DAYS) {
+        ExpiryWarning(daysLeft)
+    }
+}
+
+@Composable
+private fun TrafficBar(sub: SubscriptionInfo) {
+    val used = sub.upload + sub.download
+    val fraction = if (sub.total > 0) (used.toFloat() / sub.total).coerceIn(0f, 1f) else 0f
+    LinearProgressIndicator(
+        progress = { fraction },
+        color = if (fraction > 0.9f) IykykColors.Warning else IykykColors.Accent,
+        trackColor = IykykColors.SurfaceHigh,
+        strokeCap = StrokeCap.Round,
+        gapSize = 0.dp,
+        drawStopIndicator = {},
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+            .clip(CircleShape),
+    )
+}
+
+private fun trafficText(sub: SubscriptionInfo): String =
+    formatBytes(sub.upload + sub.download) + " / " + (if (sub.total > 0) formatBytes(sub.total) else "∞")
+
+@Composable
+private fun ExpiryWarning(daysLeft: Int?) {
+    if (daysLeft == null || daysLeft > ExpiryReminder.REMIND_DAYS) return
+    Text(
+        text = when {
+            daysLeft < 0 -> stringResource(R.string.expiry_ended)
+            daysLeft == 0 -> stringResource(R.string.expiry_today)
+            else -> pluralStringResource(R.plurals.expiry_in_days, daysLeft, daysLeft)
+        },
+        color = if (daysLeft < 0) IykykColors.Error else IykykColors.Warning,
+        style = MaterialTheme.typography.bodySmall,
+        fontWeight = FontWeight.Medium,
+    )
+}
+
+/** The "Подписка" tab: status, dates, traffic, renew (in the bot), support, TV. */
+@Composable
+private fun SubscriptionTab(
+    profiles: Profiles,
+    canBuy: Boolean,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
+    onOpenBot: () -> Unit,
+    onOpenUrl: (String) -> Unit,
+    onSendToTv: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    val sub = profiles.subscription
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(topInsets)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            IconButton(onClick = onOpenSettings, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.cd_settings), tint = IykykColors.Muted)
+            }
             Text(
-                text = when {
-                    daysLeft < 0 -> stringResource(R.string.expiry_ended)
-                    daysLeft == 0 -> stringResource(R.string.expiry_today)
-                    else -> pluralStringResource(R.plurals.expiry_in_days, daysLeft, daysLeft)
-                },
-                color = if (daysLeft < 0) IykykColors.Error else IykykColors.Warning,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium,
+                stringResource(R.string.tab_subscription),
+                color = IykykColors.Text,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.Center),
             )
         }
-        if (sub.announce.isNotBlank()) {
-            Text(text = sub.announce, color = IykykColors.Warning, style = MaterialTheme.typography.bodySmall)
-        }
-        val showRenew = daysLeft != null && daysLeft <= ExpiryReminder.REMIND_DAYS && sub.renewUrl.isNotBlank()
-        if (showRenew || sub.supportUrl.isNotBlank() || sub.webPageUrl.isNotBlank()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                if (showRenew) {
-                    LinkButton(stringResource(R.string.action_renew), primary = true, modifier = Modifier.weight(1f)) {
-                        onOpenUrl(sub.renewUrl)
+        Spacer(Modifier.height(16.dp))
+
+        if (sub != null) {
+            val daysLeft = sub.daysLeft()
+            Surface(color = IykykColors.Surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            sub.title.ifBlank { stringResource(R.string.subscription_label) },
+                            color = IykykColors.Text,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        StatusChip(daysLeft)
                     }
-                }
-                if (sub.supportUrl.isNotBlank()) {
-                    LinkButton(stringResource(R.string.action_support), modifier = Modifier.weight(1f)) {
-                        onOpenUrl(sub.supportUrl)
+                    Text(
+                        if (sub.expire > 0) stringResource(R.string.sub_valid_until, longDate(sub.expire)) else stringResource(R.string.sub_status_unlimited),
+                        color = IykykColors.Text,
+                    )
+                    if (daysLeft != null && daysLeft >= 0) {
+                        Text(
+                            pluralStringResource(R.plurals.sub_days_left, daysLeft, daysLeft),
+                            color = if (daysLeft <= ExpiryReminder.REMIND_DAYS) IykykColors.Warning else IykykColors.Muted,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
-                }
-                if (sub.webPageUrl.isNotBlank() && !showRenew) {
-                    LinkButton(stringResource(R.string.action_website), modifier = Modifier.weight(1f)) {
-                        onOpenUrl(sub.webPageUrl)
+                    Spacer(Modifier.height(4.dp))
+                    Text(stringResource(R.string.sub_traffic), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                    TrafficBar(sub)
+                    Text(trafficText(sub), color = IykykColors.Text, style = MaterialTheme.typography.bodyMedium)
+                    if (sub.announce.isNotBlank()) {
+                        Text(sub.announce, color = IykykColors.Warning, style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (canBuy) {
+                        Spacer(Modifier.height(4.dp))
+                        LinkButton(stringResource(R.string.action_renew_bot), primary = true, modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
                     }
                 }
             }
+            Spacer(Modifier.height(20.dp))
         }
-        val parts = buildList {
-            if (sub.updatedAt > 0) add(stringResource(R.string.sub_updated, dateTime(sub.updatedAt)))
-            add(stringResource(R.string.sub_auto_update, sub.updateHours.takeIf { it > 0 } ?: 12))
-            add(pluralStringResource(R.plurals.servers_count, serverCount, serverCount))
+
+        Surface(color = IykykColors.Surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column {
+                if (sub != null) {
+                    ActionRow(R.drawable.ic_refresh, stringResource(R.string.sub_refresh), busy = refreshing, onClick = onRefresh)
+                }
+                if (sub?.supportUrl?.isNotBlank() == true) {
+                    ActionRow(null, stringResource(R.string.action_support)) { onOpenUrl(sub.supportUrl) }
+                }
+                if (sub?.webPageUrl?.isNotBlank() == true) {
+                    ActionRow(null, stringResource(R.string.action_website)) { onOpenUrl(sub.webPageUrl) }
+                }
+                ActionRow(R.drawable.ic_tv, stringResource(R.string.menu_send_tv), onClick = onSendToTv)
+            }
         }
+
+        if (sub != null) {
+            Spacer(Modifier.height(12.dp))
+            val parts = buildList {
+                if (sub.updatedAt > 0) add(stringResource(R.string.sub_updated, dateTime(sub.updatedAt)))
+                add(stringResource(R.string.sub_auto_update, sub.updateHours.takeIf { it > 0 } ?: 12))
+                add(pluralStringResource(R.plurals.servers_count, profiles.servers.size, profiles.servers.size))
+            }
+            Text(
+                parts.joinToString(" · "),
+                color = IykykColors.Muted,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun StatusChip(daysLeft: Int?) {
+    val (text, color) = when {
+        daysLeft == null -> stringResource(R.string.sub_status_unlimited) to Color(0xFF3FA66B)
+        daysLeft < 0 -> stringResource(R.string.sub_status_expired) to IykykColors.Error
+        daysLeft <= ExpiryReminder.REMIND_DAYS -> stringResource(R.string.sub_status_ending) to IykykColors.Warning
+        else -> stringResource(R.string.sub_status_active) to Color(0xFF3FA66B)
+    }
+    Surface(color = color.copy(alpha = 0.15f), shape = CircleShape) {
         Text(
-            text = parts.joinToString(" · "),
-            color = IykykColors.Muted,
-            style = MaterialTheme.typography.bodySmall,
+            text,
+            color = color,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
         )
+    }
+}
+
+@Composable
+private fun ActionRow(icon: Int?, text: String, busy: Boolean = false, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !busy, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+            when {
+                busy -> CircularProgressIndicator(color = IykykColors.Accent, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                icon != null -> Icon(painterResource(icon), contentDescription = null, tint = IykykColors.Accent)
+            }
+        }
+        Spacer(Modifier.size(12.dp))
+        Text(text, color = IykykColors.Text, modifier = Modifier.weight(1f))
+        Text("›", color = IykykColors.Muted, fontSize = 22.sp)
     }
 }
 
@@ -528,46 +788,73 @@ internal fun splitFlag(name: String): Pair<String?, String> {
     return null to text
 }
 
+/** First launch, no subscription yet: buy one in the bot or add an existing one. */
 @Composable
-private fun EmptyCard(
+private fun WelcomeScreen(
+    canBuy: Boolean,
+    onOpenBot: () -> Unit,
     onPaste: () -> Unit,
     onScanQr: () -> Unit,
     onManual: () -> Unit,
     onReceive: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
-    Surface(color = IykykColors.Surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(stringResource(R.string.empty_title), color = IykykColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-            Text(
-                text = stringResource(if (ProfileStore.locked) R.string.paste_hint_locked else R.string.paste_hint),
-                color = IykykColors.Muted,
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
-            )
-            Button(
-                onClick = onPaste,
-                colors = ButtonDefaults.buttonColors(containerColor = IykykColors.Accent, contentColor = IykykColors.OnAccent),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    stringResource(if (ProfileStore.locked) R.string.action_paste_subscription else R.string.action_paste_link),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            IconButton(onClick = onOpenSettings, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.cd_settings), tint = IykykColors.Muted)
             }
+        }
+        Spacer(Modifier.height(24.dp))
+        Header()
+        Spacer(Modifier.height(40.dp))
+        Text(stringResource(R.string.welcome_title), color = IykykColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.welcome_text),
+            color = IykykColors.Muted,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(28.dp))
+        if (canBuy) {
+            LinkButton(stringResource(R.string.action_buy), primary = true, modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
+            Spacer(Modifier.height(32.dp))
+        }
+        Text(stringResource(R.string.welcome_have), color = IykykColors.Text, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(if (ProfileStore.locked) R.string.paste_hint_locked else R.string.paste_hint),
+            color = IykykColors.Muted,
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(12.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            if (canBuy) {
+                LinkButton(stringResource(R.string.action_get_in_bot), modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
+            }
+            LinkButton(
+                stringResource(if (ProfileStore.locked) R.string.action_paste_subscription else R.string.action_paste_link),
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onPaste,
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 LinkButton(stringResource(R.string.action_scan_qr), modifier = Modifier.weight(1f), onClick = onScanQr)
                 LinkButton(stringResource(R.string.menu_manual), modifier = Modifier.weight(1f), onClick = onManual)
             }
-            // On a TV: no camera, no clipboard, typing with a remote is painful.
-            TextButton(onClick = onReceive) {
-                Text(stringResource(R.string.menu_receive_tv), color = IykykColors.Accent)
-            }
         }
+        // On a TV: no camera, no clipboard, typing with a remote is painful.
+        TextButton(onClick = onReceive) {
+            Text(stringResource(R.string.menu_receive_tv), color = IykykColors.Accent)
+        }
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -617,6 +904,9 @@ private fun TvReceiveDialog(onReceived: (String) -> Unit, onDismiss: () -> Unit)
 
 private fun shortDate(unixSeconds: Long): String =
     SimpleDateFormat("dd.MM.yyyy", Locale.forLanguageTag("ru")).format(Date(unixSeconds * 1000))
+
+private fun longDate(unixSeconds: Long): String =
+    SimpleDateFormat("d MMMM yyyy", Locale.forLanguageTag("ru")).format(Date(unixSeconds * 1000))
 
 private fun dateTime(millis: Long): String =
     SimpleDateFormat("dd.MM.yy HH:mm", Locale.forLanguageTag("ru")).format(Date(millis))
@@ -823,6 +1113,8 @@ private fun MainScreenPreview() {
             pings = mapOf("b" to 54),
             pinging = false,
             sortByPing = false,
+            canBuy = true,
+            clipboardLink = null,
             onToggle = {},
             onPasteLink = {},
             onRefresh = {},
@@ -831,8 +1123,10 @@ private fun MainScreenPreview() {
             onSortChange = {},
             onScanQr = {},
             onSendToTv = {},
+            onOpenBot = {},
             onOpenUrl = {},
             onImportText = {},
+            onClipboardDismiss = {},
             onOpenSettings = {},
         )
     }
