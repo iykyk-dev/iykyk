@@ -173,19 +173,8 @@ func singBoxTestDialer(s *server, opts options) (dialFunc, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(),
-		include.EndpointRegistry(), include.DNSTransportRegistry(), include.ServiceRegistry(),
-		include.CertificateProviderRegistry())
-	options, err := sjson.UnmarshalExtendedContext[option.Options](ctx, []byte(text))
+	instance, err := startHeadlessBox(text)
 	if err != nil {
-		return nil, nil, err
-	}
-	instance, err := box.New(box.Options{Context: ctx, Options: options})
-	if err != nil {
-		return nil, nil, err
-	}
-	if err := instance.Start(); err != nil {
-		instance.Close()
 		return nil, nil, err
 	}
 	proxy, ok := instance.Outbound().Outbound("proxy")
@@ -197,4 +186,24 @@ func singBoxTestDialer(s *server, opts options) (dialFunc, func(), error) {
 		return proxy.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddr(address))
 	}
 	return dial, func() { _ = instance.Close() }, nil
+}
+
+// startHeadlessBox starts sing-box from a config without a TUN inbound.
+func startHeadlessBox(text string) (*box.Box, error) {
+	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(),
+		include.EndpointRegistry(), include.DNSTransportRegistry(), include.ServiceRegistry(),
+		include.CertificateProviderRegistry())
+	options, err := sjson.UnmarshalExtendedContext[option.Options](ctx, []byte(text))
+	if err != nil {
+		return nil, err
+	}
+	instance, err := box.New(box.Options{Context: ctx, Options: options})
+	if err != nil {
+		return nil, err
+	}
+	if err := instance.Start(); err != nil {
+		instance.Close()
+		return nil, err
+	}
+	return instance, nil
 }
