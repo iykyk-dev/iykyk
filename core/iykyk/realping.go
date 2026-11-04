@@ -26,6 +26,9 @@ import (
 
 const realPingURL = "https://www.gstatic.com/generate_204"
 
+// testXrayLogLevel is raised by tests to see why a test connection fails.
+var testXrayLogLevel = "none"
+
 // RealPingServers returns a JSON array of milliseconds, one per link
 // (linksJSON is a JSON array of share links): -1 = not working,
 // -2 = not measurable this way (Mieru, AmneziaWG). If an engine cannot be
@@ -123,7 +126,7 @@ func xrayTestDialer(s *server, opts options) (dialFunc, func(), error) {
 		var out jsonObject
 		if out, err = xrayOutbound(s, opts); err == nil {
 			configJSON, err = marshal(jsonObject{
-				"log":       jsonObject{"loglevel": "none"},
+				"log":       jsonObject{"loglevel": testXrayLogLevel},
 				"inbounds":  []any{xraySocksInbound("socks-in", port, user, pass)},
 				"outbounds": []any{out},
 			})

@@ -100,7 +100,9 @@ func TestNativeClientsAgainstXrayServers(t *testing.T) {
 				t.Fatal(err)
 			}
 			p := strconv.Itoa(port)
-			config := `{"log":{"loglevel":"warning"},"inbounds":[{"listen":"127.0.0.1","port":` + p + `,` + c.inbound +
+			testXrayLogLevel = "debug"
+			defer func() { testXrayLogLevel = "none" }()
+			config := `{"log":{"loglevel":"debug"},"inbounds":[{"listen":"127.0.0.1","port":` + p + `,` + c.inbound +
 				`}],"outbounds":[{"protocol":"freedom"}]}`
 			server, err := core.StartInstance("json", []byte(config))
 			if err != nil {
