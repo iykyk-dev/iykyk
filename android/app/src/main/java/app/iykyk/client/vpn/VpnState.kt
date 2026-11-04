@@ -32,12 +32,21 @@ object VpnState {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    /** When the session started (SystemClock.elapsedRealtime), or 0. Automatic reconnects keep it. */
+    private val _connectedAt = MutableStateFlow(0L)
+    val connectedAt: StateFlow<Long> = _connectedAt.asStateFlow()
+
     private val _tunnel = MutableStateFlow<TunnelState?>(null)
     val tunnel: StateFlow<TunnelState?> = _tunnel.asStateFlow()
 
     internal fun set(status: VpnStatus) {
         if (status == VpnStatus.CONNECTING) _error.value = null
         if (status != VpnStatus.CONNECTED) _tunnel.value = null
+        when (status) {
+            VpnStatus.CONNECTED -> if (_connectedAt.value == 0L) _connectedAt.value = android.os.SystemClock.elapsedRealtime()
+            VpnStatus.DISCONNECTED, VpnStatus.DISCONNECTING -> _connectedAt.value = 0L
+            VpnStatus.CONNECTING -> {}
+        }
         _status.value = status
     }
 

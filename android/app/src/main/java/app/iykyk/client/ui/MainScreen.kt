@@ -103,6 +103,7 @@ fun MainScreen(
     canBuy: Boolean,
     clipboardLink: String?,
     tunnel: TunnelState?,
+    connectedAt: Long,
     shareLink: String?,
     devices: DevicesInfo?,
     onToggle: () -> Unit,
@@ -161,6 +162,7 @@ fun MainScreen(
                             profiles = profiles,
                             error = error,
                             tunnel = tunnel,
+                            connectedAt = connectedAt,
                             onCheck = onCheck,
                             onSendReport = onSendReport,
                             expanded = expanded,
@@ -369,6 +371,7 @@ private fun ConnectionTab(
     profiles: Profiles,
     error: String?,
     tunnel: TunnelState?,
+    connectedAt: Long,
     onCheck: () -> Unit,
     onSendReport: () -> Unit,
     expanded: Boolean,
@@ -407,9 +410,11 @@ private fun ConnectionTab(
         Spacer(Modifier.height(28.dp))
         ConnectButton(status = status, enabled = profiles.hasServers, onClick = onToggle)
         Spacer(Modifier.height(16.dp))
-        StatusLabel(status)
+        if (status == VpnStatus.CONNECTED && connectedAt > 0) {
+            SessionTimer(connectedAt)
+        }
         if (status == VpnStatus.CONNECTED && tunnel != null) {
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             TunnelLine(tunnel, onCheck)
         }
         val failed = error != null && status == VpnStatus.DISCONNECTED
@@ -1374,32 +1379,49 @@ private fun ConnectButton(status: VpnStatus, enabled: Boolean, onClick: () -> Un
         border = BorderStroke(2.dp, IykykColors.Accent.copy(alpha = if (enabled) 0.5f else 0.15f)),
         modifier = Modifier.size(160.dp),
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(
                 painter = painterResource(R.drawable.ic_tile),
                 contentDescription = label,
                 tint = iconTint,
-                modifier = Modifier.size(64.dp),
+                modifier = Modifier.size(52.dp),
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(
+                    when (status) {
+                        VpnStatus.DISCONNECTED -> R.string.status_disconnected
+                        VpnStatus.CONNECTING -> R.string.status_connecting
+                        VpnStatus.CONNECTED -> R.string.status_connected
+                        VpnStatus.DISCONNECTING -> R.string.status_disconnecting
+                    },
+                ),
+                color = iconTint,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
 }
 
+/** "00:12:34" since the session started; ticks every second while shown. */
 @Composable
-private fun StatusLabel(status: VpnStatus) {
-    val text = stringResource(
-        when (status) {
-            VpnStatus.DISCONNECTED -> R.string.status_disconnected
-            VpnStatus.CONNECTING -> R.string.status_connecting
-            VpnStatus.CONNECTED -> R.string.status_connected
-            VpnStatus.DISCONNECTING -> R.string.status_disconnecting
-        },
-    )
+private fun SessionTimer(connectedAt: Long) {
+    var now by remember { mutableStateOf(android.os.SystemClock.elapsedRealtime()) }
+    LaunchedEffect(connectedAt) {
+        while (true) {
+            now = android.os.SystemClock.elapsedRealtime()
+            kotlinx.coroutines.delay(1_000L - now % 1_000L)
+        }
+    }
+    val seconds = ((now - connectedAt) / 1000).coerceAtLeast(0)
     Text(
-        text = text,
-        color = if (status == VpnStatus.CONNECTED) IykykColors.Accent else IykykColors.Text,
-        fontSize = 20.sp,
+        text = String.format(Locale.ROOT, "%02d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60),
+        color = IykykColors.Text,
+        fontSize = 26.sp,
         fontWeight = FontWeight.SemiBold,
+        style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"),
+        letterSpacing = 1.sp,
     )
 }
 
@@ -1487,6 +1509,7 @@ private fun MainScreenPreview() {
             canBuy = true,
             clipboardLink = null,
             tunnel = TunnelState.Ok("5.6.7.8", "NL", 120),
+            connectedAt = 1L,
             shareLink = "https://example.com/sub",
             devices = null,
             onToggle = {},

@@ -122,6 +122,7 @@ class MainActivity : ComponentActivity() {
                         canBuy = canBuy,
                         clipboardLink = clipboardLink.collectAsStateWithLifecycle().value,
                         tunnel = VpnState.tunnel.collectAsStateWithLifecycle().value,
+                        connectedAt = VpnState.connectedAt.collectAsStateWithLifecycle().value,
                         shareLink = ProfileStore.profiles.collectAsStateWithLifecycle().value.let { shareLink(it) },
                         devices = devices.collectAsStateWithLifecycle().value,
                         onToggle = ::toggleVpn,
