@@ -72,11 +72,13 @@ class MainActivity : ComponentActivity() {
                         refreshing = refreshing.collectAsStateWithLifecycle().value,
                         pings = pings.collectAsStateWithLifecycle().value,
                         pinging = pinging.collectAsStateWithLifecycle().value,
+                        sortByPing = settings.sortByPing,
                         onToggle = ::toggleVpn,
                         onPasteLink = ::pasteLink,
                         onRefresh = ::refreshSubscription,
                         onSelectServer = ::selectServer,
                         onPing = ::pingServers,
+                        onSortChange = { value -> SettingsStore.update(this) { it.copy(sortByPing = value) } },
                         onOpenSettings = { screen = Screen.SETTINGS },
                     )
                     Screen.SETTINGS -> SettingsScreen(
@@ -84,6 +86,7 @@ class MainActivity : ComponentActivity() {
                         versions = versions,
                         onBack = { screen = Screen.MAIN },
                         onBypassChange = { value -> changeSettings { it.copy(bypassRussia = value) } },
+                        onFragmentChange = { value -> changeSettings { it.copy(fragment = value) } },
                         onAppModeChange = { mode -> changeSettings { it.copy(appMode = mode) } },
                         onChooseApps = { screen = Screen.APPS },
                     )
@@ -105,9 +108,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var lastPingAt = 0L
+
     override fun onStart() {
         super.onStart()
-        lifecycleScope.launch { ProfileStore.refreshIfStale(this@MainActivity) }
+        lifecycleScope.launch {
+            ProfileStore.refreshIfStale(this@MainActivity)
+            // Re-test the servers when the app opens, at most every 10 minutes.
+            if (System.currentTimeMillis() - lastPingAt > 10 * 60_000L) pingServers()
+        }
     }
 
     private fun changeSettings(transform: (app.iykyk.client.core.AppSettings) -> app.iykyk.client.core.AppSettings) {
@@ -185,9 +194,12 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 val links = servers.map { it.link }
-                val json = withContext(Dispatchers.IO) { Iykyk.pingServers(JSONArray(links).toString()) }
+                val options = SettingsStore.coreOptions(this@MainActivity)
+                // A real HTTPS request through each server, not just a TCP connect.
+                val json = withContext(Dispatchers.IO) { Iykyk.realPingServers(JSONArray(links).toString(), options) }
                 val results = JSONArray(json)
                 pings.value = links.indices.associate { links[it] to results.optInt(it, -1) }
+                lastPingAt = System.currentTimeMillis()
             } catch (_: Exception) {
             } finally {
                 pinging.value = false

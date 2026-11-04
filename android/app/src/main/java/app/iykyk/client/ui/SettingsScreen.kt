@@ -39,6 +39,7 @@ fun SettingsScreen(
     versions: String,
     onBack: () -> Unit,
     onBypassChange: (Boolean) -> Unit,
+    onFragmentChange: (Boolean) -> Unit,
     onAppModeChange: (AppMode) -> Unit,
     onChooseApps: () -> Unit,
 ) {
@@ -55,29 +56,18 @@ fun SettingsScreen(
 
             SectionTitle(stringResource(R.string.settings_routing))
             Card {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onBypassChange(!settings.bypassRussia) }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.bypass_title), color = IykykColors.Text, fontWeight = FontWeight.Medium)
-                        Text(
-                            stringResource(R.string.bypass_subtitle),
-                            color = IykykColors.Muted,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Switch(
+                Column {
+                    SwitchRow(
+                        title = stringResource(R.string.bypass_title),
+                        subtitle = stringResource(R.string.bypass_subtitle),
                         checked = settings.bypassRussia,
-                        onCheckedChange = onBypassChange,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = IykykColors.OnAccent,
-                            checkedTrackColor = IykykColors.Accent,
-                        ),
+                        onChange = onBypassChange,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.fragment_title),
+                        subtitle = stringResource(R.string.fragment_subtitle),
+                        checked = settings.fragment,
+                        onChange = onFragmentChange,
                     )
                 }
             }
@@ -145,6 +135,31 @@ fun SettingsScreen(
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onChange(!checked) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = IykykColors.Text, fontWeight = FontWeight.Medium)
+            Text(subtitle, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = IykykColors.OnAccent,
+                checkedTrackColor = IykykColors.Accent,
+            ),
+        )
     }
 }
 

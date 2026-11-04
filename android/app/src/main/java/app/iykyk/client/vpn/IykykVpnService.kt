@@ -152,15 +152,23 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         server.startOrReloadService(profile.singBoxConfig, appRouting())
     }
 
-    /** Per-app routing: all apps, only the selected ones, or all except the selected ones. */
+    /**
+     * Per-app routing: all apps, only the selected ones, or all except the selected ones.
+     * IYKYK itself always stays outside the tunnel: its engines, subscription updates
+     * and ping tests must reach the network directly, never through its own VPN.
+     */
     private fun appRouting(): OverrideOptions {
         val settings = SettingsStore.settings.value
         val apps = settings.apps.filter { it != packageName }
         return OverrideOptions().apply {
             when (settings.appMode) {
-                AppMode.ALL -> Unit
-                AppMode.ONLY_SELECTED -> if (apps.isNotEmpty()) includePackage = StringArray(apps)
-                AppMode.EXCEPT_SELECTED -> if (apps.isNotEmpty()) excludePackage = StringArray(apps)
+                AppMode.ALL -> excludePackage = StringArray(listOf(packageName))
+                AppMode.ONLY_SELECTED -> if (apps.isNotEmpty()) {
+                    includePackage = StringArray(apps)
+                } else {
+                    excludePackage = StringArray(listOf(packageName))
+                }
+                AppMode.EXCEPT_SELECTED -> excludePackage = StringArray(apps + packageName)
             }
         }
     }

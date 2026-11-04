@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
@@ -62,11 +62,13 @@ fun MainScreen(
     refreshing: Boolean,
     pings: Map<String, Int>,
     pinging: Boolean,
+    sortByPing: Boolean,
     onToggle: () -> Unit,
     onPasteLink: () -> Unit,
     onRefresh: () -> Unit,
     onSelectServer: (Int) -> Unit,
     onPing: () -> Unit,
+    onSortChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var showServers by remember { mutableStateOf(false) }
@@ -140,7 +142,9 @@ fun MainScreen(
             profiles = profiles,
             pings = pings,
             pinging = pinging,
+            sortByPing = sortByPing,
             onPing = onPing,
+            onSortChange = onSortChange,
             onSelect = {
                 showServers = false
                 onSelectServer(it)
@@ -361,7 +365,9 @@ private fun ServerPicker(
     profiles: Profiles,
     pings: Map<String, Int>,
     pinging: Boolean,
+    sortByPing: Boolean,
     onPing: () -> Unit,
+    onSortChange: (Boolean) -> Unit,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -380,6 +386,12 @@ private fun ServerPicker(
                 fontSize = 18.sp,
                 modifier = Modifier.weight(1f),
             )
+            TextButton(onClick = { onSortChange(!sortByPing) }) {
+                Text(
+                    stringResource(if (sortByPing) R.string.sort_by_ping else R.string.sort_by_order),
+                    color = IykykColors.Muted,
+                )
+            }
             TextButton(onClick = onPing, enabled = !pinging) {
                 Text(
                     stringResource(if (pinging) R.string.pinging else R.string.action_ping),
@@ -388,7 +400,23 @@ private fun ServerPicker(
             }
         }
         LazyColumn(modifier = Modifier.navigationBarsPadding()) {
-            itemsIndexed(profiles.servers) { index, item ->
+            // Working servers by delay first, then untested, then unreachable.
+            val order = profiles.servers.indices.let { indices ->
+                if (!sortByPing) {
+                    indices.toList()
+                } else {
+                    indices.sortedBy { i ->
+                        val p = pings[profiles.servers[i].link]
+                        when {
+                            p == null || p == -2 -> Int.MAX_VALUE - 1
+                            p < 0 -> Int.MAX_VALUE
+                            else -> p
+                        }
+                    }
+                }
+            }
+            items(order, key = { it }) { index ->
+                val item = profiles.servers[index]
                 val delay = pings[item.link]
                 val (text, color) = when {
                     delay == null -> null to IykykColors.Muted
@@ -469,6 +497,8 @@ private fun protocolTitle(protocol: String): String = when (protocol) {
     "mieru" -> "Mieru"
     "socks" -> "SOCKS5"
     "http" -> "HTTP"
+    "xray-json" -> "Xray"
+    "xray-balancer" -> "Xray · автовыбор"
     else -> protocol
 }
 
@@ -515,11 +545,13 @@ private fun MainScreenPreview() {
             refreshing = false,
             pings = emptyMap(),
             pinging = false,
+            sortByPing = false,
             onToggle = {},
             onPasteLink = {},
             onRefresh = {},
             onSelectServer = {},
             onPing = {},
+            onSortChange = {},
             onOpenSettings = {},
         )
     }

@@ -5,7 +5,9 @@
 package iykyk
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
 	"net"
 	"os"
 	"strconv"
@@ -107,4 +109,69 @@ func TestBypassAcceptedBySingBox(t *testing.T) {
 			t.Fatalf("sing-box rejected bypass config: %v\n%s", err, p.SingBoxConfig)
 		}
 	}
+}
+
+// TestFragmentAndXrayJSONAcceptedByEngines checks TLS fragmentation (Xray
+// finalmask, sing-box tls.fragment) and Xray JSON configs with balancers.
+func TestFragmentAndXrayJSONAcceptedByEngines(t *testing.T) {
+	links := []string{
+		"vless://11111111-2222-3333-4444-555555555555@nl.example.com:443?type=tcp&security=reality&pbk=" +
+			"Z84J2IelR9ch3k8VtlVhhs5ycBUlXA7wHBWcBrjqnAw&sid=ab12&sni=www.microsoft.com&fp=chrome&flow=xtls-rprx-vision#nl",
+		"trojan://pw@de.example.com:443?type=ws&path=%2Fws#tr",
+		"anytls://secret@any.example.com:443?sni=any.example.com#any",
+	}
+	sub, err := parseXrayJSONSubscription(xrayJSONSubscription)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range sub {
+		links = append(links, s.Raw)
+	}
+	for _, link := range links {
+		p, err := BuildProfileWithOptions(link, `{"fragment":true}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := libbox.CheckConfig(p.SingBoxConfig); err != nil {
+			t.Errorf("%s: sing-box rejected config: %v\n%s", p.Name, err, p.SingBoxConfig)
+		}
+		if p.UsesXray {
+			if err := CheckXrayConfig(p.XrayConfig); err != nil {
+				t.Errorf("%s: Xray rejected config: %v\n%s", p.Name, err, p.XrayConfig)
+			}
+		}
+	}
+}
+
+// TestRealPing runs the real ping through both engines against a local SOCKS5
+// proxy that reaches the internet directly (CI runners have internet access).
+func TestRealPing(t *testing.T) {
+	port, _ := freeLoopbackPort()
+	srv, err := listenSocks(port, "u", "p", func(ctx context.Context, network, address string) (net.Conn, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, network, address)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	p := strconv.Itoa(port)
+	viaXray := `{"remarks":"x","outbounds":[{"protocol":"socks","settings":{"servers":[{"address":"127.0.0.1","port":` + p +
+		`,"users":[{"user":"u","pass":"p"}]}]}}]}`
+	links := []string{
+		"socks5://u:p@127.0.0.1:" + p + "#sing-box", // sing-box engine
+		viaXray, // Xray engine (core.Dial)
+		"mierus://u:p@127.0.0.1?profile=d&port=1&protocol=TCP#m",
+	}
+	b, _ := json.Marshal(links)
+	text, err := RealPingServers(string(b), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var results []int
+	_ = json.Unmarshal([]byte(text), &results)
+	if len(results) != 3 || results[0] <= 0 || results[1] <= 0 || results[2] != -2 {
+		t.Fatalf("results %v (want positive, positive, -2)", results)
+	}
+	t.Logf("real ping: sing-box %d ms, Xray %d ms", results[0], results[1])
 }

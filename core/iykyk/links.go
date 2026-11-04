@@ -61,8 +61,10 @@ type server struct {
 	Keepalive     int
 	AmneziaParams map[string]string // jc, jmin, jmax, s1-s4, h1-h4, i1-i5
 
-	// Raw link, needed by engines that parse it themselves (Mieru).
+	// Raw link, needed by engines that parse it themselves (Mieru, Xray JSON).
 	Raw string
+	// All proxy server names in an Xray JSON config (they resolve directly).
+	ExtraHosts []string
 
 	// Security: none, tls, reality.
 	Security    string
@@ -84,6 +86,9 @@ var errUnsupported = errors.New("unsupported link")
 
 func parseLink(link string) (*server, error) {
 	link = strings.TrimSpace(link)
+	if strings.HasPrefix(link, "{") {
+		return parseXrayJSON(link)
+	}
 	if strings.Contains(link, "[Interface]") {
 		return parseWireGuardConf(link)
 	}

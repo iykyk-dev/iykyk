@@ -33,6 +33,8 @@ data class SubscriptionInfo(
     val announce: String,
     val updatedAt: Long,
     val updateHours: Int = 0,
+    /** Backup subscription URLs announced by the panel. */
+    val fallbacks: List<String> = emptyList(),
 )
 
 data class Profiles(
@@ -152,8 +154,10 @@ object ProfileStore {
             osVersion = Build.VERSION.RELEASE
             model = "${Build.MANUFACTURER} ${Build.MODEL}"
         }
+        // Keep the fallbacks we already know: they matter exactly when the main URL fails.
+        val fallbacks = org.json.JSONArray(_profiles.value.subscription?.fallbacks.orEmpty()).toString()
         val json = try {
-            Iykyk.fetchSubscription(url, userAgent(context), device)
+            Iykyk.fetchSubscriptionWithFallbacks(url, fallbacks, userAgent(context), device)
         } catch (e: Exception) {
             if (e.message.orEmpty().startsWith("subscription not allowed")) throw NotAllowedException()
             throw e
@@ -219,6 +223,9 @@ object ProfileStore {
             announce = root.optString("announce"),
             updatedAt = updatedAt,
             updateHours = root.optInt("updateHours"),
+            fallbacks = root.optJSONArray("fallbacks")?.let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }
+            }.orEmpty(),
         )
         return Profiles(subscription = subscription.takeIf { url.isNotEmpty() }, servers = servers)
     }

@@ -18,6 +18,9 @@ type options struct {
 	// RuleSetDir holds geosite-category-ru.srs and geoip-ru.srs shipped with the app.
 	// Without it, only the .ru/.su/.рф domain zones are bypassed.
 	RuleSetDir string `json:"ruleSetDir"`
+	// Fragment splits TLS handshakes into small pieces to get past DPI that
+	// blocks by server name. Applies to TCP-based TLS/REALITY connections.
+	Fragment bool `json:"fragment"`
 }
 
 func parseOptions(text string) (options, error) {

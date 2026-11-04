@@ -16,15 +16,17 @@ import (
 // Subscription is the parsed result of a subscription URL (Remnawave, Marzban,
 // 3x-ui and other panels that serve a base64 or plain list of share links).
 type subscription struct {
-	Title       string               `json:"title,omitempty"`
-	Upload      int64                `json:"upload"`
-	Download    int64                `json:"download"`
-	Total       int64                `json:"total"`  // bytes, 0 = unlimited
-	Expire      int64                `json:"expire"` // unix seconds, 0 = never
-	SupportURL  string               `json:"supportUrl,omitempty"`
-	WebPageURL  string               `json:"webPageUrl,omitempty"`
-	Announce    string               `json:"announce,omitempty"`
-	UpdateHours int                  `json:"updateHours,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Upload      int64  `json:"upload"`
+	Download    int64  `json:"download"`
+	Total       int64  `json:"total"`  // bytes, 0 = unlimited
+	Expire      int64  `json:"expire"` // unix seconds, 0 = never
+	SupportURL  string `json:"supportUrl,omitempty"`
+	WebPageURL  string `json:"webPageUrl,omitempty"`
+	Announce    string `json:"announce,omitempty"`
+	UpdateHours int    `json:"updateHours,omitempty"`
+	// Backup subscription URLs (header "Fallback-Urls" or "Iykyk-Fallback-Urls").
+	Fallbacks   []string             `json:"fallbacks,omitempty"`
 	Servers     []subscriptionServer `json:"servers"`
 	Unsupported []string             `json:"unsupported,omitempty"` // schemes we skipped
 }
@@ -52,14 +54,62 @@ type DeviceInfo struct {
 // panels answer unknown clients with the universal base64 list.
 // device may be nil.
 func FetchSubscription(subscriptionURL string, userAgent string, device *DeviceInfo) (string, error) {
+	return FetchSubscriptionWithFallbacks(subscriptionURL, "", userAgent, device)
+}
+
+// FetchSubscriptionWithFallbacks is FetchSubscription with backup URLs
+// (fallbacksJSON: JSON array, usually the "fallbacks" of the last result).
+// Each URL is tried normally first, then hardened (DoH + TLS fragmentation),
+// so a blocked domain or a spoofed DNS answer does not cut users off.
+func FetchSubscriptionWithFallbacks(subscriptionURL, fallbacksJSON, userAgent string, device *DeviceInfo) (string, error) {
+	urls := []string{subscriptionURL}
+	if fallbacksJSON != "" {
+		var fallbacks []string
+		if err := json.Unmarshal([]byte(fallbacksJSON), &fallbacks); err == nil {
+			urls = append(urls, fallbacks...)
+		}
+	}
+	var firstErr error
+	for i, raw := range urls {
+		for _, hardened := range []bool{false, true} {
+			result, err := fetchSubscriptionOnce(raw, userAgent, device, hardened)
+			if err == nil {
+				return result, nil
+			}
+			if i == 0 && firstErr == nil {
+				firstErr = err
+			}
+			var status *httpStatusError
+			if errors.Is(err, ErrSubscriptionNotAllowed) || errors.As(err, &status) || errors.Is(err, errInvalidURL) {
+				break // the server was reached or the URL is unusable: no point in hardening
+			}
+		}
+	}
+	if firstErr == nil {
+		firstErr = errors.New("download failed")
+	}
+	return "", firstErr
+}
+
+var errInvalidURL = errors.New("invalid subscription URL")
+
+type httpStatusError struct{ status string }
+
+func (e *httpStatusError) Error() string { return "server answered " + e.status }
+
+func fetchSubscriptionOnce(subscriptionURL, userAgent string, device *DeviceInfo, hardened bool) (string, error) {
 	u, err := url.Parse(strings.TrimSpace(subscriptionURL))
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
-		return "", errors.New("invalid subscription URL")
+		return "", errInvalidURL
 	}
 	if !subscriptionHostAllowed(u.Hostname()) {
 		return "", ErrSubscriptionNotAllowed
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeout := 10 * time.Second
+	if hardened {
+		timeout = 20 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
@@ -80,17 +130,19 @@ func FetchSubscription(subscriptionURL string, userAgent string, device *DeviceI
 		}
 	}
 
-	client := &http.Client{
-		// A redirect must not lead away from the allowed hosts either.
-		CheckRedirect: func(next *http.Request, via []*http.Request) error {
-			if len(via) >= 5 {
-				return errors.New("too many redirects")
-			}
-			if !subscriptionHostAllowed(next.URL.Hostname()) {
-				return ErrSubscriptionNotAllowed
-			}
-			return nil
-		},
+	// A redirect must not lead away from the allowed hosts either.
+	redirect := func(next *http.Request, via []*http.Request) error {
+		if len(via) >= 5 {
+			return errors.New("too many redirects")
+		}
+		if !subscriptionHostAllowed(next.URL.Hostname()) {
+			return ErrSubscriptionNotAllowed
+		}
+		return nil
+	}
+	client := &http.Client{CheckRedirect: redirect}
+	if hardened {
+		client = hardenedClient(redirect)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -101,7 +153,7 @@ func FetchSubscription(subscriptionURL string, userAgent string, device *DeviceI
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("server answered %s", resp.Status)
+		return "", &httpStatusError{resp.Status}
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, subscriptionMaxBytes))
 	if err != nil {
@@ -138,8 +190,17 @@ func parseSubscription(body string, header http.Header) (*subscription, error) {
 		}
 	}
 	if strings.HasPrefix(text, "{") || strings.HasPrefix(text, "[") {
-		return nil, errors.New("the panel returned a JSON config instead of a link list; " +
-			"check the response rules for the IYKYK user agent")
+		// Full Xray configs (e.g. Remnawave's XRAY_JSON, with balancers for auto-select).
+		servers, err := parseXrayJSONSubscription(text)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range servers {
+			sub.Servers = append(sub.Servers, subscriptionServer{
+				Name: s.Name, Protocol: s.Protocol, Address: s.address(), Link: s.Raw,
+			})
+		}
+		return sub, nil
 	}
 
 	seen := map[string]bool{}
@@ -182,6 +243,13 @@ func readSubscriptionHeaders(sub *subscription, header http.Header) {
 	sub.Announce = decodeHeaderText(header.Get("Announce"))
 	sub.SupportURL = header.Get("Support-Url")
 	sub.WebPageURL = header.Get("Profile-Web-Page-Url")
+	for _, name := range []string{"Iykyk-Fallback-Urls", "Fallback-Urls"} {
+		for _, u := range splitList(header.Get(name)) {
+			if strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://") {
+				sub.Fallbacks = append(sub.Fallbacks, u)
+			}
+		}
+	}
 	if hours, err := strconv.Atoi(strings.TrimSpace(header.Get("Profile-Update-Interval"))); err == nil {
 		sub.UpdateHours = hours
 	}

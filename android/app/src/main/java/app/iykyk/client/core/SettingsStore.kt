@@ -14,6 +14,10 @@ data class AppSettings(
     val bypassRussia: Boolean = true,
     val appMode: AppMode = AppMode.ALL,
     val apps: Set<String> = emptySet(),
+    /** Split TLS handshakes to get past DPI that blocks by server name. */
+    val fragment: Boolean = false,
+    /** Sort the server list by the last ping. */
+    val sortByPing: Boolean = false,
 )
 
 object SettingsStore {
@@ -21,6 +25,8 @@ object SettingsStore {
     private const val KEY_BYPASS = "bypass_russia"
     private const val KEY_APP_MODE = "app_mode"
     private const val KEY_APPS = "apps"
+    private const val KEY_FRAGMENT = "fragment"
+    private const val KEY_SORT_BY_PING = "sort_by_ping"
 
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -32,6 +38,8 @@ object SettingsStore {
             appMode = runCatching { AppMode.valueOf(prefs.getString(KEY_APP_MODE, null)!!) }
                 .getOrDefault(AppMode.ALL),
             apps = prefs.getStringSet(KEY_APPS, emptySet()).orEmpty().toSet(),
+            fragment = prefs.getBoolean(KEY_FRAGMENT, false),
+            sortByPing = prefs.getBoolean(KEY_SORT_BY_PING, false),
         )
     }
 
@@ -42,12 +50,15 @@ object SettingsStore {
             .putBoolean(KEY_BYPASS, updated.bypassRussia)
             .putString(KEY_APP_MODE, updated.appMode.name)
             .putStringSet(KEY_APPS, updated.apps)
+            .putBoolean(KEY_FRAGMENT, updated.fragment)
+            .putBoolean(KEY_SORT_BY_PING, updated.sortByPing)
             .apply()
     }
 
-    /** Settings for the Go core, as JSON (see options in core/iykyk/auto.go). */
+    /** Settings for the Go core, as JSON (see options in core/iykyk/options.go). */
     fun coreOptions(context: Context): String = JSONObject()
         .put("bypassRussia", _settings.value.bypassRussia)
         .put("ruleSetDir", RuleSets.prepare(context))
+        .put("fragment", _settings.value.fragment)
         .toString()
 }

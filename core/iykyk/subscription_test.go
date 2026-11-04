@@ -80,8 +80,8 @@ func TestFetchSubscriptionHeaders(t *testing.T) {
 }
 
 func TestSubscriptionErrors(t *testing.T) {
-	if _, err := ParseSubscriptionText(`{"outbounds":[]}`); err == nil || !strings.Contains(err.Error(), "JSON") {
-		t.Fatalf("expected JSON config error, got %v", err)
+	if _, err := ParseSubscriptionText(`{"outbounds":[]}`); err == nil || !strings.Contains(err.Error(), "Xray") {
+		t.Fatalf("expected Xray config error, got %v", err)
 	}
 	if _, err := ParseSubscriptionText("vmess://abc\nwireguard://x"); err == nil || !strings.Contains(err.Error(), "vmess") {
 		t.Fatalf("expected unsupported error, got %v", err)

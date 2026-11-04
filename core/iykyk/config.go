@@ -78,7 +78,16 @@ func BuildProfileWithOptions(link string, optionsJSON string) (*Profile, error) 
 			return nil, err
 		}
 		user, pass := randomToken(), randomToken()
-		xrayOutbound, err := xrayOutbound(s)
+		profile.UsesXray = true
+		if s.Protocol == "xray-json" || s.Protocol == "xray-balancer" {
+			// A full Xray config from the subscription, run as is.
+			if profile.XrayConfig, err = xrayConfigFromJSON(s.Raw, port, user, pass, opts.Fragment); err != nil {
+				return nil, err
+			}
+			proxyOutbounds = []any{loopbackSocks(port, user, pass)}
+			break
+		}
+		xrayOutbound, err := xrayOutbound(s, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +115,7 @@ func BuildProfileWithOptions(link string, optionsJSON string) (*Profile, error) 
 		// the random credentials keep other apps on the device out of it.
 		proxyOutbounds = []any{loopbackSocks(port, user, pass)}
 	case engineSingBox:
-		outbounds, endpoints, err := singBoxProxy(s)
+		outbounds, endpoints, err := singBoxProxy(s, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -144,7 +153,7 @@ const (
 // implementation, sing-box for the rest.
 func engineFor(s *server) engine {
 	switch s.Protocol {
-	case "vless", "vmess", "trojan":
+	case "vless", "vmess", "trojan", "xray-json", "xray-balancer":
 		return engineXray
 	case "shadowsocks":
 		if s.ShadowTLSHost != "" {
@@ -185,9 +194,13 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 	outbounds := append(append([]any{}, proxyOutbounds...), jsonObject{"type": "direct", "tag": "direct"})
 	dnsRules := []any{}
 	var serverNames []string
+	seen := map[string]bool{}
 	for _, s := range servers {
-		if net.ParseIP(s.Host) == nil {
-			serverNames = append(serverNames, s.Host)
+		for _, host := range append([]string{s.Host}, s.ExtraHosts...) {
+			if host != "" && net.ParseIP(host) == nil && !seen[host] {
+				seen[host] = true
+				serverNames = append(serverNames, host)
+			}
 		}
 	}
 	if len(serverNames) > 0 {
@@ -244,7 +257,7 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 }
 
 // singBoxProxy builds the sing-box side of protocols that sing-box runs itself.
-func singBoxProxy(s *server) (outbounds, endpoints []any, err error) {
+func singBoxProxy(s *server, opts options) (outbounds, endpoints []any, err error) {
 	switch s.Protocol {
 	case "hysteria2":
 		return []any{singBoxHysteria2(s)}, nil, nil
@@ -267,7 +280,7 @@ func singBoxProxy(s *server) (outbounds, endpoints []any, err error) {
 		if len(alpn) == 0 {
 			alpn = []string{"h3"}
 		}
-		out["tls"] = singBoxTLS(s, alpn, false)
+		out["tls"] = singBoxTLS(s, alpn, false, false) // QUIC: nothing to fragment
 		return []any{out}, nil, nil
 	case "anytls":
 		return []any{jsonObject{
@@ -276,7 +289,7 @@ func singBoxProxy(s *server) (outbounds, endpoints []any, err error) {
 			"server":      s.Host,
 			"server_port": s.Port,
 			"password":    s.Password,
-			"tls":         singBoxTLS(s, s.ALPN, true),
+			"tls":         singBoxTLS(s, s.ALPN, true, opts.Fragment),
 		}}, nil, nil
 	case "naive":
 		out := jsonObject{
@@ -284,7 +297,7 @@ func singBoxProxy(s *server) (outbounds, endpoints []any, err error) {
 			"tag":         "proxy",
 			"server":      s.Host,
 			"server_port": s.Port,
-			"tls":         singBoxTLS(s, nil, false),
+			"tls":         singBoxTLS(s, nil, false, opts.Fragment && !s.QUIC),
 		}
 		if s.Username != "" {
 			out["username"] = s.Username
@@ -337,7 +350,7 @@ func singBoxProxy(s *server) (outbounds, endpoints []any, err error) {
 			out["password"] = s.Password
 		}
 		if s.Security == "tls" {
-			out["tls"] = singBoxTLS(s, nil, false)
+			out["tls"] = singBoxTLS(s, nil, false, opts.Fragment)
 		}
 		return []any{out}, nil, nil
 	case "wireguard":
@@ -374,9 +387,13 @@ func singBoxProxy(s *server) (outbounds, endpoints []any, err error) {
 }
 
 // singBoxTLS builds a TLS block. withUTLS adds a browser fingerprint, which
-// matters for protocols that look like ordinary HTTPS (AnyTLS).
-func singBoxTLS(s *server, alpn []string, withUTLS bool) jsonObject {
+// matters for protocols that look like ordinary HTTPS (AnyTLS). fragment splits
+// the TLS ClientHello so DPI cannot read the server name from one packet.
+func singBoxTLS(s *server, alpn []string, withUTLS, fragment bool) jsonObject {
 	tls := jsonObject{"enabled": true}
+	if fragment {
+		tls["fragment"] = true
+	}
 	serverName := s.SNI
 	if serverName == "" && net.ParseIP(s.Host) == nil {
 		serverName = s.Host
@@ -435,7 +452,7 @@ func singBoxHysteria2(s *server) jsonObject {
 	return out
 }
 
-func xrayOutbound(s *server) (jsonObject, error) {
+func xrayOutbound(s *server, opts options) (jsonObject, error) {
 	out := jsonObject{"tag": "proxy"}
 	switch s.Protocol {
 	case "vless":
@@ -467,7 +484,7 @@ func xrayOutbound(s *server) (jsonObject, error) {
 	default:
 		return nil, errUnsupported
 	}
-	stream, err := xrayStreamSettings(s)
+	stream, err := xrayStreamSettings(s, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -475,7 +492,7 @@ func xrayOutbound(s *server) (jsonObject, error) {
 	return out, nil
 }
 
-func xrayStreamSettings(s *server) (jsonObject, error) {
+func xrayStreamSettings(s *server, opts options) (jsonObject, error) {
 	stream := jsonObject{"network": s.Network, "security": s.Security}
 	switch s.Network {
 	case "tcp":
@@ -560,6 +577,18 @@ func xrayStreamSettings(s *server) (jsonObject, error) {
 		stream["realitySettings"] = reality
 	default:
 		return nil, errors.New("unsupported security: " + s.Security)
+	}
+	if opts.Fragment && s.Security != "none" {
+		// Split the TLS ClientHello (incl. REALITY's) into small TCP segments
+		// with short delays, so DPI cannot read the server name in one packet.
+		stream["finalmask"] = jsonObject{"tcp": []any{jsonObject{
+			"type": "fragment",
+			"settings": jsonObject{
+				"packets": "tlshello",
+				"length":  "100-200",
+				"delay":   "10-20",
+			},
+		}}}
 	}
 	return stream, nil
 }

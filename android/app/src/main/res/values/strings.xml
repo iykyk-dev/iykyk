@@ -45,13 +45,17 @@
     <string name="pinging">Проверяю…</string>
     <string name="ping_ms">%1$d мс</string>
     <string name="ping_failed">недоступен</string>
-    <string name="ping_udp">UDP</string>
+    <string name="ping_udp">—</string>
+    <string name="sort_by_ping">По пингу</string>
+    <string name="sort_by_order">По порядку</string>
 
     <string name="settings_title">Настройки</string>
     <string name="action_back">Назад</string>
     <string name="settings_routing">Маршрутизация</string>
     <string name="bypass_title">Российские сайты напрямую</string>
     <string name="bypass_subtitle">Госуслуги, банки, Яндекс и другие сайты в .ru и с российскими IP открываются без VPN</string>
+    <string name="fragment_title">Обход DPI (фрагментация TLS)</string>
+    <string name="fragment_subtitle">Включите, если сервер блокируют по имени: начало защищённого соединения отправляется по частям</string>
     <string name="settings_apps">Приложения</string>
     <string name="apps_mode_all">Все приложения через VPN</string>
     <string name="apps_mode_only">Только выбранные через VPN</string>
