@@ -18,6 +18,8 @@ data class ServerInfo(
     val protocol: String,
     val address: String,
     val link: String = "",
+    /** e.g. "VLESS · gRPC · REALITY". */
+    val details: String = "",
 )
 
 data class SubscriptionInfo(
@@ -224,6 +226,7 @@ object ProfileStore {
                 protocol = item.optString("protocol"),
                 address = item.optString("address"),
                 link = item.optString("link"),
+                details = item.optString("details"),
             )
         }
         val subscription = SubscriptionInfo(
@@ -248,7 +251,7 @@ object ProfileStore {
 
     private fun describe(link: String): ServerInfo {
         val profile = Iykyk.describeLink(link)
-        return ServerInfo(profile.name, profile.protocol, profile.address, link)
+        return ServerInfo(profile.name, profile.protocol, profile.address, link, profile.details)
     }
 
     /** A random per-install device ID for panels with a device limit (Remnawave HWID). */

@@ -9,6 +9,9 @@ import org.json.JSONObject
 /** Which apps go through the VPN. */
 enum class AppMode { ALL, ONLY_SELECTED, EXCEPT_SELECTED }
 
+/** Light, dark or follow the system. */
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
 data class AppSettings(
     /** Russian sites and IPs go directly, not through the VPN. On by default: many of them block foreign IPs. */
     val bypassRussia: Boolean = true,
@@ -28,6 +31,7 @@ data class AppSettings(
     val remoteDns: String = "cloudflare",
     /** DNS for proxy servers and bypassed sites: yandex, cloudflare, google or an IP. */
     val directDns: String = "yandex",
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
 )
 
 object SettingsStore {
@@ -42,6 +46,7 @@ object SettingsStore {
     private const val KEY_EXPIRY_REMINDERS = "expiry_reminders"
     private const val KEY_REMOTE_DNS = "remote_dns"
     private const val KEY_DIRECT_DNS = "direct_dns"
+    private const val KEY_THEME = "theme"
 
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -60,6 +65,8 @@ object SettingsStore {
             expiryReminders = prefs.getBoolean(KEY_EXPIRY_REMINDERS, true),
             remoteDns = prefs.getString(KEY_REMOTE_DNS, null) ?: "cloudflare",
             directDns = prefs.getString(KEY_DIRECT_DNS, null) ?: "yandex",
+            themeMode = runCatching { ThemeMode.valueOf(prefs.getString(KEY_THEME, null)!!) }
+                .getOrDefault(ThemeMode.SYSTEM),
         )
     }
 
@@ -77,6 +84,7 @@ object SettingsStore {
             .putBoolean(KEY_EXPIRY_REMINDERS, updated.expiryReminders)
             .putString(KEY_REMOTE_DNS, updated.remoteDns)
             .putString(KEY_DIRECT_DNS, updated.directDns)
+            .putString(KEY_THEME, updated.themeMode.name)
             .apply()
     }
 

@@ -8,6 +8,7 @@ androidxComposeBom = "2026.09.00"
 kotlinCoroutines = "1.11.0"
 androidxWork = "2.12.0"
 zxingEmbedded = "4.3.0"
+zxingCore = "3.5.3"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
@@ -21,6 +22,7 @@ androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "androidxWork" }
 zxing-android-embedded = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxingEmbedded" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxingCore" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinCoroutines" }
 
 [plugins]

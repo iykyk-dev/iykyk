@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import app.iykyk.client.R
 import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.AppSettings
+import app.iykyk.client.core.ThemeMode
 
 @Composable
 fun SettingsScreen(
@@ -53,6 +54,7 @@ fun SettingsScreen(
     onDirectDnsChange: (String) -> Unit,
     onAppModeChange: (AppMode) -> Unit,
     onChooseApps: () -> Unit,
+    onThemeChange: (ThemeMode) -> Unit,
 ) {
     Surface(color = IykykColors.Background, modifier = Modifier.fillMaxSize()) {
         Column(
@@ -65,6 +67,22 @@ fun SettingsScreen(
             TopBar(stringResource(R.string.settings_title), onBack)
             Spacer(Modifier.height(8.dp))
 
+            SectionTitle(stringResource(R.string.settings_appearance))
+            Card {
+                ChoiceRow(
+                    title = stringResource(R.string.theme_title),
+                    value = settings.themeMode.name,
+                    choices = listOf(
+                        ThemeMode.SYSTEM.name to stringResource(R.string.theme_system),
+                        ThemeMode.LIGHT.name to stringResource(R.string.theme_light),
+                        ThemeMode.DARK.name to stringResource(R.string.theme_dark),
+                    ),
+                    allowCustom = false,
+                    onChange = { onThemeChange(ThemeMode.valueOf(it)) },
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
             SectionTitle(stringResource(R.string.settings_connection))
             Card {
                 Column {

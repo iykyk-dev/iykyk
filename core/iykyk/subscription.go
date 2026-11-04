@@ -36,6 +36,7 @@ type subscription struct {
 type subscriptionServer struct {
 	Name     string `json:"name"`
 	Protocol string `json:"protocol"`
+	Details  string `json:"details"` // e.g. "VLESS · gRPC · REALITY"
 	Address  string `json:"address"`
 	Link     string `json:"link"`
 }
@@ -199,7 +200,7 @@ func parseSubscription(body string, header http.Header) (*subscription, error) {
 		}
 		for _, s := range servers {
 			sub.Servers = append(sub.Servers, subscriptionServer{
-				Name: s.Name, Protocol: s.Protocol, Address: s.address(), Link: s.Raw,
+				Name: s.Name, Protocol: s.Protocol, Details: s.details(), Address: s.address(), Link: s.Raw,
 			})
 		}
 		return sub, nil
@@ -224,6 +225,7 @@ func parseSubscription(body string, header http.Header) (*subscription, error) {
 		sub.Servers = append(sub.Servers, subscriptionServer{
 			Name:     s.Name,
 			Protocol: s.Protocol,
+			Details:  s.details(),
 			Address:  s.address(),
 			Link:     line,
 		})

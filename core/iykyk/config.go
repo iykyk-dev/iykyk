@@ -16,6 +16,7 @@ import (
 type Profile struct {
 	Name     string
 	Protocol string
+	Details  string // e.g. "VLESS · gRPC · REALITY"
 	Address  string // host:port shown in the UI
 	// UsesXray is true when XrayConfig must be started before SingBoxConfig.
 	UsesXray      bool
@@ -47,7 +48,7 @@ func DescribeLink(link string) (*Profile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Profile{Name: s.Name, Protocol: s.Protocol, Address: s.address()}, nil
+	return &Profile{Name: s.Name, Protocol: s.Protocol, Details: s.details(), Address: s.address()}, nil
 }
 
 // BuildProfile parses a share link and builds the configs to run it with

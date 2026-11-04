@@ -184,3 +184,21 @@ func TestRejectsUnknown(t *testing.T) {
 		}
 	}
 }
+
+func TestDetails(t *testing.T) {
+	for link, want := range map[string]string{
+		"vless://id@h:443?type=grpc&security=reality&pbk=K&sni=a.com#x": "VLESS · gRPC · REALITY",
+		"vless://id@h:443?type=xhttp&security=tls#x":                    "VLESS · XHTTP · TLS",
+		"trojan://pw@h:443#x":    "Trojan · TCP · TLS",
+		"hysteria2://pw@h:443#x": "Hysteria2",
+		"ss://YWVzLTI1Ni1nY206cHc@h:1?plugin=shadow-tls%3Bhost%3Dc.com%3Bpasswd%3Dp#x": "Shadowsocks · ShadowTLS",
+	} {
+		p, err := DescribeLink(link)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.Details != want {
+			t.Errorf("%s: %q, want %q", link, p.Details, want)
+		}
+	}
+}

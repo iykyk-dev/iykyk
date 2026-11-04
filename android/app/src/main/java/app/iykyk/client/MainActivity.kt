@@ -11,10 +11,13 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -27,6 +30,8 @@ import androidx.lifecycle.lifecycleScope
 import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.ProfileStore
 import app.iykyk.client.core.SettingsStore
+import app.iykyk.client.core.ThemeMode
+import app.iykyk.client.tv.TvShare
 import app.iykyk.client.ui.AppPickerScreen
 import app.iykyk.client.ui.IykykTheme
 import app.iykyk.client.ui.MainScreen
@@ -70,12 +75,26 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            IykykTheme {
+            val settings = SettingsStore.settings.collectAsStateWithLifecycle().value
+            val dark = when (settings.themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
+            LaunchedEffect(dark) {
+                // Status bar icons must follow the app's theme, not the system's.
+                val style = if (dark) {
+                    SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                }
+                enableEdgeToEdge(style, style)
+            }
+            IykykTheme(dark = dark) {
                 var screen by rememberSaveable { mutableStateOf(Screen.MAIN) }
                 BackHandler(enabled = screen != Screen.MAIN) {
                     screen = if (screen == Screen.APPS) Screen.SETTINGS else Screen.MAIN
                 }
-                val settings = SettingsStore.settings.collectAsStateWithLifecycle().value
                 when (screen) {
                     Screen.MAIN -> MainScreen(
                         status = VpnState.status.collectAsStateWithLifecycle().value,
@@ -91,6 +110,7 @@ class MainActivity : ComponentActivity() {
                         onSelectServer = ::selectServer,
                         onPing = ::pingServers,
                         onScanQr = ::scanQr,
+                        onSendToTv = ::scanTvCode,
                         onOpenUrl = ::openUrl,
                         onImportText = ::importText,
                         onSortChange = { value -> SettingsStore.update(this) { it.copy(sortByPing = value) } },
@@ -110,6 +130,7 @@ class MainActivity : ComponentActivity() {
                         onDirectDnsChange = { value -> changeSettings { it.copy(directDns = value) } },
                         onAppModeChange = { mode -> changeSettings { it.copy(appMode = mode) } },
                         onChooseApps = { screen = Screen.APPS },
+                        onThemeChange = { mode -> SettingsStore.update(this) { it.copy(themeMode = mode) } },
                     )
                     Screen.APPS -> AppPickerScreen(
                         selected = settings.apps,
@@ -176,6 +197,11 @@ class MainActivity : ComponentActivity() {
 
     /** Imports a subscription URL (or, in an unlocked build, a link) from any source. */
     private fun importText(text: String) {
+        // A TV's "receive from phone" code scanned from anywhere: send to that TV.
+        if (text.startsWith(TvShare.SCHEME)) {
+            sendToTv(text)
+            return
+        }
         if (text.startsWith("http", ignoreCase = true)) toast(getString(R.string.link_loading))
         lifecycleScope.launch {
             try {
@@ -224,11 +250,46 @@ class MainActivity : ComponentActivity() {
     private fun firstUrl(text: String): String? =
         Regex("""https?://\S+""").find(text)?.value?.trimEnd('.', ',', ')', ']') ?: text.trim().ifEmpty { null }
 
-    private fun scanQr() {
+    private fun scanQr() = launchScanner(getString(R.string.qr_prompt))
+
+    /** "Send to TV": scan the code the TV shows in "Receive from phone". */
+    private fun scanTvCode() {
+        if (tvPayload() == null) {
+            toast(getString(R.string.tv_nothing_to_send))
+            return
+        }
+        launchScanner(getString(R.string.tv_scan_prompt))
+    }
+
+    /** The subscription URL, or the single link in an unlocked build. */
+    private fun tvPayload(): String? {
+        val profiles = ProfileStore.profiles.value
+        return profiles.subscription?.url?.takeIf { it.isNotBlank() }
+            ?: profiles.current?.link?.takeIf { it.isNotBlank() && profiles.servers.size == 1 }
+    }
+
+    private fun sendToTv(code: String) {
+        val payload = tvPayload()
+        if (payload == null) {
+            toast(getString(R.string.tv_nothing_to_send))
+            return
+        }
+        toast(getString(R.string.tv_sending))
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) { TvShare.send(code, payload) }
+                toast(getString(R.string.tv_sent))
+            } catch (e: Exception) {
+                toast(getString(R.string.tv_send_failed, e.message ?: e.javaClass.simpleName))
+            }
+        }
+    }
+
+    private fun launchScanner(prompt: String) {
         qrScanner.launch(
             ScanOptions()
                 .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                .setPrompt(getString(R.string.qr_prompt))
+                .setPrompt(prompt)
                 .setBeepEnabled(false)
                 .setOrientationLocked(false),
         )

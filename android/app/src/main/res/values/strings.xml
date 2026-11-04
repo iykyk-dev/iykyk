@@ -111,4 +111,42 @@
     <string name="notification_speed">↓ %1$s  ↑ %2$s · за сеанс %3$s</string>
     <string name="widget_description">Включение и выключение VPN</string>
     <string name="notification_connected">Защищённое соединение активно</string>
+
+    <string name="cd_settings">Настройки</string>
+    <string name="cd_add">Добавить</string>
+    <string name="cd_refresh">Обновить подписку</string>
+    <string name="cd_ping">Проверить пинг</string>
+    <string name="cd_more">Ещё</string>
+    <string name="cd_expand">Показать или скрыть серверы</string>
+    <string name="menu_paste">Вставить из буфера</string>
+    <string name="menu_scan_qr">Сканировать QR-код</string>
+    <string name="menu_manual">Ввести вручную</string>
+    <string name="menu_receive_tv">Принять с телефона</string>
+    <string name="menu_send_tv">Отправить на TV</string>
+    <string name="menu_sort_ping">Сортировать по пингу</string>
+    <string name="sub_updated">Обновлено %1$s</string>
+    <string name="sub_auto_update">автообновление %1$d ч</string>
+    <plurals name="servers_count">
+        <item quantity="one">%d сервер</item>
+        <item quantity="few">%d сервера</item>
+        <item quantity="many">%d серверов</item>
+        <item quantity="other">%d сервера</item>
+    </plurals>
+    <string name="expire_until">до %1$s</string>
+    <string name="empty_title">Добавьте подписку</string>
+
+    <string name="tv_receive_title">Принять с телефона</string>
+    <string name="tv_receive_text">На телефоне откройте IYKYK, нажмите ⋯ у подписки → «Отправить на TV» и наведите камеру на этот код. Телефон и телевизор должны быть в одной сети Wi-Fi.</string>
+    <string name="tv_receive_no_network">Телевизор не подключён к локальной сети. Подключите его к Wi-Fi или кабелю и попробуйте снова.</string>
+    <string name="tv_scan_prompt">Наведите камеру на QR-код на экране телевизора</string>
+    <string name="tv_sending">Отправляю на телевизор…</string>
+    <string name="tv_sent">Подписка отправлена на телевизор</string>
+    <string name="tv_send_failed">Не удалось отправить: %1$s</string>
+    <string name="tv_nothing_to_send">Сначала добавьте подписку</string>
+
+    <string name="settings_appearance">Оформление</string>
+    <string name="theme_title">Тема</string>
+    <string name="theme_system">Как в системе</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
 </resources>
