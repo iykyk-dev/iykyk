@@ -151,14 +151,20 @@ func xrayConfigFromJSON(raw string, port int, user, pass string, fragment bool) 
 		return "", err
 	}
 	tag := "socks"
+	var sniffing any
 	if inbounds, ok := config["inbounds"].([]any); ok && len(inbounds) > 0 {
 		if first, ok := inbounds[0].(map[string]any); ok {
 			if t, ok := first["tag"].(string); ok && t != "" {
 				tag = t
 			}
+			// Domain-based routing rules need the inbound to sniff names.
+			sniffing = first["sniffing"]
 		}
 	}
 	inbound := xraySocksInbound(tag, port, user, pass)
+	if sniffing != nil {
+		inbound["sniffing"] = sniffing
+	}
 	if port == 0 {
 		delete(config, "inbounds") // real ping dials through the instance directly
 	} else {
@@ -168,14 +174,31 @@ func xrayConfigFromJSON(raw string, port int, user, pass string, fragment bool) 
 	delete(config, "metrics")
 	delete(config, "remarks")
 	config["log"] = jsonObject{"loglevel": "warning"}
-	if fragment {
-		if outbounds, ok := config["outbounds"].([]any); ok {
-			for _, o := range outbounds {
+	if outbounds, ok := config["outbounds"].([]any); ok {
+		for _, o := range outbounds {
+			stripSocketMark(o)
+			if fragment {
 				addXrayFragment(o)
 			}
 		}
 	}
 	return marshal(config)
+}
+
+// stripSocketMark removes sockopt.mark: setting SO_MARK needs root on Android,
+// and Xray refuses to dial when it fails. Desktop templates often include it.
+func stripSocketMark(o any) {
+	outbound, ok := o.(map[string]any)
+	if !ok {
+		return
+	}
+	stream, ok := outbound["streamSettings"].(map[string]any)
+	if !ok {
+		return
+	}
+	if sockopt, ok := stream["sockopt"].(map[string]any); ok {
+		delete(sockopt, "mark")
+	}
 }
 
 func addXrayFragment(o any) {

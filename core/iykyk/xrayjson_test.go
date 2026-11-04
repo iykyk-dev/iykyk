@@ -14,7 +14,8 @@ import (
 const xrayJSONSubscription = `[
  {
   "remarks": "⚡ Автовыбор",
-  "inbounds": [{"tag": "socks", "port": 10808, "listen": "127.0.0.1", "protocol": "socks"}],
+  "inbounds": [{"tag": "socks", "port": 10808, "listen": "127.0.0.1", "protocol": "socks",
+    "sniffing": {"enabled": true, "routeOnly": true, "destOverride": ["http", "tls", "quic"]}}],
   "outbounds": [
    {"tag": "nl", "protocol": "vless", "settings": {"vnext": [{"address": "nl.example.com", "port": 443,
      "users": [{"id": "11111111-2222-3333-4444-555555555555", "encryption": "none", "flow": "xtls-rprx-vision"}]}]},
@@ -23,7 +24,9 @@ const xrayJSONSubscription = `[
    {"tag": "de", "protocol": "trojan", "settings": {"servers": [{"address": "de.example.com", "port": 443, "password": "pw"}]},
     "streamSettings": {"network": "tcp", "security": "tls"}},
    {"tag": "direct", "protocol": "freedom"},
-   {"tag": "block", "protocol": "blackhole"}
+   {"tag": "block", "protocol": "blackhole"},
+   {"tag": "fragment", "protocol": "freedom", "settings": {"fragment": {"packets": "tlshello", "length": "50-100", "interval": "10-20"}},
+    "streamSettings": {"network": "raw", "sockopt": {"mark": 255, "TcpNoDelay": true}}}
   ],
   "routing": {
    "rules": [{"inboundTag": ["socks"], "balancerTag": "auto"}],
@@ -71,6 +74,13 @@ func TestXrayJSONSubscription(t *testing.T) {
 	}
 	if _, ok := x["api"]; ok {
 		t.Fatal("api listener must be removed")
+	}
+	if path(t, x, "inbounds", 0, "sniffing", "routeOnly") != true {
+		t.Fatal("sniffing must be carried over to the IYKYK inbound")
+	}
+	sockopt := path(t, x, "outbounds", 4, "streamSettings", "sockopt").(map[string]any)
+	if _, ok := sockopt["mark"]; ok || sockopt["TcpNoDelay"] != true {
+		t.Fatalf("SO_MARK must be removed, other options kept: %v", sockopt)
 	}
 	if path(t, x, "routing", "balancers", 0, "tag") != "auto" || x["observatory"] == nil {
 		t.Fatal("balancer and observatory must be kept")
