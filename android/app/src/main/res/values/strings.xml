@@ -207,4 +207,13 @@
     <string name="device_remove_failed">Не удалось удалить: %1$s</string>
     <string name="hwid_limit_reached">Достигнут лимит устройств. Удалите старое устройство или напишите в поддержку.</string>
     <string name="error_device_limit">Достигнут лимит устройств подписки. Удалите старое устройство в IYKYK на другом телефоне или напишите в поддержку.</string>
+
+    <string name="tv_send_step1">Откройте IYKYK на телевизоре</string>
+    <string name="tv_send_step2">Нажмите «Принять с телефона»</string>
+    <string name="tv_send_step3">Наведите камеру на код на экране</string>
+    <string name="tv_same_wifi">Телефон и телевизор — в одной сети Wi-Fi</string>
+    <string name="tv_scan_button">Сканировать код</string>
+    <string name="tv_receive_step1">На телефоне: IYKYK → ⋯ → «Отправить на TV»</string>
+    <string name="tv_receive_step2">Наведите камеру телефона на этот код</string>
+    <string name="tv_waiting">Жду телефон…</string>
 </resources>

@@ -128,9 +128,11 @@ fun MainScreen(
     var showLinkInput by remember { mutableStateOf(false) }
     var showShareQr by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var showTvSend by remember { mutableStateOf(false) }
     val subscriptionActions = SubscriptionActions(
         canShare = shareLink != null,
-        onSendToTv = onSendToTv,
+        // Three short steps first, then the camera: the TV must already show its code.
+        onSendToTv = { showTvSend = true },
         onShowQr = { showShareQr = true },
         onCopyLink = onCopyLink,
         onDelete = { confirmDelete = true },
@@ -221,6 +223,16 @@ fun MainScreen(
                 onImportText(it)
             },
             onDismiss = { showReceive = false },
+        )
+    }
+
+    if (showTvSend) {
+        TvSendDialog(
+            onScan = {
+                showTvSend = false
+                onSendToTv()
+            },
+            onDismiss = { showTvSend = false },
         )
     }
 
@@ -1158,6 +1170,61 @@ private fun WelcomeScreen(
     }
 }
 
+/** The phone side of "Send to TV": what to do on the TV, then the camera. */
+@Composable
+private fun TvSendDialog(onScan: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = IykykColors.Surface,
+        icon = { Icon(painterResource(R.drawable.ic_tv), contentDescription = null, tint = IykykColors.Accent) },
+        title = { Text(stringResource(R.string.menu_send_tv), color = IykykColors.Text) },
+        text = {
+            Column {
+                Steps(
+                    stringResource(R.string.tv_send_step1),
+                    stringResource(R.string.tv_send_step2),
+                    stringResource(R.string.tv_send_step3),
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(stringResource(R.string.tv_same_wifi), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onScan,
+                colors = ButtonDefaults.buttonColors(containerColor = IykykColors.Accent, contentColor = IykykColors.OnAccent),
+            ) { Text(stringResource(R.string.tv_scan_button)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+            }
+        },
+    )
+}
+
+/** Short numbered steps: a small orange number and one line of text each. */
+@Composable
+private fun Steps(vararg steps: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        steps.forEachIndexed { index, step ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(IykykColors.Accent.copy(alpha = 0.15f)),
+                ) {
+                    Text("${index + 1}", color = IykykColors.Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.size(10.dp))
+                Text(step, color = IykykColors.Text, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
 /** The TV side of "Send to TV": shows a QR code and waits for the phone. */
 @Composable
 private fun TvReceiveDialog(onReceived: (String) -> Unit, onDismiss: () -> Unit) {
@@ -1182,13 +1249,17 @@ private fun TvReceiveDialog(onReceived: (String) -> Unit, onDismiss: () -> Unit)
                     ) {
                         Image(bitmap = qr, contentDescription = null, modifier = Modifier.size(220.dp))
                     }
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        stringResource(R.string.tv_receive_text),
-                        color = IykykColors.Muted,
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Center,
+                    Spacer(Modifier.height(16.dp))
+                    Steps(
+                        stringResource(R.string.tv_receive_step1),
+                        stringResource(R.string.tv_receive_step2),
                     )
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(color = IykykColors.Accent, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.tv_waiting), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                    }
                 } else {
                     Text(stringResource(R.string.tv_receive_no_network), color = IykykColors.Error)
                 }
