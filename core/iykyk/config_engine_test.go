@@ -6,7 +6,10 @@ package iykyk
 
 import (
 	"encoding/base64"
+	"net"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/sagernet/sing-box/experimental/libbox"
 )
@@ -53,6 +56,33 @@ func TestConfigsAcceptedByEngines(t *testing.T) {
 			if err := CheckXrayConfig(p.XrayConfig); err != nil {
 				t.Errorf("%s: Xray rejected config: %v\n%s", p.Name, err, p.XrayConfig)
 			}
+		}
+	}
+}
+
+// TestSidecarEnginesStart starts the in-process engines for real. There is no
+// server to talk to, so this checks wiring: the engine starts, its loopback
+// SOCKS5 bridge listens, and everything stops cleanly.
+func TestSidecarEnginesStart(t *testing.T) {
+	for _, link := range []string{
+		amneziaConf(),
+		"mierus://user:pass@127.0.0.1?profile=default&port=8964&protocol=TCP#Mieru",
+	} {
+		p, err := BuildProfile(link)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := StartEngines(p); err != nil {
+			t.Fatalf("%s: start: %v", p.Protocol, err)
+		}
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(p.sidecarPort)), 2*time.Second)
+		if err != nil {
+			t.Errorf("%s: SOCKS bridge not listening: %v", p.Protocol, err)
+		} else {
+			conn.Close()
+		}
+		if err := StopEngines(); err != nil {
+			t.Errorf("%s: stop: %v", p.Protocol, err)
 		}
 	}
 }

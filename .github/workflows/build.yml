@@ -57,12 +57,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Resolve dependencies (only if go.sum is missing)
+      # Pins the versions from build.sh and tidies go.mod/go.sum; a no-op when
+      # nothing changed. Changes are committed back at the end of the job.
+      - name: Resolve dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          if [ ! -f go.sum ]; then
-            ./build.sh deps
-          fi
+        run: ./build.sh deps
 
       - name: Test (link parsing + configs checked by sing-box and Xray)
         if: steps.cache.outputs.cache-hit != 'true'
@@ -82,14 +81,14 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Commit go.sum if it was created
+      - name: Commit go.mod/go.sum if they changed
         if: steps.cache.outputs.cache-hit != 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add go.mod go.sum
-            git commit -m "Core: pin dependencies in go.sum"
+            git commit -m "Core: update go.mod/go.sum"
             git push
           fi
 

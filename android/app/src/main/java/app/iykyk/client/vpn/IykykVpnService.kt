@@ -35,7 +35,8 @@ import kotlinx.coroutines.withContext
 /**
  * The VPN service.
  *
- * Start: build configs from the saved link -> start Xray (if the protocol needs it) ->
+ * Start: build configs from the saved link -> start the in-process engine the protocol
+ * needs (Xray, Mieru or AmneziaWG; none for protocols sing-box runs itself) ->
  * start sing-box, which calls back into [PlatformBridge.openTun] to create the TUN.
  * Stop: the same in reverse.
  */
@@ -136,9 +137,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         serverName = profile.name
 
         Iykyk.setSocketProtector { fd -> protect(fd) }
-        if (profile.usesXray) {
-            Iykyk.startXray(profile.xrayConfig)
-        }
+        Iykyk.startEngines(profile)
 
         val monitor = NetworkMonitor(this, ::onUnderlyingNetwork).also { it.start() }
         networkMonitor = monitor
@@ -155,7 +154,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
             runCatching { server.close() }
         }
         commandServer = null
-        runCatching { Iykyk.stopXray() }.onFailure { Log.w(TAG, "stopXray", it) }
+        runCatching { Iykyk.stopEngines() }.onFailure { Log.w(TAG, "stopEngines", it) }
         Iykyk.setSocketProtector(null)
         networkMonitor?.stop()
         networkMonitor = null

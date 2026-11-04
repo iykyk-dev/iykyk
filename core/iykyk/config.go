@@ -21,6 +21,14 @@ type Profile struct {
 	UsesXray      bool
 	SingBoxConfig string
 	XrayConfig    string
+
+	// Set for protocols that run in an in-process engine behind a loopback
+	// SOCKS5 bridge (Mieru, AmneziaWG). Started by StartEngines.
+	sidecar     string
+	sidecarSrv  *server
+	sidecarPort int
+	sidecarUser string
+	sidecarPass string
 }
 
 // Server-name resolution and plain DNS for direct traffic. Yandex DNS answers
@@ -92,6 +100,16 @@ func BuildProfile(link string) (*Profile, error) {
 			return nil, err
 		}
 		proxyOutbounds, proxyEndpoints = outbounds, endpoints
+	case engineSidecar:
+		port, err := freeLoopbackPort()
+		if err != nil {
+			return nil, err
+		}
+		profile.sidecar = s.Protocol
+		profile.sidecarSrv = s
+		profile.sidecarPort = port
+		profile.sidecarUser, profile.sidecarPass = randomToken(), randomToken()
+		proxyOutbounds = []any{loopbackSocks(port, profile.sidecarUser, profile.sidecarPass)}
 	default:
 		return nil, fmt.Errorf("%s: support is coming in the next update", s.Protocol)
 	}
@@ -108,6 +126,7 @@ const (
 	engineUnsupported engine = iota
 	engineXray
 	engineSingBox
+	engineSidecar // Mieru, AmneziaWG: in-process engines behind a SOCKS5 bridge
 )
 
 // engineFor picks the engine for a protocol: Xray where it is the reference
@@ -123,6 +142,8 @@ func engineFor(s *server) engine {
 		return engineXray
 	case "hysteria2", "tuic", "anytls", "naive", "wireguard", "socks", "http":
 		return engineSingBox
+	case "mieru", "amneziawg":
+		return engineSidecar
 	}
 	return engineUnsupported
 }

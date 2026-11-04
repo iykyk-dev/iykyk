@@ -13,6 +13,8 @@ cd "$(dirname "$0")"
 SING_BOX_VERSION="v1.14.4"
 XRAY_VERSION="v26.10.31"
 XRAY_COMMIT="a4a3dff5b20c2faae567b742c172c7b95e75c083" # tag v26.10.31
+MIERU_VERSION="v3.39.0"
+AMNEZIAWG_VERSION="v3.1.20260828"
 GOMOBILE_VERSION="v0.1.13"
 # ----------------------------------------------------------------------------
 
@@ -46,6 +48,8 @@ deps() {
     go get \
         "github.com/sagernet/sing-box@${SING_BOX_VERSION}" \
         "github.com/xtls/xray-core@${XRAY_COMMIT}" \
+        "github.com/enfein/mieru/v3@${MIERU_VERSION}" \
+        "github.com/amnezia-vpn/amneziawg-go/v3@${AMNEZIAWG_VERSION}" \
         "github.com/sagernet/gomobile@${GOMOBILE_VERSION}"
     go mod tidy
 }

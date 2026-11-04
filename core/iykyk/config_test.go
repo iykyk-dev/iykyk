@@ -126,9 +126,9 @@ func TestTrojanWS(t *testing.T) {
 func TestShadowsocks(t *testing.T) {
 	cases := map[string]string{
 		// SIP002 with base64 userinfo: "2022-blake3-aes-128-gcm:a2V5"
-		"sip002":  "ss://MjAyMi1ibGFrZTMtYWVzLTEyOC1nY206YTJWNQ@ss.example.com:8388#SS%20one",
-		"plain":   "ss://2022-blake3-aes-128-gcm:a2V5@ss.example.com:8388#SS%20one",
-		"legacy":  "ss://MjAyMi1ibGFrZTMtYWVzLTEyOC1nY206YTJWNUBzcy5leGFtcGxlLmNvbTo4Mzg4#SS%20one",
+		"sip002": "ss://MjAyMi1ibGFrZTMtYWVzLTEyOC1nY206YTJWNQ@ss.example.com:8388#SS%20one",
+		"plain":  "ss://2022-blake3-aes-128-gcm:a2V5@ss.example.com:8388#SS%20one",
+		"legacy": "ss://MjAyMi1ibGFrZTMtYWVzLTEyOC1nY206YTJWNUBzcy5leGFtcGxlLmNvbTo4Mzg4#SS%20one",
 	}
 	for name, link := range cases {
 		t.Run(name, func(t *testing.T) {
