@@ -12,6 +12,9 @@ on:
       - ".github/workflows/core.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: core-${{ github.ref }}
   cancel-in-progress: true
@@ -45,14 +48,6 @@ jobs:
             ./build.sh deps
           fi
 
-      - name: Upload go.mod and go.sum
-        uses: actions/upload-artifact@v7
-        with:
-          name: core-go-mod
-          path: |
-            core/go.mod
-            core/go.sum
-
       - name: Vet
         run: go vet -tags with_gvisor,with_quic,with_wireguard,with_utls,with_naive_outbound,with_clash_api,badlinkname,tfogo_checklinkname0 ./iykyk/
 
@@ -67,3 +62,33 @@ jobs:
           name: iykyk-core-android
           path: android/app/libs/iykyk-core.aar
           if-no-files-found: error
+
+      - name: Print generated Java API
+        run: |
+          cd ../android/app/libs
+          ls -lh
+          unzip -l iykyk-core.aar
+          src=iykyk-core-sources.jar
+          for f in app/iykyk/core/iykyk/Iykyk.java \
+                   app/iykyk/core/iykyk/SocketProtector.java \
+                   app/iykyk/core/libbox/PlatformInterface.java \
+                   app/iykyk/core/libbox/TunOptions.java \
+                   app/iykyk/core/libbox/CommandServer.java \
+                   app/iykyk/core/libbox/CommandServerHandler.java \
+                   app/iykyk/core/libbox/SetupOptions.java \
+                   app/iykyk/core/libbox/OverrideOptions.java; do
+            echo "===== $f"
+            unzip -p "$src" "$f" | grep -E '^\s*(public|[A-Za-z].*\(.*\).*;)' || true
+          done
+
+      # go.sum is created on the first run; commit it so later builds are reproducible.
+      - name: Commit go.sum
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add go.mod go.sum
+            git commit -m "Core: pin dependencies in go.sum"
+            git push
+          fi
