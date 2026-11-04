@@ -95,7 +95,9 @@ object ProfileStore {
                 profiles.subscription?.title?.takeIf { it.isNotBlank() }
                     ?: "${profiles.servers.size}"
             }
-            trimmed.lines().count { it.contains("://") } == 1 -> {
+            // A WireGuard/AmneziaWG .conf file, or a single share link.
+            trimmed.contains("[Interface]") ||
+                trimmed.lines().count { it.contains("://") } == 1 -> {
                 val server = describe(trimmed)
                 prefs(context).edit()
                     .clear()

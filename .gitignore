@@ -13,6 +13,9 @@ captures/
 *.jks
 *.keystore
 keystore.properties
+# ...except the public debug key, so test builds install over each other.
+# Release builds are signed with a separate secret key.
+!android/app/debug.keystore
 
 # IDE
 .idea/

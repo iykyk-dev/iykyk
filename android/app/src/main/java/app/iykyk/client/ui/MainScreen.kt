@@ -385,9 +385,18 @@ private fun ServerPicker(
 
 private fun protocolTitle(protocol: String): String = when (protocol) {
     "vless" -> "VLESS"
+    "vmess" -> "VMess"
     "trojan" -> "Trojan"
     "shadowsocks" -> "Shadowsocks"
     "hysteria2" -> "Hysteria2"
+    "tuic" -> "TUIC"
+    "anytls" -> "AnyTLS"
+    "naive" -> "NaiveProxy"
+    "wireguard" -> "WireGuard"
+    "amneziawg" -> "AmneziaWG"
+    "mieru" -> "Mieru"
+    "socks" -> "SOCKS5"
+    "http" -> "HTTP"
     else -> protocol
 }
 

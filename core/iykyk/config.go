@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -49,9 +50,10 @@ func BuildProfile(link string) (*Profile, error) {
 	}
 	profile := &Profile{Name: s.Name, Protocol: s.Protocol, Address: s.address()}
 
-	var proxyOutbound jsonObject
-	switch s.Protocol {
-	case "vless", "trojan", "shadowsocks":
+	// The proxy is either an outbound or (WireGuard) an endpoint tagged "proxy".
+	var proxyOutbounds, proxyEndpoints []any
+	switch engineFor(s) {
+	case engineXray:
 		port, err := freeLoopbackPort()
 		if err != nil {
 			return nil, err
@@ -83,25 +85,61 @@ func BuildProfile(link string) (*Profile, error) {
 		}
 		// sing-box hands these connections to Xray's local SOCKS inbound;
 		// the random credentials keep other apps on the device out of it.
-		proxyOutbound = jsonObject{
-			"type":        "socks",
-			"tag":         "proxy",
-			"server":      "127.0.0.1",
-			"server_port": port,
-			"version":     "5",
-			"username":    user,
-			"password":    pass,
+		proxyOutbounds = []any{loopbackSocks(port, user, pass)}
+	case engineSingBox:
+		outbounds, endpoints, err := singBoxProxy(s)
+		if err != nil {
+			return nil, err
 		}
-	case "hysteria2":
-		proxyOutbound = singBoxHysteria2(s)
+		proxyOutbounds, proxyEndpoints = outbounds, endpoints
 	default:
-		return nil, errUnsupported
+		return nil, fmt.Errorf("%s: support is coming in the next update", s.Protocol)
 	}
 
-	if profile.SingBoxConfig, err = marshal(singBoxConfig(s, proxyOutbound)); err != nil {
+	if profile.SingBoxConfig, err = marshal(singBoxConfig(s, proxyOutbounds, proxyEndpoints)); err != nil {
 		return nil, err
 	}
 	return profile, nil
+}
+
+type engine int
+
+const (
+	engineUnsupported engine = iota
+	engineXray
+	engineSingBox
+)
+
+// engineFor picks the engine for a protocol: Xray where it is the reference
+// implementation, sing-box for the rest.
+func engineFor(s *server) engine {
+	switch s.Protocol {
+	case "vless", "vmess", "trojan":
+		return engineXray
+	case "shadowsocks":
+		if s.ShadowTLSHost != "" {
+			return engineSingBox // ShadowTLS exists only in sing-box
+		}
+		return engineXray
+	case "hysteria2", "tuic", "anytls", "naive", "wireguard", "socks", "http":
+		return engineSingBox
+	}
+	return engineUnsupported
+}
+
+// loopbackSocks is how sing-box hands connections to an in-process engine
+// (Xray, Mieru, AmneziaWG) listening on 127.0.0.1. The random credentials keep
+// other apps on the device out of it.
+func loopbackSocks(port int, user, pass string) jsonObject {
+	return jsonObject{
+		"type":        "socks",
+		"tag":         "proxy",
+		"server":      "127.0.0.1",
+		"server_port": port,
+		"version":     "5",
+		"username":    user,
+		"password":    pass,
+	}
 }
 
 func (s *server) address() string {
@@ -111,13 +149,14 @@ func (s *server) address() string {
 	return net.JoinHostPort(s.Host, strconv.Itoa(s.Port))
 }
 
-func singBoxConfig(s *server, proxyOutbound jsonObject) jsonObject {
+func singBoxConfig(s *server, proxyOutbounds, proxyEndpoints []any) jsonObject {
+	outbounds := append(append([]any{}, proxyOutbounds...), jsonObject{"type": "direct", "tag": "direct"})
 	dnsRules := []any{}
 	if net.ParseIP(s.Host) == nil {
 		// The proxy server's own name must resolve directly, never through the tunnel.
 		dnsRules = append(dnsRules, jsonObject{"domain": []string{s.Host}, "server": "direct-dns"})
 	}
-	return jsonObject{
+	config := jsonObject{
 		"log": jsonObject{"level": "info"},
 		"dns": jsonObject{
 			"servers": []any{
@@ -137,10 +176,7 @@ func singBoxConfig(s *server, proxyOutbound jsonObject) jsonObject {
 			"strict_route": true,
 			"stack":        "mixed",
 		}},
-		"outbounds": []any{
-			proxyOutbound,
-			jsonObject{"type": "direct", "tag": "direct"},
-		},
+		"outbounds": outbounds,
 		"route": jsonObject{
 			"rules": []any{
 				jsonObject{"action": "sniff"},
@@ -152,6 +188,167 @@ func singBoxConfig(s *server, proxyOutbound jsonObject) jsonObject {
 			"default_domain_resolver": "direct-dns",
 		},
 	}
+	if len(proxyEndpoints) > 0 {
+		config["endpoints"] = proxyEndpoints
+	}
+	return config
+}
+
+// singBoxProxy builds the sing-box side of protocols that sing-box runs itself.
+func singBoxProxy(s *server) (outbounds, endpoints []any, err error) {
+	switch s.Protocol {
+	case "hysteria2":
+		return []any{singBoxHysteria2(s)}, nil, nil
+	case "tuic":
+		out := jsonObject{
+			"type":        "tuic",
+			"tag":         "proxy",
+			"server":      s.Host,
+			"server_port": s.Port,
+			"uuid":        s.UUID,
+			"password":    s.Password,
+		}
+		if s.CongestionControl != "" {
+			out["congestion_control"] = s.CongestionControl
+		}
+		if s.UDPRelayMode != "" {
+			out["udp_relay_mode"] = s.UDPRelayMode
+		}
+		alpn := s.ALPN
+		if len(alpn) == 0 {
+			alpn = []string{"h3"}
+		}
+		out["tls"] = singBoxTLS(s, alpn, false)
+		return []any{out}, nil, nil
+	case "anytls":
+		return []any{jsonObject{
+			"type":        "anytls",
+			"tag":         "proxy",
+			"server":      s.Host,
+			"server_port": s.Port,
+			"password":    s.Password,
+			"tls":         singBoxTLS(s, s.ALPN, true),
+		}}, nil, nil
+	case "naive":
+		out := jsonObject{
+			"type":        "naive",
+			"tag":         "proxy",
+			"server":      s.Host,
+			"server_port": s.Port,
+			"tls":         singBoxTLS(s, nil, false),
+		}
+		if s.Username != "" {
+			out["username"] = s.Username
+			out["password"] = s.Password
+		}
+		if s.QUIC {
+			out["quic"] = true
+		}
+		return []any{out}, nil, nil
+	case "shadowsocks":
+		// Shadowsocks over ShadowTLS: the Shadowsocks outbound is chained
+		// through a ShadowTLS outbound that performs the TLS handshake.
+		ss := jsonObject{
+			"type":        "shadowsocks",
+			"tag":         "proxy",
+			"server":      s.Host,
+			"server_port": s.Port,
+			"method":      s.Method,
+			"password":    s.Password,
+			"detour":      "shadowtls",
+		}
+		stls := jsonObject{
+			"type":        "shadowtls",
+			"tag":         "shadowtls",
+			"server":      s.Host,
+			"server_port": s.Port,
+			"version":     s.ShadowTLSVersion,
+			"tls": jsonObject{
+				"enabled":     true,
+				"server_name": s.ShadowTLSHost,
+				"utls":        jsonObject{"enabled": true, "fingerprint": "chrome"},
+			},
+		}
+		if s.ShadowTLSVersion > 1 {
+			stls["password"] = s.ShadowTLSPassword
+		}
+		return []any{ss, stls}, nil, nil
+	case "socks", "http":
+		out := jsonObject{
+			"type":        s.Protocol,
+			"tag":         "proxy",
+			"server":      s.Host,
+			"server_port": s.Port,
+		}
+		if s.Protocol == "socks" {
+			out["version"] = "5"
+		}
+		if s.Username != "" {
+			out["username"] = s.Username
+			out["password"] = s.Password
+		}
+		if s.Security == "tls" {
+			out["tls"] = singBoxTLS(s, nil, false)
+		}
+		return []any{out}, nil, nil
+	case "wireguard":
+		peer := jsonObject{
+			"address":     s.Host,
+			"port":        s.Port,
+			"public_key":  s.PeerPublicKey,
+			"allowed_ips": []string{"0.0.0.0/0", "::/0"},
+		}
+		if s.PresharedKey != "" {
+			peer["pre_shared_key"] = s.PresharedKey
+		}
+		if len(s.Reserved) == 3 {
+			peer["reserved"] = s.Reserved
+		}
+		keepalive := s.Keepalive
+		if keepalive == 0 {
+			keepalive = 25
+		}
+		peer["persistent_keepalive_interval"] = keepalive
+		endpoint := jsonObject{
+			"type":        "wireguard",
+			"tag":         "proxy",
+			"address":     s.Addresses,
+			"private_key": s.PrivateKey,
+			"peers":       []any{peer},
+		}
+		if s.MTU > 0 {
+			endpoint["mtu"] = s.MTU
+		}
+		return nil, []any{endpoint}, nil
+	}
+	return nil, nil, errUnsupported
+}
+
+// singBoxTLS builds a TLS block. withUTLS adds a browser fingerprint, which
+// matters for protocols that look like ordinary HTTPS (AnyTLS).
+func singBoxTLS(s *server, alpn []string, withUTLS bool) jsonObject {
+	tls := jsonObject{"enabled": true}
+	serverName := s.SNI
+	if serverName == "" && net.ParseIP(s.Host) == nil {
+		serverName = s.Host
+	}
+	if serverName != "" {
+		tls["server_name"] = serverName
+	}
+	if s.Insecure {
+		tls["insecure"] = true
+	}
+	if len(alpn) > 0 {
+		tls["alpn"] = alpn
+	}
+	if withUTLS {
+		fingerprint := s.Fingerprint
+		if fingerprint == "" {
+			fingerprint = "chrome"
+		}
+		tls["utls"] = jsonObject{"enabled": true, "fingerprint": fingerprint}
+	}
+	return tls
 }
 
 func singBoxHysteria2(s *server) jsonObject {
@@ -201,6 +398,12 @@ func xrayOutbound(s *server) (jsonObject, error) {
 		out["settings"] = jsonObject{"vnext": []any{jsonObject{
 			"address": s.Host, "port": s.Port, "users": []any{user},
 		}}}
+	case "vmess":
+		out["protocol"] = "vmess"
+		out["settings"] = jsonObject{"vnext": []any{jsonObject{
+			"address": s.Host, "port": s.Port,
+			"users": []any{jsonObject{"id": s.UUID, "security": s.Method}},
+		}}}
 	case "trojan":
 		out["protocol"] = "trojan"
 		out["settings"] = jsonObject{"servers": []any{jsonObject{
@@ -228,6 +431,13 @@ func xrayStreamSettings(s *server) (jsonObject, error) {
 	switch s.Network {
 	case "tcp":
 		stream["network"] = "raw"
+		if s.HeaderType == "http" {
+			request := jsonObject{"path": []string{firstNonEmpty(s.Path, "/")}}
+			if s.HostHeader != "" {
+				request["headers"] = jsonObject{"Host": splitList(s.HostHeader)}
+			}
+			stream["rawSettings"] = jsonObject{"header": jsonObject{"type": "http", "request": request}}
+		}
 	case "ws":
 		ws := jsonObject{"path": s.Path}
 		if s.HostHeader != "" {

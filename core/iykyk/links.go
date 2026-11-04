@@ -12,20 +12,24 @@ import (
 
 // server is a parsed share link. Only fields relevant to the protocol are set.
 type server struct {
-	Protocol string // vless, trojan, shadowsocks, hysteria2
+	// vless, vmess, trojan, shadowsocks, hysteria2, tuic, anytls, naive,
+	// wireguard, amneziawg, mieru, socks, http
+	Protocol string
 	Name     string
 	Host     string
 	Port     int
 
 	// Credentials.
-	UUID     string // vless
-	Password string // trojan, shadowsocks, hysteria2
-	Method   string // shadowsocks
+	UUID     string // vless, vmess, tuic
+	Username string // socks, http, naive
+	Password string // trojan, shadowsocks, hysteria2, tuic, anytls, socks, http, naive
+	Method   string // shadowsocks; vmess cipher
 	Flow     string // vless
 	Encrypt  string // vless encryption ("none" by default)
 
 	// Transport: tcp (raw), ws, grpc, xhttp, httpupgrade.
 	Network     string
+	HeaderType  string // tcp header obfuscation: "http"
 	Path        string
 	HostHeader  string
 	ServiceName string // grpc
@@ -33,6 +37,32 @@ type server struct {
 	Authority   string // grpc
 	XHTTPMode   string
 	XHTTPExtra  string // raw JSON
+
+	// TUIC.
+	CongestionControl string
+	UDPRelayMode      string
+
+	// NaiveProxy over HTTP/3.
+	QUIC bool
+
+	// ShadowTLS in front of Shadowsocks.
+	ShadowTLSVersion  int
+	ShadowTLSPassword string
+	ShadowTLSHost     string
+
+	// WireGuard / AmneziaWG.
+	PrivateKey    string
+	PeerPublicKey string
+	PresharedKey  string
+	Addresses     []string
+	AllowedIPs    []string
+	Reserved      []int
+	MTU           int
+	Keepalive     int
+	AmneziaParams map[string]string // jc, jmin, jmax, s1-s4, h1-h4, i1-i5
+
+	// Raw link, needed by engines that parse it themselves (Mieru).
+	Raw string
 
 	// Security: none, tls, reality.
 	Security    string
@@ -54,6 +84,9 @@ var errUnsupported = errors.New("unsupported link")
 
 func parseLink(link string) (*server, error) {
 	link = strings.TrimSpace(link)
+	if strings.Contains(link, "[Interface]") {
+		return parseWireGuardConf(link)
+	}
 	scheme, _, ok := strings.Cut(link, "://")
 	if !ok {
 		return nil, errUnsupported
@@ -61,12 +94,28 @@ func parseLink(link string) (*server, error) {
 	switch strings.ToLower(scheme) {
 	case "vless":
 		return parseVLESS(link)
+	case "vmess":
+		return parseVMess(link)
 	case "trojan":
 		return parseTrojan(link)
 	case "ss":
 		return parseShadowsocks(link)
 	case "hysteria2", "hy2":
 		return parseHysteria2(link)
+	case "tuic":
+		return parseTUIC(link)
+	case "anytls":
+		return parseAnyTLS(link)
+	case "naive+https", "naive+quic", "naive":
+		return parseNaive(link)
+	case "wireguard", "wg":
+		return parseWireGuardLink(link)
+	case "mierus":
+		return parseMieru(link)
+	case "socks", "socks5", "socks5h":
+		return parseProxyLink(link, "socks")
+	case "http", "https":
+		return parseProxyLink(link, "http")
 	default:
 		return nil, fmt.Errorf("%w: %s", errUnsupported, scheme)
 	}
@@ -124,6 +173,7 @@ func readTransport(q url.Values, s *server, defaultSecurity string) {
 	case "splithttp":
 		s.Network = "xhttp"
 	}
+	s.HeaderType = q.Get("headerType")
 	s.Path = q.Get("path")
 	s.HostHeader = q.Get("host")
 	s.ServiceName = q.Get("serviceName")
@@ -230,8 +280,8 @@ func parseShadowsocks(link string) (*server, error) {
 	if s.Host, s.Port, err = parseHostPort(u); err != nil {
 		return nil, err
 	}
-	if q := u.Query(); q.Get("plugin") != "" {
-		return nil, errors.New("shadowsocks: plugins are not supported yet")
+	if err := readShadowTLS(u.Query(), s); err != nil {
+		return nil, err
 	}
 	method := u.User.Username()
 	password, hasPassword := u.User.Password()

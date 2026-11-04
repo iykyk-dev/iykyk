@@ -17,7 +17,7 @@
     <string name="action_change_server">Сменить</string>
     <string name="servers_title">Серверы</string>
     <string name="action_paste_link">Вставить подписку или ссылку</string>
-    <string name="paste_hint">Скопируйте ссылку на подписку (https://…) или на сервер (vless://, trojan://, ss://, hysteria2://) и нажмите кнопку ниже.</string>
+    <string name="paste_hint">Скопируйте ссылку на подписку (https://…), ссылку на сервер или файл WireGuard/AmneziaWG и нажмите кнопку ниже.</string>
     <string name="link_saved">Добавлено: %1$s</string>
     <string name="link_loading">Загружаю подписку…</string>
     <string name="link_clipboard_empty">В буфере обмена нет текста</string>
