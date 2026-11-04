@@ -198,7 +198,8 @@ class MainActivity : ComponentActivity() {
      * page or in a Telegram bot), or text shared to IYKYK. Returns true if it imported.
      */
     private fun handleImportIntent(intent: Intent?): Boolean {
-        val text = when (intent?.action) {
+        if (intent == null) return false
+        val text = when (intent.action) {
             Intent.ACTION_VIEW -> intent.data?.let(::linkFromDeepLink)
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)?.let(::firstUrl)
             else -> null
