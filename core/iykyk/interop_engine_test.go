@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"math/big"
+	"net/http"
 	"strconv"
 	"strings"
 	"testing"
@@ -50,6 +51,20 @@ func TestNativeClientsAgainstXrayServers(t *testing.T) {
 				`"serverNames":["www.google.com"],"privateKey":"` + privKey + `","shortIds":["ab12"]}}`,
 			"vless://" + uuid + "@127.0.0.1:PORT?type=tcp&security=reality&pbk=" + pubKey +
 				"&sid=ab12&sni=www.google.com&fp=chrome&flow=xtls-rprx-vision#r",
+		},
+		{
+			"VLESS REALITY",
+			`"protocol":"vless","settings":{"clients":[{"id":"` + uuid + `"}],"decryption":"none"},` +
+				`"streamSettings":{"network":"raw","security":"reality","realitySettings":{"target":"www.google.com:443",` +
+				`"serverNames":["www.google.com"],"privateKey":"` + privKey + `","shortIds":["ab12"]}}`,
+			"vless://" + uuid + "@127.0.0.1:PORT?type=tcp&security=reality&pbk=" + pubKey +
+				"&sid=ab12&sni=www.google.com&fp=chrome#r2",
+		},
+		{
+			"VLESS TLS Vision",
+			`"protocol":"vless","settings":{"clients":[{"id":"` + uuid + `","flow":"xtls-rprx-vision"}],"decryption":"none"},` +
+				`"streamSettings":{"network":"raw","security":"tls",` + tlsSettings + `}`,
+			"vless://" + uuid + "@127.0.0.1:PORT?type=tcp&security=tls&sni=example.com&allowInsecure=1&flow=xtls-rprx-vision#tv",
 		},
 		{
 			"VLESS gRPC TLS",
@@ -106,17 +121,22 @@ func TestNativeClientsAgainstXrayServers(t *testing.T) {
 			if selectEngine(s, options{}) != engineSingBox {
 				t.Fatal("expected the native sing-box client")
 			}
-			b, _ := json.Marshal([]string{link})
-			text, err := RealPingServers(string(b), "")
+			dial, cleanup, err := singBoxTestDialer(s, options{})
 			if err != nil {
 				t.Fatal(err)
 			}
-			var results []int
-			_ = json.Unmarshal([]byte(text), &results)
-			if len(results) != 1 || results[0] <= 0 {
-				t.Fatalf("no traffic through the native client: %v", results)
+			defer cleanup()
+			client := &http.Client{
+				Timeout:   10 * time.Second,
+				Transport: &http.Transport{DialContext: dial},
 			}
-			t.Logf("%s: %d ms", c.name, results[0])
+			start := time.Now()
+			resp, err := client.Get("https://www.gstatic.com/generate_204")
+			if err != nil {
+				t.Fatalf("no traffic through the native client: %v", err)
+			}
+			resp.Body.Close()
+			t.Logf("%s: HTTP %d in %d ms", c.name, resp.StatusCode, time.Since(start).Milliseconds())
 		})
 	}
 }
