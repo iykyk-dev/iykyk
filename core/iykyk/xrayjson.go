@@ -277,12 +277,12 @@ func xraySocksInbound(tag string, port int, user, pass string) jsonObject {
 			"udp":      true,
 			"ip":       "127.0.0.1",
 		},
-		// Connections from the TUN arrive with the destination IP only.
-		// Sniffing restores the site's name from the TLS/HTTP/QUIC handshake,
-		// so the server gets "example.org:443" as it does from Happ or INCY.
-		// Servers that route or balance by domain otherwise drop the traffic.
+		// Site names for Xray's own routing only (as in Remnawave's template):
+		// the destination sent to the server stays unchanged, and servers
+		// sniff names themselves.
 		"sniffing": jsonObject{
 			"enabled":      true,
+			"routeOnly":    true,
 			"destOverride": []string{"http", "tls", "quic"},
 		},
 	}

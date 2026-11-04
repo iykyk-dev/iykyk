@@ -81,9 +81,11 @@ func TestVLESSReality(t *testing.T) {
 	if path(t, proxy, "username") != path(t, x, "inbounds", 0, "settings", "accounts", 0, "user") {
 		t.Fatal("socks credentials differ")
 	}
-	// Site names must reach the server, not just IPs (see xraySocksInbound).
-	if path(t, x, "inbounds", 0, "sniffing", "destOverride", 1) != "tls" {
-		t.Fatal("Xray must sniff site names")
+	if path(t, x, "inbounds", 0, "sniffing", "routeOnly") != true {
+		t.Fatal("sniffing must not change the destination sent to the server")
+	}
+	if path(t, decode(t, p.SingBoxConfig), "inbounds", 0, "stack") != "gvisor" {
+		t.Fatal("TUN must use the gvisor stack (IYKYK excludes itself from the VPN)")
 	}
 	// The server name must resolve through the direct DNS server.
 	if got := path(t, sb, "dns", "rules", 0, "domain", 0); got != "nl1.example.com" {

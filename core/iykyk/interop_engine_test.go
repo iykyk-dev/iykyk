@@ -3,7 +3,6 @@
 package iykyk
 
 import (
-	"context"
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -14,7 +13,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"math/big"
-	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -23,7 +21,6 @@ import (
 	"time"
 
 	"github.com/xtls/xray-core/core"
-	"golang.org/x/net/proxy"
 )
 
 // TestNativeClientsAgainstXrayServers is the safety net for running VLESS,
@@ -211,80 +208,4 @@ func selfSignedCert(t *testing.T, name string) (certPEM, keyPEM string) {
 func pemLines(text string) string {
 	b, _ := json.Marshal(strings.Split(strings.TrimSpace(text), "\n"))
 	return string(b)
-}
-
-// TestSiteNamesReachTheServer reproduces the "only Google opens" bug: apps'
-// connections arrive from the TUN with an IP destination, and a server that
-// routes by domain (here: blocks plain IP destinations) drops them unless the
-// client sends the site's name, as Happ and INCY do.
-func TestSiteNamesReachTheServer(t *testing.T) {
-	const uuid = "11111111-2222-3333-4444-555555555555"
-	port, _ := freeLoopbackPort()
-	p := strconv.Itoa(port)
-	config := `{"log":{"loglevel":"warning"},"inbounds":[{"listen":"127.0.0.1","port":` + p + `,` +
-		`"protocol":"vless","settings":{"clients":[{"id":"` + uuid + `"}],"decryption":"none"},` +
-		`"streamSettings":{"network":"grpc","grpcSettings":{"serviceName":"svc"}}}],` +
-		`"outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"blackhole","tag":"block"}],` +
-		`"routing":{"rules":[{"ip":["0.0.0.0/0","::/0"],"outboundTag":"block"}]}}`
-	server, err := core.StartInstance("json", []byte(config))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server.Close()
-
-	link := "vless://" + uuid + "@127.0.0.1:" + p + "?type=grpc&serviceName=svc&security=none#g"
-	profile, err := BuildProfileWithOptions(link, `{"preferXray":true}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var sb map[string]any
-	_ = json.Unmarshal([]byte(profile.SingBoxConfig), &sb)
-	var inbounds []any
-	for _, in := range sb["inbounds"].([]any) {
-		if in.(map[string]any)["type"] != "tun" {
-			inbounds = append(inbounds, in)
-		}
-	}
-	sb["inbounds"] = inbounds
-	text, _ := json.Marshal(sb)
-	if err := StartEngines(profile); err != nil {
-		t.Fatal(err)
-	}
-	defer StopEngines()
-	instance, err := startHeadlessBox(string(text))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer instance.Close()
-
-	// Like a browser behind the TUN: connect to the site's IP, name only in TLS.
-	ips, err := net.LookupIP("www.gstatic.com")
-	if err != nil || len(ips) == 0 {
-		t.Skip("no DNS in this environment")
-	}
-	var ip net.IP
-	for _, candidate := range ips {
-		if candidate.To4() != nil {
-			ip = candidate
-			break
-		}
-	}
-	socks, _ := proxy.SOCKS5("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(profile.CheckPort)),
-		&proxy.Auth{User: profile.CheckUser, Password: profile.CheckPass}, &net.Dialer{})
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-				return socks.(proxy.ContextDialer).DialContext(ctx, "tcp", net.JoinHostPort(ip.String(), "443"))
-			},
-		},
-	}
-	resp, err := client.Get("https://www.gstatic.com/generate_204")
-	if err != nil {
-		t.Fatalf("a site reached by IP must still work (the client must send its name): %v", err)
-	}
-	resp.Body.Close()
-	if resp.StatusCode != 204 {
-		t.Fatalf("HTTP %d", resp.StatusCode)
-	}
 }

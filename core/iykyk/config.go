@@ -237,7 +237,11 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 		"mtu":          9000,
 		"auto_route":   true,
 		"strict_route": true,
-		"stack":        "mixed",
+		// gvisor: all of TCP and UDP is handled inside the app. With "mixed"/
+		// "system", TCP goes through the kernel, and since IYKYK excludes itself
+		// from its own VPN, Android sent the kernel stack's replies around the
+		// tunnel: TCP (most sites) hung, only UDP/QUIC (Google, YouTube) worked.
+		"stack": "gvisor",
 	}}
 	if opts.checkPort > 0 {
 		inbounds = append(inbounds, jsonObject{
