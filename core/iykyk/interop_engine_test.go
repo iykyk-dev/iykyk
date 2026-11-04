@@ -168,7 +168,7 @@ func TestNativeClientsAgainstXrayServers(t *testing.T) {
 			opts := `{"bypassRussia":true,"ruleSetDir":"` + os.Getenv("IYKYK_RULESET_DIR") + `"}`
 			full := fullConfigCheck(t, link, opts, nil)
 			t.Logf("%s: full config: %s", c.name, full)
-			if !strings.Contains(full, "rcode=Success") || strings.Contains(full, "answers=0") {
+			if !strings.Contains(full, "rcode=RCodeSuccess") || strings.Contains(full, "answers=0") {
 				t.Errorf("DNS through the tunnel failed: %s", full)
 			}
 			if !strings.Contains(full, "check ok") {
