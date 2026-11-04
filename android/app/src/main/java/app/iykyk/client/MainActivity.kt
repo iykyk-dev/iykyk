@@ -157,6 +157,8 @@ class MainActivity : ComponentActivity() {
                 toast(getString(R.string.link_saved, description))
                 pings.value = emptyMap()
                 IykykVpnService.reconnect(this@MainActivity)
+            } catch (_: ProfileStore.NotAllowedException) {
+                toast(getString(R.string.link_not_allowed))
             } catch (e: Exception) {
                 toast(getString(R.string.link_invalid, e.message ?: e.javaClass.simpleName))
             }

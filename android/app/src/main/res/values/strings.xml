@@ -18,6 +18,9 @@
     <string name="servers_title">Серверы</string>
     <string name="action_paste_link">Вставить подписку или ссылку</string>
     <string name="paste_hint">Скопируйте ссылку на подписку (https://…), ссылку на сервер или файл WireGuard/AmneziaWG и нажмите кнопку ниже.</string>
+    <string name="action_paste_subscription">Вставить ссылку на подписку</string>
+    <string name="paste_hint_locked">Скопируйте ссылку на подписку из личного кабинета «Для своих» и нажмите кнопку ниже.</string>
+    <string name="link_not_allowed">Эта ссылка не от «Для своих». IYKYK работает только с подписками нашего сервиса.</string>
     <string name="link_saved">Добавлено: %1$s</string>
     <string name="link_loading">Загружаю подписку…</string>
     <string name="link_clipboard_empty">В буфере обмена нет текста</string>

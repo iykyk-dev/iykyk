@@ -18,6 +18,10 @@ AMNEZIAWG_VERSION="v3.1.20260828"
 GOMOBILE_VERSION="v0.1.13"
 # ----------------------------------------------------------------------------
 
+# The official build works only with these subscription domains (subdomains
+# included). Override with ALLOWED_SUBSCRIPTION_HOSTS="" for an unlocked build.
+ALLOWED_SUBSCRIPTION_HOSTS="${ALLOWED_SUBSCRIPTION_HOSTS-dlyasvoih.xyz}"
+
 CORE_VERSION="${CORE_VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo dev)}"
 ANDROID_TARGETS="${ANDROID_TARGETS:-android/arm64,android/amd64}"
 ANDROID_API=26
@@ -39,6 +43,7 @@ TAGS=(
 LDFLAGS=(
     "-X github.com/sagernet/sing-box/constant.Version=${SING_BOX_VERSION#v}"
     "-X github.com/iykyk-dev/iykyk/core/iykyk.CoreVersion=${CORE_VERSION}"
+    "-X github.com/iykyk-dev/iykyk/core/iykyk.allowedHosts=${ALLOWED_SUBSCRIPTION_HOSTS}"
     "-X runtime.godebugDefault=multipathtcp=0,tlssha1=1"
     "-checklinkname=0"
     "-s" "-w" "-buildid="

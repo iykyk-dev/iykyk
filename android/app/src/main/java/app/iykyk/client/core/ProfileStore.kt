@@ -104,6 +104,10 @@ object ProfileStore {
      */
     suspend fun import(context: Context, text: String): String = withContext(Dispatchers.IO) {
         val trimmed = text.trim()
+        val isUrl = trimmed.startsWith("https://", ignoreCase = true) ||
+            trimmed.startsWith("http://", ignoreCase = true)
+        // The official build works only with the provider's own subscriptions.
+        if (locked && !isUrl) throw NotAllowedException()
         when {
             trimmed.startsWith("https://", ignoreCase = true) ||
                 trimmed.startsWith("http://", ignoreCase = true) -> {
@@ -134,6 +138,12 @@ object ProfileStore {
         }
     }
 
+    /** True in the official build: only the provider's subscription URLs are accepted. */
+    val locked: Boolean by lazy { runCatching { Iykyk.isLocked() }.getOrDefault(false) }
+
+    /** A link or subscription from someone else's service, refused by a locked build. */
+    class NotAllowedException : Exception("not allowed")
+
     /** Re-downloads the current subscription, keeping the selected server if it still exists. */
     suspend fun refresh(context: Context) = withContext(Dispatchers.IO) {
         val url = _profiles.value.subscription?.url?.takeIf { it.isNotEmpty() }
@@ -156,7 +166,12 @@ object ProfileStore {
             osVersion = Build.VERSION.RELEASE
             model = "${Build.MANUFACTURER} ${Build.MODEL}"
         }
-        val json = Iykyk.fetchSubscription(url, userAgent(context), device)
+        val json = try {
+            Iykyk.fetchSubscription(url, userAgent(context), device)
+        } catch (e: Exception) {
+            if (e.message.orEmpty().startsWith("subscription not allowed")) throw NotAllowedException()
+            throw e
+        }
         val previous = _profiles.value
         val now = System.currentTimeMillis()
         var profiles = parse(url, json, now)

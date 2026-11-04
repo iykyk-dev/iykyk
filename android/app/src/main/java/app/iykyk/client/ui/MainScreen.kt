@@ -45,6 +45,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.iykyk.client.R
+import app.iykyk.client.core.ProfileStore
 import app.iykyk.client.core.Profiles
 import app.iykyk.client.core.ServerInfo
 import app.iykyk.client.core.SubscriptionInfo
@@ -117,7 +118,7 @@ fun MainScreen(
             Spacer(Modifier.height(12.dp))
             if (!profiles.hasServers) {
                 Text(
-                    text = stringResource(R.string.paste_hint),
+                    text = stringResource(if (ProfileStore.locked) R.string.paste_hint_locked else R.string.paste_hint),
                     color = IykykColors.Muted,
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
@@ -130,7 +131,11 @@ fun MainScreen(
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = IykykColors.Accent),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.action_paste_link))
+                Text(
+                    stringResource(
+                        if (ProfileStore.locked) R.string.action_paste_subscription else R.string.action_paste_link,
+                    ),
+                )
             }
         }
     }

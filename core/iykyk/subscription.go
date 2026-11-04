@@ -56,6 +56,9 @@ func FetchSubscription(subscriptionURL string, userAgent string, device *DeviceI
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
 		return "", errors.New("invalid subscription URL")
 	}
+	if !subscriptionHostAllowed(u.Hostname()) {
+		return "", ErrSubscriptionNotAllowed
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -77,8 +80,23 @@ func FetchSubscription(subscriptionURL string, userAgent string, device *DeviceI
 		}
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{
+		// A redirect must not lead away from the allowed hosts either.
+		CheckRedirect: func(next *http.Request, via []*http.Request) error {
+			if len(via) >= 5 {
+				return errors.New("too many redirects")
+			}
+			if !subscriptionHostAllowed(next.URL.Hostname()) {
+				return ErrSubscriptionNotAllowed
+			}
+			return nil
+		},
+	}
+	resp, err := client.Do(req)
 	if err != nil {
+		if errors.Is(err, ErrSubscriptionNotAllowed) {
+			return "", ErrSubscriptionNotAllowed
+		}
 		return "", fmt.Errorf("download failed: %w", err)
 	}
 	defer resp.Body.Close()
@@ -99,6 +117,9 @@ func FetchSubscription(subscriptionURL string, userAgent string, device *DeviceI
 // ParseSubscriptionText parses a subscription body without downloading it,
 // for links pasted as text (a base64 blob or several links at once).
 func ParseSubscriptionText(body string) (string, error) {
+	if IsLocked() {
+		return "", ErrSubscriptionNotAllowed
+	}
 	sub, err := parseSubscription(body, nil)
 	if err != nil {
 		return "", err
