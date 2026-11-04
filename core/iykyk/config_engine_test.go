@@ -7,6 +7,7 @@ package iykyk
 import (
 	"encoding/base64"
 	"net"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -84,5 +85,28 @@ func TestSidecarEnginesStart(t *testing.T) {
 		if err := StopEngines(); err != nil {
 			t.Errorf("%s: stop: %v", p.Protocol, err)
 		}
+	}
+}
+
+// TestAutoAndBypassAcceptedBySingBox checks auto mode and the Russia bypass.
+// CI downloads the real rule-set files into IYKYK_RULESET_DIR.
+func TestAutoAndBypassAcceptedBySingBox(t *testing.T) {
+	links := `["vless://11111111-2222-3333-4444-555555555555@nl.example.com:443?type=tcp&security=reality&pbk=` +
+		`Z84J2IelR9ch3k8VtlVhhs5ycBUlXA7wHBWcBrjqnAw&sid=ab12&sni=www.microsoft.com#NL",` +
+		`"trojan://pw@de.example.com:443#DE","hysteria2://pass@fi.example.com:443#FI",` +
+		`"tuic://11111111-2222-3333-4444-555555555555:pw@tu.example.com:443#TU"]`
+	opts := `{"bypassRussia":true}`
+	if dir := os.Getenv("IYKYK_RULESET_DIR"); dir != "" {
+		opts = `{"bypassRussia":true,"ruleSetDir":"` + dir + `"}`
+	}
+	p, err := BuildAutoProfile(links, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := libbox.CheckConfig(p.SingBoxConfig); err != nil {
+		t.Fatalf("sing-box rejected auto config: %v\n%s", err, p.SingBoxConfig)
+	}
+	if err := CheckXrayConfig(p.XrayConfig); err != nil {
+		t.Fatalf("Xray rejected auto config: %v\n%s", err, p.XrayConfig)
 	}
 }

@@ -38,6 +38,33 @@
     <string name="error_no_server">Сначала добавьте сервер</string>
     <string name="error_prefix">Не удалось подключиться: %1$s</string>
 
+    <string name="auto_mode">⚡ Автовыбор</string>
+    <string name="auto_hint">Лучший из %1$d серверов, переключение при сбое</string>
+    <string name="auto_now">Сейчас: %1$s</string>
+    <string name="auto_now_delay">Сейчас: %1$s · %2$d мс</string>
+    <string name="action_ping">Проверить пинг</string>
+    <string name="pinging">Проверяю…</string>
+    <string name="ping_ms">%1$d мс</string>
+    <string name="ping_failed">недоступен</string>
+    <string name="ping_udp">UDP</string>
+    <string name="auto_excluded">не участвует в автовыборе</string>
+
+    <string name="settings_title">Настройки</string>
+    <string name="action_back">Назад</string>
+    <string name="settings_routing">Маршрутизация</string>
+    <string name="bypass_title">Российские сайты напрямую</string>
+    <string name="bypass_subtitle">Госуслуги, банки, Яндекс и другие сайты в .ru и с российскими IP открываются без VPN</string>
+    <string name="settings_apps">Приложения</string>
+    <string name="apps_mode_all">Все приложения через VPN</string>
+    <string name="apps_mode_only">Только выбранные через VPN</string>
+    <string name="apps_mode_except">Все, кроме выбранных</string>
+    <string name="apps_choose">Выбрать приложения</string>
+    <string name="apps_selected">Выбрано: %1$d</string>
+    <string name="apps_search">Поиск</string>
+    <string name="settings_reconnect_hint">Изменения применяются сразу, VPN переподключится сам</string>
+    <string name="settings_about">О приложении</string>
+    <string name="settings_versions">Версии ядер</string>
+
     <string name="notification_channel">Состояние VPN</string>
     <string name="notification_connected">Защищённое соединение активно</string>
 </resources>

@@ -16,9 +16,11 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import app.iykyk.client.MainActivity
 import app.iykyk.client.R
+import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.Core
 import app.iykyk.client.core.NetworkMonitor
 import app.iykyk.client.core.ProfileStore
+import app.iykyk.client.core.SettingsStore
 import app.iykyk.core.iykyk.Iykyk
 import app.iykyk.core.libbox.CommandServer
 import app.iykyk.core.libbox.CommandServerHandler
@@ -31,6 +33,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 
 /**
  * The VPN service.
@@ -132,9 +135,16 @@ class IykykVpnService : VpnService(), CommandServerHandler {
 
     private fun startCore() {
         Core.setup(this)
-        val link = ProfileStore.currentLink(this) ?: error(getString(R.string.error_no_server))
-        val profile = Iykyk.buildProfile(link)
-        serverName = profile.name
+        val profiles = ProfileStore.snapshot(this)
+        val options = SettingsStore.coreOptions(this)
+        val profile = if (profiles.isAuto) {
+            val links = JSONArray(profiles.autoServers.map { it.link }).toString()
+            Iykyk.buildAutoProfile(links, options)
+        } else {
+            val link = profiles.current?.link ?: error(getString(R.string.error_no_server))
+            Iykyk.buildProfileWithOptions(link, options)
+        }
+        serverName = if (profile.isAuto) getString(R.string.auto_mode) else profile.name
 
         Iykyk.setSocketProtector { fd -> protect(fd) }
         Iykyk.startEngines(profile)
@@ -145,7 +155,20 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         val server = CommandServer(this, PlatformBridge(this, monitor))
         commandServer = server
         server.start()
-        server.startOrReloadService(profile.singBoxConfig, OverrideOptions())
+        server.startOrReloadService(profile.singBoxConfig, appRouting())
+    }
+
+    /** Per-app routing: all apps, only the selected ones, or all except the selected ones. */
+    private fun appRouting(): OverrideOptions {
+        val settings = SettingsStore.settings.value
+        val apps = settings.apps.filter { it != packageName }
+        return OverrideOptions().apply {
+            when (settings.appMode) {
+                AppMode.ALL -> Unit
+                AppMode.ONLY_SELECTED -> if (apps.isNotEmpty()) includePackage = StringArray(apps)
+                AppMode.EXCEPT_SELECTED -> if (apps.isNotEmpty()) excludePackage = StringArray(apps)
+            }
+        }
     }
 
     private fun stopCore() {

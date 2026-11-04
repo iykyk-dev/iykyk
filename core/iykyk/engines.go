@@ -18,6 +18,7 @@ func StartEngines(profile *Profile) error {
 	if err := StopEngines(); err != nil {
 		return err
 	}
+	setRunningProfile(profile)
 	if profile.UsesXray {
 		return StartXray(profile.XrayConfig)
 	}
@@ -45,6 +46,7 @@ func StartEngines(profile *Profile) error {
 
 // StopEngines stops every in-process engine.
 func StopEngines() error {
+	setRunningProfile(nil)
 	err := StopXray()
 	enginesMu.Lock()
 	defer enginesMu.Unlock()

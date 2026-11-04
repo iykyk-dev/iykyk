@@ -53,16 +53,24 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** What auto mode is doing right now (from the core's AutoStatus). */
+data class AutoStatus(val now: String, val delays: Map<String, Int>)
+
 @Composable
 fun MainScreen(
     status: VpnStatus,
     profiles: Profiles,
     error: String?,
     refreshing: Boolean,
+    pings: Map<String, Int>,
+    pinging: Boolean,
+    autoStatus: AutoStatus?,
     onToggle: () -> Unit,
     onPasteLink: () -> Unit,
     onRefresh: () -> Unit,
     onSelectServer: (Int) -> Unit,
+    onPing: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     var showServers by remember { mutableStateOf(false) }
     val server = profiles.current
@@ -75,9 +83,14 @@ fun MainScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Header()
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Header(modifier = Modifier.align(Alignment.Center))
+                TextButton(onClick = onOpenSettings, modifier = Modifier.align(Alignment.TopEnd)) {
+                    Text("⚙", color = IykykColors.Muted, fontSize = 22.sp)
+                }
+            }
             Spacer(Modifier.weight(1f))
-            ConnectButton(status = status, enabled = server != null, onClick = onToggle)
+            ConnectButton(status = status, enabled = profiles.hasServers, onClick = onToggle)
             Spacer(Modifier.height(20.dp))
             StatusLabel(status)
             if (error != null && status == VpnStatus.DISCONNECTED) {
@@ -96,12 +109,13 @@ fun MainScreen(
                 Spacer(Modifier.height(12.dp))
             }
             ServerCard(
-                server = server,
+                profiles = profiles,
+                autoStatus = if (status == VpnStatus.CONNECTED) autoStatus else null,
                 canChange = profiles.servers.size > 1,
                 onClick = { if (profiles.servers.size > 1) showServers = true },
             )
             Spacer(Modifier.height(12.dp))
-            if (server == null) {
+            if (!profiles.hasServers) {
                 Text(
                     text = stringResource(R.string.paste_hint),
                     color = IykykColors.Muted,
@@ -123,8 +137,11 @@ fun MainScreen(
 
     if (showServers) {
         ServerPicker(
-            servers = profiles.servers,
-            selected = profiles.selected,
+            profiles = profiles,
+            pings = pings,
+            pinging = pinging,
+            autoDelays = autoStatus?.delays.orEmpty(),
+            onPing = onPing,
             onSelect = {
                 showServers = false
                 onSelectServer(it)
@@ -135,8 +152,8 @@ fun MainScreen(
 }
 
 @Composable
-private fun Header() {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun Header(modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = stringResource(R.string.app_name),
             color = IykykColors.Text,
@@ -290,7 +307,31 @@ private fun formatBytes(bytes: Long): String {
 }
 
 @Composable
-private fun ServerCard(server: ServerInfo?, canChange: Boolean, onClick: () -> Unit) {
+private fun ServerCard(
+    profiles: Profiles,
+    autoStatus: AutoStatus?,
+    canChange: Boolean,
+    onClick: () -> Unit,
+) {
+    val server = profiles.current
+    val title = when {
+        profiles.isAuto -> stringResource(R.string.auto_mode)
+        server != null -> server.name
+        else -> stringResource(R.string.server_none)
+    }
+    val subtitle = when {
+        profiles.isAuto && autoStatus != null && autoStatus.now.isNotEmpty() -> {
+            val delay = autoStatus.delays[autoStatus.now]
+            if (delay != null && delay > 0) {
+                stringResource(R.string.auto_now_delay, autoStatus.now, delay)
+            } else {
+                stringResource(R.string.auto_now, autoStatus.now)
+            }
+        }
+        profiles.isAuto -> stringResource(R.string.auto_hint, profiles.autoServers.size)
+        server != null -> protocolTitle(server.protocol)
+        else -> null
+    }
     Surface(
         color = IykykColors.Surface,
         shape = RoundedCornerShape(16.dp),
@@ -305,17 +346,19 @@ private fun ServerCard(server: ServerInfo?, canChange: Boolean, onClick: () -> U
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.server_label), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
                 Text(
-                    text = server?.name ?: stringResource(R.string.server_none),
+                    text = title,
                     color = IykykColors.Text,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (server != null) {
+                if (subtitle != null) {
                     Text(
-                        text = protocolTitle(server.protocol),
+                        text = subtitle,
                         color = IykykColors.Muted,
                         style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -333,8 +376,11 @@ private fun ServerCard(server: ServerInfo?, canChange: Boolean, onClick: () -> U
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ServerPicker(
-    servers: List<ServerInfo>,
-    selected: Int,
+    profiles: Profiles,
+    pings: Map<String, Int>,
+    pinging: Boolean,
+    autoDelays: Map<String, Int>,
+    onPing: () -> Unit,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -342,44 +388,104 @@ private fun ServerPicker(
         onDismissRequest = onDismiss,
         containerColor = IykykColors.Surface,
     ) {
-        Text(
-            text = stringResource(R.string.servers_title),
-            color = IykykColors.Text,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 18.sp,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-        )
+        Row(
+            modifier = Modifier.padding(start = 24.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.servers_title),
+                color = IykykColors.Text,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onPing, enabled = !pinging) {
+                Text(
+                    stringResource(if (pinging) R.string.pinging else R.string.action_ping),
+                    color = IykykColors.Accent,
+                )
+            }
+        }
         LazyColumn(modifier = Modifier.navigationBarsPadding()) {
-            itemsIndexed(servers) { index, item ->
-                val isSelected = index == selected
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelect(index) }
-                        .padding(horizontal = 24.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = item.name,
-                            color = if (isSelected) IykykColors.Accent else IykykColors.Text,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = protocolTitle(item.protocol),
-                            color = IykykColors.Muted,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    if (isSelected) {
-                        Text("✓", color = IykykColors.Accent, fontSize = 18.sp)
-                    }
+            if (profiles.autoServers.size > 1) {
+                item(key = "auto") {
+                    PickerRow(
+                        title = stringResource(R.string.auto_mode),
+                        subtitle = stringResource(R.string.auto_hint, profiles.autoServers.size),
+                        trailing = null,
+                        trailingColor = IykykColors.Muted,
+                        selected = profiles.isAuto,
+                        onClick = { onSelect(Profiles.AUTO) },
+                    )
                 }
+            }
+            itemsIndexed(profiles.servers) { index, item ->
+                // A live delay from auto mode wins over the last manual ping.
+                val delay = autoDelays[item.name]?.takeIf { it > 0 } ?: pings[item.link]
+                val (text, color) = when {
+                    delay == null -> null to IykykColors.Muted
+                    delay == -2 -> stringResource(R.string.ping_udp) to IykykColors.Muted
+                    delay < 0 -> stringResource(R.string.ping_failed) to IykykColors.Error
+                    delay < 150 -> stringResource(R.string.ping_ms, delay) to IykykColors.Accent
+                    delay < 400 -> stringResource(R.string.ping_ms, delay) to IykykColors.Warning
+                    else -> stringResource(R.string.ping_ms, delay) to IykykColors.Error
+                }
+                val excluded = profiles.autoServers.size > 1 && item !in profiles.autoServers
+                PickerRow(
+                    title = item.name,
+                    subtitle = protocolTitle(item.protocol) +
+                        if (excluded) " · " + stringResource(R.string.auto_excluded) else "",
+                    trailing = text,
+                    trailingColor = color,
+                    selected = !profiles.isAuto && index == profiles.selected,
+                    onClick = { onSelect(index) },
+                )
             }
         }
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun PickerRow(
+    title: String,
+    subtitle: String,
+    trailing: String?,
+    trailingColor: androidx.compose.ui.graphics.Color,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = if (selected) IykykColors.Accent else IykykColors.Text,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = subtitle,
+                color = IykykColors.Muted,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (trailing != null) {
+            Spacer(Modifier.size(12.dp))
+            Text(trailing, color = trailingColor, style = MaterialTheme.typography.bodySmall)
+        }
+        if (selected) {
+            Spacer(Modifier.size(12.dp))
+            Text("✓", color = IykykColors.Accent, fontSize = 18.sp)
+        }
     }
 }
 
@@ -441,10 +547,15 @@ private fun MainScreenPreview() {
             ),
             error = null,
             refreshing = false,
+            pings = emptyMap(),
+            pinging = false,
+            autoStatus = null,
             onToggle = {},
             onPasteLink = {},
             onRefresh = {},
             onSelectServer = {},
+            onPing = {},
+            onOpenSettings = {},
         )
     }
 }

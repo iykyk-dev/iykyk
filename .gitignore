@@ -27,3 +27,6 @@ keystore.properties
 core/build/
 *.aar
 *.xcframework/
+
+# Rule sets are downloaded at build time
+android/app/src/main/assets/rulesets/

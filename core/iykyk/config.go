@@ -29,6 +29,17 @@ type Profile struct {
 	sidecarPort int
 	sidecarUser string
 	sidecarPass string
+
+	// Auto mode: sing-box urltest over several servers, observed through the
+	// local Clash API. autoNames maps outbound tags to server names.
+	autoNames       map[string]string
+	clashController string
+	clashSecret     string
+}
+
+// IsAuto reports whether this profile picks the best of several servers itself.
+func (p *Profile) IsAuto() bool {
+	return p.clashController != ""
 }
 
 // Server-name resolution and plain DNS for direct traffic. Yandex DNS answers
@@ -50,8 +61,19 @@ func DescribeLink(link string) (*Profile, error) {
 	return &Profile{Name: s.Name, Protocol: s.Protocol, Address: s.address()}, nil
 }
 
-// BuildProfile parses a share link and builds the configs to run it.
+// BuildProfile parses a share link and builds the configs to run it with
+// default options.
 func BuildProfile(link string) (*Profile, error) {
+	return BuildProfileWithOptions(link, "")
+}
+
+// BuildProfileWithOptions is BuildProfile with app settings as JSON
+// (see the options struct), e.g. {"bypassRussia":true,"ruleSetDir":"/data/..."}.
+func BuildProfileWithOptions(link string, optionsJSON string) (*Profile, error) {
+	opts, err := parseOptions(optionsJSON)
+	if err != nil {
+		return nil, err
+	}
 	s, err := parseLink(link)
 	if err != nil {
 		return nil, err
@@ -114,7 +136,7 @@ func BuildProfile(link string) (*Profile, error) {
 		return nil, fmt.Errorf("%s: support is coming in the next update", s.Protocol)
 	}
 
-	if profile.SingBoxConfig, err = marshal(singBoxConfig(s, proxyOutbounds, proxyEndpoints)); err != nil {
+	if profile.SingBoxConfig, err = marshal(singBoxConfig([]*server{s}, proxyOutbounds, proxyEndpoints, opts)); err != nil {
 		return nil, err
 	}
 	return profile, nil
@@ -170,12 +192,30 @@ func (s *server) address() string {
 	return net.JoinHostPort(s.Host, strconv.Itoa(s.Port))
 }
 
-func singBoxConfig(s *server, proxyOutbounds, proxyEndpoints []any) jsonObject {
+func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts options) jsonObject {
 	outbounds := append(append([]any{}, proxyOutbounds...), jsonObject{"type": "direct", "tag": "direct"})
 	dnsRules := []any{}
-	if net.ParseIP(s.Host) == nil {
-		// The proxy server's own name must resolve directly, never through the tunnel.
-		dnsRules = append(dnsRules, jsonObject{"domain": []string{s.Host}, "server": "direct-dns"})
+	var serverNames []string
+	for _, s := range servers {
+		if net.ParseIP(s.Host) == nil {
+			serverNames = append(serverNames, s.Host)
+		}
+	}
+	if len(serverNames) > 0 {
+		// Proxy server names must resolve directly, never through the tunnel.
+		dnsRules = append(dnsRules, jsonObject{"domain": serverNames, "server": "direct-dns"})
+	}
+	routeRules := []any{
+		jsonObject{"action": "sniff"},
+		jsonObject{"protocol": "dns", "action": "hijack-dns"},
+		jsonObject{"ip_is_private": true, "outbound": "direct"},
+	}
+	var ruleSets []any
+	if opts.BypassRussia {
+		bypassDNS, bypassRoute, sets := russiaBypass(opts.RuleSetDir)
+		dnsRules = append(dnsRules, bypassDNS...)
+		routeRules = append(routeRules, bypassRoute...)
+		ruleSets = sets
 	}
 	config := jsonObject{
 		"log": jsonObject{"level": "info"},
@@ -199,11 +239,7 @@ func singBoxConfig(s *server, proxyOutbounds, proxyEndpoints []any) jsonObject {
 		}},
 		"outbounds": outbounds,
 		"route": jsonObject{
-			"rules": []any{
-				jsonObject{"action": "sniff"},
-				jsonObject{"protocol": "dns", "action": "hijack-dns"},
-				jsonObject{"ip_is_private": true, "outbound": "direct"},
-			},
+			"rules":                   routeRules,
 			"final":                   "proxy",
 			"auto_detect_interface":   true,
 			"default_domain_resolver": "direct-dns",
@@ -211,6 +247,15 @@ func singBoxConfig(s *server, proxyOutbounds, proxyEndpoints []any) jsonObject {
 	}
 	if len(proxyEndpoints) > 0 {
 		config["endpoints"] = proxyEndpoints
+	}
+	if len(ruleSets) > 0 {
+		config["route"].(jsonObject)["rule_set"] = ruleSets
+	}
+	if opts.clashController != "" {
+		config["experimental"] = jsonObject{"clash_api": jsonObject{
+			"external_controller": opts.clashController,
+			"secret":              opts.clashSecret,
+		}}
 	}
 	return config
 }

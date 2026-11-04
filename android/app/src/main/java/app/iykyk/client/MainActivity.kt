@@ -8,19 +8,40 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.ProfileStore
+import app.iykyk.client.core.SettingsStore
+import app.iykyk.client.ui.AppPickerScreen
+import app.iykyk.client.ui.AutoStatus
 import app.iykyk.client.ui.IykykTheme
 import app.iykyk.client.ui.MainScreen
+import app.iykyk.client.ui.SettingsScreen
 import app.iykyk.client.vpn.IykykVpnService
 import app.iykyk.client.vpn.VpnState
+import app.iykyk.client.vpn.VpnStatus
+import app.iykyk.core.iykyk.Iykyk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+
+private enum class Screen { MAIN, SETTINGS, APPS }
 
 class MainActivity : ComponentActivity() {
 
@@ -33,26 +54,74 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     private val refreshing = MutableStateFlow(false)
+    private val pinging = MutableStateFlow(false)
+    private val pings = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val autoStatus = MutableStateFlow<AutoStatus?>(null)
+    private val versions by lazy { runCatching { Iykyk.versions() }.getOrDefault("") }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         askNotificationPermission()
+        watchAutoStatus()
 
         setContent {
             IykykTheme {
-                MainScreen(
-                    status = VpnState.status.collectAsStateWithLifecycle().value,
-                    profiles = ProfileStore.profiles.collectAsStateWithLifecycle().value,
-                    error = VpnState.error.collectAsStateWithLifecycle().value,
-                    refreshing = refreshing.collectAsStateWithLifecycle().value,
-                    onToggle = ::toggleVpn,
-                    onPasteLink = ::pasteLink,
-                    onRefresh = ::refreshSubscription,
-                    onSelectServer = ::selectServer,
-                )
+                var screen by rememberSaveable { mutableStateOf(Screen.MAIN) }
+                BackHandler(enabled = screen != Screen.MAIN) {
+                    screen = if (screen == Screen.APPS) Screen.SETTINGS else Screen.MAIN
+                }
+                val settings = SettingsStore.settings.collectAsStateWithLifecycle().value
+                when (screen) {
+                    Screen.MAIN -> MainScreen(
+                        status = VpnState.status.collectAsStateWithLifecycle().value,
+                        profiles = ProfileStore.profiles.collectAsStateWithLifecycle().value,
+                        error = VpnState.error.collectAsStateWithLifecycle().value,
+                        refreshing = refreshing.collectAsStateWithLifecycle().value,
+                        pings = pings.collectAsStateWithLifecycle().value,
+                        pinging = pinging.collectAsStateWithLifecycle().value,
+                        autoStatus = autoStatus.collectAsStateWithLifecycle().value,
+                        onToggle = ::toggleVpn,
+                        onPasteLink = ::pasteLink,
+                        onRefresh = ::refreshSubscription,
+                        onSelectServer = ::selectServer,
+                        onPing = ::pingServers,
+                        onOpenSettings = { screen = Screen.SETTINGS },
+                    )
+                    Screen.SETTINGS -> SettingsScreen(
+                        settings = settings,
+                        versions = versions,
+                        onBack = { screen = Screen.MAIN },
+                        onBypassChange = { value -> changeSettings { it.copy(bypassRussia = value) } },
+                        onAppModeChange = { mode -> changeSettings { it.copy(appMode = mode) } },
+                        onChooseApps = { screen = Screen.APPS },
+                    )
+                    Screen.APPS -> AppPickerScreen(
+                        selected = settings.apps,
+                        onBack = {
+                            screen = Screen.SETTINGS
+                            // Apply the new app list once, when leaving the picker.
+                            if (settings.appMode != AppMode.ALL) IykykVpnService.reconnect(this)
+                        },
+                        onToggle = { pkg ->
+                            SettingsStore.update(this) {
+                                it.copy(apps = if (pkg in it.apps) it.apps - pkg else it.apps + pkg)
+                            }
+                        },
+                    )
+                }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        lifecycleScope.launch { ProfileStore.refreshIfStale(this@MainActivity) }
+    }
+
+    private fun changeSettings(transform: (app.iykyk.client.core.AppSettings) -> app.iykyk.client.core.AppSettings) {
+        SettingsStore.update(this, transform)
+        IykykVpnService.reconnect(this)
     }
 
     private fun toggleVpn() {
@@ -86,6 +155,7 @@ class MainActivity : ComponentActivity() {
             try {
                 val description = ProfileStore.import(this@MainActivity, text)
                 toast(getString(R.string.link_saved, description))
+                pings.value = emptyMap()
                 IykykVpnService.reconnect(this@MainActivity)
             } catch (e: Exception) {
                 toast(getString(R.string.link_invalid, e.message ?: e.javaClass.simpleName))
@@ -113,6 +183,53 @@ class MainActivity : ComponentActivity() {
         ProfileStore.select(this, index)
         if (index != previous) IykykVpnService.reconnect(this)
     }
+
+    private fun pingServers() {
+        if (pinging.value) return
+        val servers = ProfileStore.profiles.value.servers
+        if (servers.isEmpty()) return
+        pinging.value = true
+        lifecycleScope.launch {
+            try {
+                val links = servers.map { it.link }
+                val json = withContext(Dispatchers.IO) { Iykyk.pingServers(JSONArray(links).toString()) }
+                val results = JSONArray(json)
+                pings.value = links.indices.associate { links[it] to results.optInt(it, -1) }
+            } catch (_: Exception) {
+            } finally {
+                pinging.value = false
+            }
+        }
+    }
+
+    /** Polls the core for auto mode's current server while the screen is visible. */
+    private fun watchAutoStatus() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    autoStatus.value = if (
+                        VpnState.status.value == VpnStatus.CONNECTED && ProfileStore.profiles.value.isAuto
+                    ) {
+                        withContext(Dispatchers.IO) { readAutoStatus() }
+                    } else {
+                        null
+                    }
+                    delay(5_000)
+                }
+            }
+        }
+    }
+
+    private fun readAutoStatus(): AutoStatus? = runCatching {
+        val text = Iykyk.autoStatus()
+        if (text.isEmpty()) return null
+        val root = JSONObject(text)
+        val delays = root.optJSONObject("delays")
+        AutoStatus(
+            now = root.optString("now"),
+            delays = delays?.keys()?.asSequence()?.associateWith { delays.optInt(it) }.orEmpty(),
+        )
+    }.getOrNull()
 
     private fun toast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()

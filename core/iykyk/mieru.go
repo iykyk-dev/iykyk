@@ -14,18 +14,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// protectedDialer dials with sockets excluded from the VPN.
-func protectedDialer() *net.Dialer {
-	return &net.Dialer{Control: protectSocket}
-}
-
-type protectedPacketDialer struct{}
-
-func (protectedPacketDialer) ListenPacket(ctx context.Context, network, laddr, _ string) (net.PacketConn, error) {
-	lc := net.ListenConfig{Control: protectSocket}
-	return lc.ListenPacket(ctx, network, laddr)
-}
-
 type mieruEngine struct {
 	client mieruclient.Client
 	socks  *socksServer

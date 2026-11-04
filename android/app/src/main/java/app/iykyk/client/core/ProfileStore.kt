@@ -32,14 +32,30 @@ data class SubscriptionInfo(
     val supportUrl: String,
     val announce: String,
     val updatedAt: Long,
+    val updateHours: Int = 0,
 )
 
 data class Profiles(
     val subscription: SubscriptionInfo? = null,
     val servers: List<ServerInfo> = emptyList(),
+    /** Index of the chosen server, or [AUTO]. */
     val selected: Int = 0,
 ) {
-    val current: ServerInfo? get() = servers.getOrNull(selected) ?: servers.firstOrNull()
+    /** Auto mode: the core tests the servers and uses the best working one. */
+    val isAuto: Boolean get() = selected == AUTO && autoServers.size > 1
+
+    /** Servers auto mode can use (Mieru and AmneziaWG run one at a time). */
+    val autoServers: List<ServerInfo> get() = servers.filter { it.protocol !in SINGLE_ONLY }
+
+    val current: ServerInfo?
+        get() = if (isAuto) null else servers.getOrNull(selected) ?: servers.firstOrNull()
+
+    val hasServers: Boolean get() = servers.isNotEmpty()
+
+    companion object {
+        const val AUTO = -1
+        private val SINGLE_ONLY = setOf("mieru", "amneziawg")
+    }
 }
 
 /**
@@ -76,10 +92,10 @@ object ProfileStore {
         }
     }
 
-    /** Link of the selected server, used by the VPN service. */
-    fun currentLink(context: Context): String? {
+    /** Current state for the VPN service (loads from storage if the app process is fresh). */
+    fun snapshot(context: Context): Profiles {
         if (_profiles.value.servers.isEmpty()) load(context)
-        return _profiles.value.current?.link
+        return _profiles.value
     }
 
     /**
@@ -125,9 +141,10 @@ object ProfileStore {
         downloadSubscription(context, url)
     }
 
+    /** Selects a server by index, or auto mode with [Profiles.AUTO]. */
     fun select(context: Context, index: Int) {
         val current = _profiles.value
-        if (index !in current.servers.indices) return
+        if (index != Profiles.AUTO && index !in current.servers.indices) return
         prefs(context).edit().putInt(KEY_SELECTED, index).apply()
         _profiles.value = current.copy(selected = index)
     }
@@ -140,14 +157,34 @@ object ProfileStore {
             model = "${Build.MANUFACTURER} ${Build.MODEL}"
         }
         val json = Iykyk.fetchSubscription(url, userAgent(context), device)
-        val previousName = _profiles.value.current?.name
+        val previous = _profiles.value
         val now = System.currentTimeMillis()
         var profiles = parse(url, json, now)
-        val keep = profiles.servers.indexOfFirst { it.name == previousName }
-        profiles = profiles.copy(selected = if (keep >= 0) keep else 0)
+        val keep = profiles.servers.indexOfFirst { it.name == previous.current?.name }
+        profiles = profiles.copy(
+            selected = when {
+                previous.selected == Profiles.AUTO -> Profiles.AUTO
+                keep >= 0 -> keep
+                // New subscriptions start in auto mode when there is a choice.
+                previous.servers.isEmpty() && profiles.copy(selected = Profiles.AUTO).isAuto -> Profiles.AUTO
+                else -> 0
+            },
+        )
         saveSubscription(context, url, json, profiles.selected, now)
         _profiles.value = profiles
         return profiles
+    }
+
+    /**
+     * Refreshes the subscription in the background when it is older than the panel's
+     * update interval (Profile-Update-Interval), or 12 hours by default.
+     */
+    suspend fun refreshIfStale(context: Context): Boolean {
+        val sub = _profiles.value.subscription ?: return false
+        if (sub.url.isEmpty()) return false
+        val hours = sub.updateHours.takeIf { it > 0 } ?: 12
+        if (System.currentTimeMillis() - sub.updatedAt < hours * 3_600_000L) return false
+        return runCatching { refresh(context) }.isSuccess
     }
 
     private fun saveSubscription(
@@ -188,6 +225,7 @@ object ProfileStore {
             supportUrl = root.optString("supportUrl"),
             announce = root.optString("announce"),
             updatedAt = updatedAt,
+            updateHours = root.optInt("updateHours"),
         )
         return Profiles(subscription = subscription.takeIf { url.isNotEmpty() }, servers = servers)
     }
