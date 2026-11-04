@@ -80,6 +80,7 @@ import app.iykyk.client.core.ServerInfo
 import app.iykyk.client.core.SubscriptionInfo
 import app.iykyk.client.core.daysLeft
 import app.iykyk.client.tv.TvShare
+import app.iykyk.client.vpn.TunnelState
 import app.iykyk.client.vpn.VpnStatus
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
@@ -98,6 +99,7 @@ fun MainScreen(
     sortByPing: Boolean,
     canBuy: Boolean,
     clipboardLink: String?,
+    tunnel: TunnelState?,
     onToggle: () -> Unit,
     onPasteLink: () -> Unit,
     onRefresh: () -> Unit,
@@ -110,6 +112,8 @@ fun MainScreen(
     onOpenUrl: (String) -> Unit,
     onImportText: (String) -> Unit,
     onClipboardDismiss: () -> Unit,
+    onCheck: () -> Unit,
+    onSendReport: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var showLinkInput by remember { mutableStateOf(false) }
@@ -136,6 +140,9 @@ fun MainScreen(
                             status = status,
                             profiles = profiles,
                             error = error,
+                            tunnel = tunnel,
+                            onCheck = onCheck,
+                            onSendReport = onSendReport,
                             expanded = expanded,
                             onExpandChange = { expanded = it },
                             refreshing = refreshing,
@@ -163,6 +170,7 @@ fun MainScreen(
                             onOpenBot = onOpenBot,
                             onOpenUrl = onOpenUrl,
                             onSendToTv = onSendToTv,
+                            onSendReport = onSendReport,
                             onOpenSettings = onOpenSettings,
                         )
                     }
@@ -250,6 +258,9 @@ private fun ConnectionTab(
     status: VpnStatus,
     profiles: Profiles,
     error: String?,
+    tunnel: TunnelState?,
+    onCheck: () -> Unit,
+    onSendReport: () -> Unit,
     expanded: Boolean,
     onExpandChange: (Boolean) -> Unit,
     refreshing: Boolean,
@@ -287,14 +298,24 @@ private fun ConnectionTab(
         ConnectButton(status = status, enabled = profiles.hasServers, onClick = onToggle)
         Spacer(Modifier.height(16.dp))
         StatusLabel(status)
-        if (error != null && status == VpnStatus.DISCONNECTED) {
+        if (status == VpnStatus.CONNECTED && tunnel != null) {
+            Spacer(Modifier.height(6.dp))
+            TunnelLine(tunnel, onCheck)
+        }
+        val failed = error != null && status == VpnStatus.DISCONNECTED
+        if (failed) {
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(R.string.error_prefix, error),
+                text = stringResource(R.string.error_prefix, error ?: ""),
                 color = IykykColors.Error,
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
             )
+        }
+        if (failed || (status == VpnStatus.CONNECTED && tunnel == TunnelState.Failed)) {
+            TextButton(onClick = onSendReport) {
+                Text(stringResource(R.string.action_send_report), color = IykykColors.Accent)
+            }
         }
         Spacer(Modifier.height(28.dp))
         SubscriptionCard(
@@ -477,6 +498,42 @@ private fun HeaderAction(icon: Int, description: Int, busy: Boolean, onClick: ()
     }
 }
 
+/** Under the status: exit country, IP and delay, or what is wrong. Tap to re-check. */
+@Composable
+private fun TunnelLine(tunnel: TunnelState, onCheck: () -> Unit) {
+    val (text, color) = when (tunnel) {
+        TunnelState.Checking -> stringResource(R.string.tunnel_checking) to IykykColors.Muted
+        is TunnelState.Ok -> stringResource(
+            R.string.tunnel_ok,
+            countryLabel(tunnel.country),
+            tunnel.ip,
+            tunnel.latency,
+        ) to IykykColors.Muted
+        TunnelState.NoInternet -> stringResource(R.string.tunnel_no_internet) to IykykColors.Warning
+        TunnelState.Reconnecting -> stringResource(R.string.tunnel_reconnecting) to IykykColors.Warning
+        TunnelState.Failed -> stringResource(R.string.tunnel_failed) to IykykColors.Error
+    }
+    Text(
+        text = text,
+        color = color,
+        style = MaterialTheme.typography.bodySmall,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onCheck)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+    )
+}
+
+/** "NL" → "🇳🇱 Нидерланды". */
+private fun countryLabel(code: String): String {
+    if (code.length != 2 || !code.all { it.isLetter() }) return code
+    val upper = code.uppercase(Locale.ROOT)
+    val flag = String(Character.toChars(0x1F1E6 + (upper[0] - 'A'))) + String(Character.toChars(0x1F1E6 + (upper[1] - 'A')))
+    val name = Locale("", upper).getDisplayCountry(Locale.forLanguageTag("ru")).ifBlank { upper }
+    return "$flag $name"
+}
+
 /** The traffic bar and expiry date under the card header. */
 @Composable
 private fun TrafficSummary(sub: SubscriptionInfo) {
@@ -549,6 +606,7 @@ private fun SubscriptionTab(
     onOpenBot: () -> Unit,
     onOpenUrl: (String) -> Unit,
     onSendToTv: () -> Unit,
+    onSendReport: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val sub = profiles.subscription
@@ -628,6 +686,7 @@ private fun SubscriptionTab(
                     ActionRow(null, stringResource(R.string.action_website)) { onOpenUrl(sub.webPageUrl) }
                 }
                 ActionRow(R.drawable.ic_tv, stringResource(R.string.menu_send_tv), onClick = onSendToTv)
+                ActionRow(null, stringResource(R.string.action_send_report), onClick = onSendReport)
             }
         }
 
@@ -1115,6 +1174,7 @@ private fun MainScreenPreview() {
             sortByPing = false,
             canBuy = true,
             clipboardLink = null,
+            tunnel = TunnelState.Ok("5.6.7.8", "NL", 120),
             onToggle = {},
             onPasteLink = {},
             onRefresh = {},
@@ -1127,6 +1187,8 @@ private fun MainScreenPreview() {
             onOpenUrl = {},
             onImportText = {},
             onClipboardDismiss = {},
+            onCheck = {},
+            onSendReport = {},
             onOpenSettings = {},
         )
     }

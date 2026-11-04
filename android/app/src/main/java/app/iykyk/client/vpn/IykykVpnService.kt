@@ -4,8 +4,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.net.Network
 import android.net.VpnService
@@ -20,6 +22,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import app.iykyk.client.MainActivity
 import app.iykyk.client.R
+import app.iykyk.client.core.AppLog
 import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.Core
 import app.iykyk.client.core.NetworkMonitor
@@ -39,7 +42,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Locale
 
 /**
@@ -56,6 +62,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         const val ACTION_CONNECT = "app.iykyk.client.action.CONNECT"
         const val ACTION_DISCONNECT = "app.iykyk.client.action.DISCONNECT"
         const val ACTION_RECONNECT = "app.iykyk.client.action.RECONNECT"
+        const val ACTION_CHECK = "app.iykyk.client.action.CHECK"
 
         private const val TAG = "IykykVpn"
         private const val CHANNEL_ID = "vpn_status"
@@ -69,6 +76,14 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         fun stop(context: Context) {
             val intent = Intent(context, IykykVpnService::class.java).setAction(ACTION_DISCONNECT)
             context.startService(intent)
+        }
+
+        /** Re-checks the tunnel (the app came to the foreground or the user tapped the status). */
+        fun check(context: Context) {
+            if (VpnState.status.value != VpnStatus.CONNECTED) return
+            runCatching {
+                context.startService(Intent(context, IykykVpnService::class.java).setAction(ACTION_CHECK))
+            }
         }
 
         /** Restarts the tunnel with the currently selected server, if it is running. */
@@ -90,6 +105,20 @@ class IykykVpnService : VpnService(), CommandServerHandler {
     private var serverName: String? = null
     private var statsJob: Job? = null
 
+    // Tunnel checks and automatic reconnects (see check()).
+    private val healthScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val checkMutex = Mutex()
+    private var healthJob: Job? = null
+    private var networkCheckJob: Job? = null
+    private var checkPort = 0L
+    private var checkUser = ""
+    private var checkPass = ""
+    private var lastNetwork: Network? = null
+    private var networkSeen = false
+    private var failedReconnects = 0
+    private var lastReconnectAt = 0L
+    private var screenReceiver: BroadcastReceiver? = null
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_DISCONNECT -> {
@@ -97,6 +126,10 @@ class IykykVpnService : VpnService(), CommandServerHandler {
                 return START_NOT_STICKY
             }
             ACTION_RECONNECT -> reconnect()
+            ACTION_CHECK -> {
+                healthScope.launch { check("app") }
+                return START_STICKY
+            }
             // ACTION_CONNECT, or a start by the system for Always-on VPN (no action).
             else -> connect()
         }
@@ -105,6 +138,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
 
     private fun connect() {
         if (VpnState.status.value.isActive && commandServer != null) return
+        failedReconnects = 0
         VpnState.set(VpnStatus.CONNECTING)
         ServiceCompat.startForeground(
             this,
@@ -131,10 +165,13 @@ class IykykVpnService : VpnService(), CommandServerHandler {
             try {
                 startCore()
                 VpnState.set(VpnStatus.CONNECTED)
+                AppLog.i("connected")
                 updateNotification(serverName ?: getString(R.string.notification_connected))
                 startTrafficStats()
+                startHealth()
             } catch (e: Exception) {
                 Log.e(TAG, "failed to connect", e)
+                AppLog.i("connect failed: ${e.message ?: e.javaClass.simpleName}")
                 VpnState.fail(e.message ?: e.javaClass.simpleName)
                 stopCore()
                 withContext(Dispatchers.Main) { finish() }
@@ -149,6 +186,11 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         val link = profiles.current?.link ?: error(getString(R.string.error_no_server))
         val profile = Iykyk.buildProfileWithOptions(link, options)
         serverName = profile.name
+        checkPort = profile.checkPort
+        checkUser = profile.checkUser
+        checkPass = profile.checkPass
+        AppLog.resetCoreLogs(this)
+        AppLog.i("connecting: ${profile.name} | ${profile.details} | ${profile.address}")
 
         Iykyk.setSocketProtector { fd -> protect(fd) }
         Iykyk.startEngines(profile)
@@ -202,6 +244,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
             while (isActive) {
                 delay(2_000)
                 if (!power.isInteractive) continue
+                if (VpnState.tunnel.value == TunnelState.Failed) continue
                 val rx = TrafficStats.getUidRxBytes(uid)
                 val tx = TrafficStats.getUidTxBytes(uid)
                 val now = SystemClock.elapsedRealtime()
@@ -232,6 +275,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
     }
 
     private fun stopCore() {
+        stopHealth()
         statsJob?.cancel()
         statsJob = null
         commandServer?.let { server ->
@@ -253,6 +297,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
             return
         }
         VpnState.set(VpnStatus.DISCONNECTING)
+        AppLog.i("disconnect")
         scope.launch {
             stopCore()
             withContext(Dispatchers.Main) { finish() }
@@ -274,6 +319,132 @@ class IykykVpnService : VpnService(), CommandServerHandler {
     private fun onUnderlyingNetwork(network: Network?) {
         // Lets Android attribute traffic and metering to the real network.
         setUnderlyingNetworks(network?.let { arrayOf(it) })
+        if (network == lastNetwork) return
+        val first = !networkSeen
+        networkSeen = true
+        lastNetwork = network
+        if (network == null) {
+            AppLog.i("network lost")
+            return
+        }
+        if (first || VpnState.status.value != VpnStatus.CONNECTED) return
+        AppLog.i("network changed")
+        // Wi-Fi <-> mobile: give sing-box a moment to rebuild connections, then check.
+        networkCheckJob?.cancel()
+        networkCheckJob = healthScope.launch {
+            delay(3_000)
+            check("network")
+        }
+    }
+
+    // --- Tunnel checks and automatic reconnect ----------------------------------------------
+
+    /**
+     * Checks after connecting, when the network changes, when the screen turns on,
+     * when the app opens, and every few minutes while the screen is on. Nothing
+     * runs with the screen off, so the checks cost practically no battery.
+     */
+    private fun startHealth() {
+        healthJob?.cancel()
+        val power = getSystemService(PowerManager::class.java)
+        healthJob = healthScope.launch {
+            delay(1_500)
+            check("connect")
+            while (isActive) {
+                delay(3 * 60_000L)
+                if (power.isInteractive) check("periodic")
+            }
+        }
+        if (screenReceiver == null) {
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    healthScope.launch { check("screen") }
+                }
+            }
+            registerReceiver(receiver, IntentFilter(Intent.ACTION_SCREEN_ON))
+            screenReceiver = receiver
+        }
+    }
+
+    private fun stopHealth() {
+        healthJob?.cancel()
+        healthJob = null
+        networkCheckJob?.cancel()
+        networkCheckJob = null
+        lastNetwork = null
+        networkSeen = false
+        screenReceiver?.let { runCatching { unregisterReceiver(it) } }
+        screenReceiver = null
+    }
+
+    /**
+     * A real HTTPS request through the tunnel (sing-box's local check inbound).
+     * Three failures in a row while the internet itself works mean the tunnel is
+     * dead: reconnect, at most 3 times in a row and not more often than every 20 s,
+     * then wait for the next trigger (network change, screen on, app opened).
+     */
+    private suspend fun check(reason: String) {
+        if (!checkMutex.tryLock()) return
+        try {
+            if (VpnState.status.value != VpnStatus.CONNECTED || checkPort == 0L) return
+            AppLog.trimCoreLogs(this)
+            if (VpnState.tunnel.value !is TunnelState.Ok) VpnState.setTunnel(TunnelState.Checking)
+            for (attempt in 1..3) {
+                val result = runCatching { Iykyk.checkTunnel(checkPort, checkUser, checkPass) }
+                val info = result.getOrNull()
+                if (info != null) {
+                    if (VpnState.status.value != VpnStatus.CONNECTED) return
+                    VpnState.setTunnel(TunnelState.Ok(info.ip, info.country, info.latency.toInt()))
+                    if (failedReconnects > 0 || reason != "periodic") {
+                        AppLog.i("check ok ($reason): ${info.country}, ${info.latency} ms")
+                    }
+                    failedReconnects = 0
+                    return
+                }
+                AppLog.i("check failed ($reason, $attempt/3): ${result.exceptionOrNull()?.message}")
+                if (attempt < 3) delay(3_000)
+            }
+            if (VpnState.status.value != VpnStatus.CONNECTED) return
+            if (!directInternet()) {
+                AppLog.i("no internet without VPN either")
+                VpnState.setTunnel(TunnelState.NoInternet)
+                return
+            }
+            val now = SystemClock.elapsedRealtime()
+            val tooSoon = now - lastReconnectAt < 20_000
+            val gaveUp = failedReconnects >= 3 && now - lastReconnectAt < 5 * 60_000L
+            if (tooSoon || gaveUp) {
+                VpnState.setTunnel(TunnelState.Failed)
+                updateNotification(getString(R.string.tunnel_failed), serverName)
+                return
+            }
+            failedReconnects++
+            lastReconnectAt = now
+            AppLog.i("tunnel is dead, reconnecting ($failedReconnects/3)")
+            VpnState.setTunnel(TunnelState.Reconnecting)
+            withContext(Dispatchers.Main) { reconnect() }
+        } finally {
+            checkMutex.unlock()
+        }
+    }
+
+    /** Whether the internet works outside the tunnel (IYKYK itself is not tunnelled). */
+    private fun directInternet(): Boolean {
+        val network = networkMonitor?.network ?: return false
+        return listOf("https://connectivitycheck.gstatic.com/generate_204", "https://ya.ru").any { url ->
+            runCatching {
+                val connection = network.openConnection(URL(url)) as HttpURLConnection
+                connection.connectTimeout = 5_000
+                connection.readTimeout = 5_000
+                connection.instanceFollowRedirects = false
+                connection.requestMethod = "HEAD"
+                try {
+                    connection.responseCode in 200..399
+                } finally {
+                    connection.disconnect()
+                }
+            }.getOrDefault(false)
+        }
     }
 
     override fun onRevoke() {
@@ -283,6 +454,8 @@ class IykykVpnService : VpnService(), CommandServerHandler {
 
     override fun onDestroy() {
         statsJob?.cancel()
+        stopHealth()
+        healthScope.cancel()
         if (commandServer != null) stopCore()
         scope.cancel()
         VpnState.set(VpnStatus.DISCONNECTED)

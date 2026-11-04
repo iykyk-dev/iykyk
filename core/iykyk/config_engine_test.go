@@ -200,3 +200,27 @@ func TestRoutingAndDNSAcceptedBySingBox(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckTunnel runs the tunnel check through a local SOCKS5 proxy that
+// reaches the internet directly, standing in for sing-box's check inbound.
+func TestCheckTunnel(t *testing.T) {
+	port, _ := freeLoopbackPort()
+	srv, err := listenSocks(port, "u", "p", func(ctx context.Context, network, address string) (net.Conn, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, network, address)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	info, err := CheckTunnel(port, "u", "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if net.ParseIP(info.IP) == nil || len(info.Country) != 2 || info.Latency <= 0 {
+		t.Fatalf("%+v", info)
+	}
+	if _, err := CheckTunnel(port, "u", "wrong"); err == nil {
+		t.Fatal("wrong credentials must fail")
+	}
+}

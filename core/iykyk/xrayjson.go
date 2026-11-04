@@ -144,7 +144,7 @@ func xrayOutboundHosts(outbounds []any) []hostPort {
 // inbound's tag, so routing rules that refer to it still match), and listeners
 // IYKYK does not need (API, metrics) are removed. With fragment, TLS/REALITY
 // outbounds split their ClientHello.
-func xrayConfigFromJSON(raw string, port int, user, pass string, fragment bool) (string, error) {
+func xrayConfigFromJSON(raw string, port int, user, pass string, fragment bool, logFile string) (string, error) {
 	var config map[string]any
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.UseNumber()
@@ -175,7 +175,7 @@ func xrayConfigFromJSON(raw string, port int, user, pass string, fragment bool) 
 	delete(config, "api")
 	delete(config, "metrics")
 	delete(config, "remarks")
-	config["log"] = jsonObject{"loglevel": "warning"}
+	config["log"] = xrayLog(logFile)
 	if outbounds, ok := config["outbounds"].([]any); ok {
 		for _, o := range outbounds {
 			stripSocketMark(o)

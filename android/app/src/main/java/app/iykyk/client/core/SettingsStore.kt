@@ -101,6 +101,7 @@ object SettingsStore {
         .put("remoteDNS", _settings.value.remoteDns)
         .put("directDNS", _settings.value.directDns)
         .put("preferXray", _settings.value.preferXray)
+        .put("logDir", AppLog.dir(context).absolutePath)
         .apply {
             // The provider's routing from the subscription (Iykyk-Routing header).
             ProfileStore.profiles.value.subscription?.routing

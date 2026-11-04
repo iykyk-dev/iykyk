@@ -18,6 +18,12 @@ type Profile struct {
 	Protocol string
 	Details  string // e.g. "VLESS · gRPC · REALITY"
 	Address  string // host:port shown in the UI
+
+	// A local SOCKS5/HTTP inbound into the tunnel for CheckTunnel: IYKYK itself
+	// is excluded from its VPN, so this is how it tests the tunnel.
+	CheckPort int
+	CheckUser string
+	CheckPass string
 	// UsesXray is true when XrayConfig must be started before SingBoxConfig.
 	UsesXray      bool
 	SingBoxConfig string
@@ -69,6 +75,11 @@ func BuildProfileWithOptions(link string, optionsJSON string) (*Profile, error) 
 		return nil, err
 	}
 	profile := &Profile{Name: s.Name, Protocol: s.Protocol, Details: s.details(), Address: s.address()}
+	if opts.checkPort, err = freeLoopbackPort(); err != nil {
+		return nil, err
+	}
+	opts.checkUser, opts.checkPass = randomToken(), randomToken()
+	profile.CheckPort, profile.CheckUser, profile.CheckPass = opts.checkPort, opts.checkUser, opts.checkPass
 
 	// The proxy is either an outbound or (WireGuard) an endpoint tagged "proxy".
 	var proxyOutbounds, proxyEndpoints []any
@@ -82,7 +93,7 @@ func BuildProfileWithOptions(link string, optionsJSON string) (*Profile, error) 
 		profile.UsesXray = true
 		if s.Protocol == "xray-json" || s.Protocol == "xray-balancer" {
 			// A full Xray config from the subscription, run as is.
-			if profile.XrayConfig, err = xrayConfigFromJSON(s.Raw, port, user, pass, opts.Fragment); err != nil {
+			if profile.XrayConfig, err = xrayConfigFromJSON(s.Raw, port, user, pass, opts.Fragment, opts.logFile("xray.log")); err != nil {
 				return nil, err
 			}
 			proxyOutbounds = []any{loopbackSocks(port, user, pass)}
@@ -93,7 +104,7 @@ func BuildProfileWithOptions(link string, optionsJSON string) (*Profile, error) 
 			return nil, err
 		}
 		xrayConfig := jsonObject{
-			"log": jsonObject{"loglevel": "warning"},
+			"log": xrayLog(opts.logFile("xray.log")),
 			"inbounds": []any{jsonObject{
 				"tag":      "socks-in",
 				"listen":   "127.0.0.1",
@@ -226,8 +237,30 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 	} else if providerSets && opts.RuleSetDir != "" {
 		_, _, ruleSets = russiaBypass(opts.RuleSetDir) // only the rule-set definitions
 	}
+	log := jsonObject{"level": "info"}
+	if file := opts.logFile("singbox.log"); file != "" {
+		log = jsonObject{"level": "warn", "output": file, "timestamp": true}
+	}
+	inbounds := []any{jsonObject{
+		"type":         "tun",
+		"tag":          "tun-in",
+		"address":      []string{"172.19.0.1/30", "fdfe:dcba:9876::1/126"},
+		"mtu":          9000,
+		"auto_route":   true,
+		"strict_route": true,
+		"stack":        "mixed",
+	}}
+	if opts.checkPort > 0 {
+		inbounds = append(inbounds, jsonObject{
+			"type":        "mixed",
+			"tag":         "check-in",
+			"listen":      "127.0.0.1",
+			"listen_port": opts.checkPort,
+			"users":       []any{jsonObject{"username": opts.checkUser, "password": opts.checkPass}},
+		})
+	}
 	config := jsonObject{
-		"log": jsonObject{"level": "info"},
+		"log": log,
 		"dns": jsonObject{
 			"servers": []any{
 				opts.remoteDNSServer(),
@@ -237,15 +270,7 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 			"final":    "remote-dns",
 			"strategy": "ipv4_only",
 		},
-		"inbounds": []any{jsonObject{
-			"type":         "tun",
-			"tag":          "tun-in",
-			"address":      []string{"172.19.0.1/30", "fdfe:dcba:9876::1/126"},
-			"mtu":          9000,
-			"auto_route":   true,
-			"strict_route": true,
-			"stack":        "mixed",
-		}},
+		"inbounds":  inbounds,
 		"outbounds": outbounds,
 		"route": jsonObject{
 			"rules":                   routeRules,

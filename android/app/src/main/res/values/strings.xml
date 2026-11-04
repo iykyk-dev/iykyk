@@ -176,4 +176,12 @@
     <string name="clipboard_found_text">В буфере обмена есть ссылка:\n%1$s</string>
     <string name="prefer_xray_title">Совместимость: всё через Xray</string>
     <string name="prefer_xray_subtitle">Включайте, только если сервер перестал подключаться после обновления. Расходует больше батареи</string>
+
+    <string name="tunnel_checking">Проверяю соединение…</string>
+    <string name="tunnel_ok">%1$s · %2$s · %3$d мс</string>
+    <string name="tunnel_no_internet">Нет интернета. VPN заработает, когда сеть появится</string>
+    <string name="tunnel_reconnecting">Нет связи с сервером, переподключаюсь…</string>
+    <string name="tunnel_failed">Сервер не отвечает. Попробуйте другой сервер</string>
+    <string name="action_send_report">Отправить отчёт в поддержку</string>
+    <string name="report_message">Отчёт IYKYK для поддержки «Для своих»</string>
 </resources>

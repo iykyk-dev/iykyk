@@ -121,7 +121,7 @@ func xrayTestDialer(s *server, opts options) (dialFunc, func(), error) {
 	user, pass := randomToken(), randomToken()
 	var configJSON string
 	if s.Protocol == "xray-json" || s.Protocol == "xray-balancer" {
-		configJSON, err = xrayConfigFromJSON(s.Raw, port, user, pass, opts.Fragment)
+		configJSON, err = xrayConfigFromJSON(s.Raw, port, user, pass, opts.Fragment, "")
 	} else {
 		var out jsonObject
 		if out, err = xrayOutbound(s, opts); err == nil {

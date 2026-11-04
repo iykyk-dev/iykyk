@@ -29,7 +29,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.ProfileStore
+import app.iykyk.client.core.AppLog
 import app.iykyk.client.core.Purchase
+import app.iykyk.client.core.Report
 import app.iykyk.client.core.SettingsStore
 import app.iykyk.client.core.ThemeMode
 import app.iykyk.client.tv.TvShare
@@ -111,6 +113,7 @@ class MainActivity : ComponentActivity() {
                         sortByPing = settings.sortByPing,
                         canBuy = canBuy,
                         clipboardLink = clipboardLink.collectAsStateWithLifecycle().value,
+                        tunnel = VpnState.tunnel.collectAsStateWithLifecycle().value,
                         onToggle = ::toggleVpn,
                         onPasteLink = ::pasteLink,
                         onRefresh = ::refreshSubscription,
@@ -120,6 +123,8 @@ class MainActivity : ComponentActivity() {
                         onSendToTv = ::scanTvCode,
                         onOpenBot = ::openBot,
                         onClipboardDismiss = { clipboardLink.value = null },
+                        onCheck = { IykykVpnService.check(this) },
+                        onSendReport = ::sendReport,
                         onOpenUrl = ::openUrl,
                         onImportText = ::importText,
                         onSortChange = { value -> SettingsStore.update(this) { it.copy(sortByPing = value) } },
@@ -164,6 +169,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        IykykVpnService.check(this)
         lifecycleScope.launch {
             ProfileStore.refreshIfStale(this@MainActivity)
             // Re-test the servers when the app opens, at most every 10 minutes.
@@ -180,6 +186,16 @@ class MainActivity : ComponentActivity() {
             refreshSubscription()
         } else {
             offerClipboardLink()
+        }
+    }
+
+    private fun sendReport() {
+        lifecycleScope.launch {
+            try {
+                Report.share(this@MainActivity)
+            } catch (e: Exception) {
+                toast(e.message ?: e.javaClass.simpleName)
+            }
         }
     }
 
@@ -252,8 +268,10 @@ class MainActivity : ComponentActivity() {
                 pings.value = emptyMap()
                 IykykVpnService.reconnect(this@MainActivity)
             } catch (_: ProfileStore.NotAllowedException) {
+                AppLog.i("import refused: not the provider's subscription")
                 toast(getString(R.string.link_not_allowed))
             } catch (e: Exception) {
+                AppLog.i("import failed: ${e.message ?: e.javaClass.simpleName}")
                 toast(getString(R.string.link_invalid, e.message ?: e.javaClass.simpleName))
             }
         }
@@ -359,6 +377,7 @@ class MainActivity : ComponentActivity() {
                 ProfileStore.refresh(this@MainActivity)
                 toast(getString(R.string.refresh_done))
             } catch (e: Exception) {
+                AppLog.i("refresh failed: ${e.message ?: e.javaClass.simpleName}")
                 toast(getString(R.string.refresh_failed, e.message ?: e.javaClass.simpleName))
             } finally {
                 refreshing.value = false

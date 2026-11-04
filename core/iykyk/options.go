@@ -34,6 +34,30 @@ type options struct {
 	// PreferXray runs VLESS/VMess/Trojan/Shadowsocks in Xray even when sing-box
 	// could handle them natively (a fallback setting in case of trouble).
 	PreferXray bool `json:"preferXray"`
+	// LogDir receives singbox.log and xray.log (warnings and errors) for
+	// "Send a report to support". Empty: no log files.
+	LogDir string `json:"logDir"`
+
+	// The local check inbound (see check.go); set by BuildProfileWithOptions.
+	checkPort            int
+	checkUser, checkPass string
+}
+
+func (o options) logFile(name string) string {
+	if o.LogDir == "" {
+		return ""
+	}
+	return filepath.Join(o.LogDir, name)
+}
+
+// xrayLog is Xray's log section: warnings and errors, to a file if there is one.
+func xrayLog(file string) jsonObject {
+	log := jsonObject{"loglevel": "warning"}
+	if file != "" {
+		log["error"] = file
+		log["access"] = "none"
+	}
+	return log
 }
 
 // providerRouting lists rules in the Xray template notation:

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -149,5 +150,38 @@ func TestRoutingHeader(t *testing.T) {
 	sub, _ = parseSubscription(sampleLinks, header)
 	if sub.Routing != nil {
 		t.Fatal("invalid routing must be ignored")
+	}
+}
+
+func TestCheckInboundAndLogs(t *testing.T) {
+	p, err := BuildProfileWithOptions("hysteria2://pass@fi.example.com:443#FI", `{"logDir":"/data/logs"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sb := decode(t, p.SingBoxConfig)
+	check := path(t, sb, "inbounds", 1)
+	if path(t, check, "type") != "mixed" || path(t, check, "listen") != "127.0.0.1" ||
+		int(path(t, check, "listen_port").(float64)) != p.CheckPort || p.CheckPort == 0 {
+		t.Fatalf("check inbound %v (port %d)", check, p.CheckPort)
+	}
+	if path(t, check, "users", 0, "password") != p.CheckPass || p.CheckPass == "" {
+		t.Fatal("check inbound credentials")
+	}
+	if path(t, sb, "log", "output") != "/data/logs/singbox.log" || path(t, sb, "log", "level") != "warn" {
+		t.Fatalf("log %v", path(t, sb, "log"))
+	}
+	x, err := BuildProfileWithOptions("vless://u@h:443?type=xhttp&security=tls#x", `{"logDir":"/data/logs"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path(t, decode(t, x.XrayConfig), "log", "error") != "/data/logs/xray.log" {
+		t.Fatal("xray log file")
+	}
+}
+
+func TestParseTrace(t *testing.T) {
+	info := parseTrace(strings.NewReader("fl=1\nh=www.cloudflare.com\nip=5.6.7.8\nts=1\nloc=NL\ncolo=AMS\n"))
+	if info.IP != "5.6.7.8" || info.Country != "NL" {
+		t.Fatalf("%+v", info)
 	}
 }

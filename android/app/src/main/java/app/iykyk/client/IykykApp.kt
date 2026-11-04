@@ -3,6 +3,7 @@ package app.iykyk.client
 import android.app.Application
 import android.content.ComponentName
 import android.service.quicksettings.TileService
+import app.iykyk.client.core.AppLog
 import app.iykyk.client.core.Core
 import app.iykyk.client.core.ProfileStore
 import app.iykyk.client.core.SettingsStore
@@ -20,6 +21,7 @@ class IykykApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        AppLog.init(this)
         Core.setup(this)
         ProfileStore.load(this)
         SettingsStore.load(this)

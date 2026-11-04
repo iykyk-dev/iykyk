@@ -162,7 +162,7 @@ func TestFragmentConnKeepsData(t *testing.T) {
 func TestSlowObservatory(t *testing.T) {
 	config := `{"outbounds":[{"protocol":"vless","tag":"a"}],"observatory":{"subjectSelector":["a"],"probeInterval":"30s"},` +
 		`"burstObservatory":{"pingConfig":{"interval":"10m"}}}`
-	out, err := xrayConfigFromJSON(config, 1080, "u", "p", false)
+	out, err := xrayConfigFromJSON(config, 1080, "u", "p", false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
