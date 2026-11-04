@@ -56,6 +56,8 @@ fun SettingsScreen(
     onAppModeChange: (AppMode) -> Unit,
     onChooseApps: () -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
+    /** Phone/TV-only settings: start on boot, reminders, kill switch, per-app routing. */
+    mobile: Boolean = true,
 ) {
     Surface(color = IykykColors.Background, modifier = Modifier.fillMaxSize()) {
         Column(
@@ -93,35 +95,37 @@ fun SettingsScreen(
                         checked = settings.autoConnectOnLaunch,
                         onChange = onAutoLaunchChange,
                     )
-                    SwitchRow(
-                        title = stringResource(Res.string.auto_boot_title),
-                        subtitle = stringResource(Res.string.auto_boot_subtitle),
-                        checked = settings.autoConnectOnBoot,
-                        onChange = onAutoBootChange,
-                    )
-                    SwitchRow(
-                        title = stringResource(Res.string.reminders_title),
-                        subtitle = stringResource(Res.string.reminders_subtitle),
-                        checked = settings.expiryReminders,
-                        onChange = onRemindersChange,
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onOpenVpnSettings)
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(Res.string.killswitch_title), color = IykykColors.Text, fontWeight = FontWeight.Medium)
-                            Text(
-                                stringResource(Res.string.killswitch_subtitle),
-                                color = IykykColors.Muted,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                    if (mobile) {
+                        SwitchRow(
+                            title = stringResource(Res.string.auto_boot_title),
+                            subtitle = stringResource(Res.string.auto_boot_subtitle),
+                            checked = settings.autoConnectOnBoot,
+                            onChange = onAutoBootChange,
+                        )
+                        SwitchRow(
+                            title = stringResource(Res.string.reminders_title),
+                            subtitle = stringResource(Res.string.reminders_subtitle),
+                            checked = settings.expiryReminders,
+                            onChange = onRemindersChange,
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onOpenVpnSettings)
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(Res.string.killswitch_title), color = IykykColors.Text, fontWeight = FontWeight.Medium)
+                                Text(
+                                    stringResource(Res.string.killswitch_subtitle),
+                                    color = IykykColors.Muted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text("›", color = IykykColors.Muted, fontSize = 22.sp)
                         }
-                        Spacer(Modifier.width(12.dp))
-                        Text("›", color = IykykColors.Muted, fontSize = 22.sp)
                     }
                 }
             }
@@ -151,55 +155,57 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
-            SectionTitle(stringResource(Res.string.settings_apps))
-            Card {
-                Column {
-                    for ((mode, label) in listOf(
-                        AppMode.ALL to Res.string.apps_mode_all,
-                        AppMode.ONLY_SELECTED to Res.string.apps_mode_only,
-                        AppMode.EXCEPT_SELECTED to Res.string.apps_mode_except,
-                    )) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onAppModeChange(mode) }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(
-                                selected = settings.appMode == mode,
-                                onClick = { onAppModeChange(mode) },
-                                colors = RadioButtonDefaults.colors(selectedColor = IykykColors.Accent),
-                            )
-                            Text(stringResource(label), color = IykykColors.Text)
+            if (mobile) {
+                Spacer(Modifier.height(20.dp))
+                SectionTitle(stringResource(Res.string.settings_apps))
+                Card {
+                    Column {
+                        for ((mode, label) in listOf(
+                            AppMode.ALL to Res.string.apps_mode_all,
+                            AppMode.ONLY_SELECTED to Res.string.apps_mode_only,
+                            AppMode.EXCEPT_SELECTED to Res.string.apps_mode_except,
+                        )) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onAppModeChange(mode) }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                RadioButton(
+                                    selected = settings.appMode == mode,
+                                    onClick = { onAppModeChange(mode) },
+                                    colors = RadioButtonDefaults.colors(selectedColor = IykykColors.Accent),
+                                )
+                                Text(stringResource(label), color = IykykColors.Text)
+                            }
                         }
-                    }
-                    if (settings.appMode != AppMode.ALL) {
-                        Text(
-                            stringResource(
-                                if (settings.appMode == AppMode.ONLY_SELECTED) Res.string.apps_hint_only else Res.string.apps_hint_except,
-                            ),
-                            color = IykykColors.Muted,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(onClick = onChooseApps)
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
+                        if (settings.appMode != AppMode.ALL) {
                             Text(
-                                stringResource(Res.string.apps_choose),
-                                color = IykykColors.Accent,
-                                modifier = Modifier.weight(1f),
-                            )
-                            Text(
-                                stringResource(Res.string.apps_selected, settings.apps.size) + " ›",
+                                stringResource(
+                                    if (settings.appMode == AppMode.ONLY_SELECTED) Res.string.apps_hint_only else Res.string.apps_hint_except,
+                                ),
                                 color = IykykColors.Muted,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(horizontal = 16.dp),
                             )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = onChooseApps)
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    stringResource(Res.string.apps_choose),
+                                    color = IykykColors.Accent,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    stringResource(Res.string.apps_selected, settings.apps.size) + " ›",
+                                    color = IykykColors.Muted,
+                                )
+                            }
                         }
                     }
                 }

@@ -22,3 +22,5 @@ rootProject.name = "IYKYK"
 include(":app")
 // Screens, models and logic shared by Android and the Windows app.
 include(":shared")
+// The Windows app (built on Windows in CI).
+include(":desktop")

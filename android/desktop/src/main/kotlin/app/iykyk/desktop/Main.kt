@@ -1,0 +1,150 @@
+package app.iykyk.desktop
+
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Tray
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
+import app.iykyk.client.core.ThemeMode
+import app.iykyk.client.ui.IykykTheme
+import app.iykyk.client.ui.MainScreen
+import app.iykyk.client.ui.SettingsScreen
+import app.iykyk.client.vpn.VpnStatus
+import kotlinx.coroutines.delay
+import javax.imageio.ImageIO
+
+fun main() = application {
+    val app = remember { DesktopController() }
+    var visible by remember { mutableStateOf(true) }
+    val icon = remember {
+        BitmapPainter(ImageIO.read(Thread.currentThread().contextClassLoader.getResource("icon.png")).toComposeImageBitmap())
+    }
+    val status by app.status.collectAsState()
+
+    Tray(
+        icon = icon,
+        tooltip = "IYKYK",
+        onAction = { visible = true },
+        menu = {
+            Item("Открыть IYKYK", onClick = { visible = true })
+            Item(if (status == VpnStatus.DISCONNECTED) "Подключить" else "Отключить", onClick = app::toggle)
+            Separator()
+            Item("Выход", onClick = {
+                app.disconnect()
+                exitApplication()
+            })
+        },
+    )
+
+    Window(
+        // Closing the window keeps the VPN and the tray icon; "Выход" quits.
+        onCloseRequest = { visible = false },
+        visible = visible,
+        title = "IYKYK",
+        icon = icon,
+        state = rememberWindowState(size = DpSize(430.dp, 860.dp)),
+    ) {
+        App(app)
+    }
+}
+
+private enum class Screen { MAIN, SETTINGS }
+
+@Composable
+private fun App(app: DesktopController) {
+    val settings by app.settings.collectAsState()
+    val dark = when (settings.themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+    var screen by remember { mutableStateOf(Screen.MAIN) }
+    val message by app.message.collectAsState()
+
+    IykykTheme(dark = dark) {
+        Box(Modifier.fillMaxSize()) {
+            when (screen) {
+                Screen.MAIN -> MainScreen(
+                    status = app.status.collectAsState().value,
+                    profiles = app.profiles.collectAsState().value,
+                    error = app.error.collectAsState().value,
+                    refreshing = app.refreshing.collectAsState().value,
+                    pings = app.pings.collectAsState().value,
+                    pinging = app.pinging.collectAsState().value,
+                    sortByPing = settings.sortByPing,
+                    canBuy = true,
+                    locked = app.locked.collectAsState().value,
+                    clipboardLink = null,
+                    tunnel = app.tunnel.collectAsState().value,
+                    connectedAt = app.connectedAt.collectAsState().value,
+                    shareLink = app.profiles.collectAsState().value.subscription?.url,
+                    devices = null,
+                    onToggle = app::toggle,
+                    onPasteLink = app::pasteFromClipboard,
+                    onRefresh = app::refresh,
+                    onSelectServer = app::select,
+                    onPing = app::pingServers,
+                    onSortChange = { value -> app.updateSettings { it.copy(sortByPing = value) } },
+                    onScanQr = { app.message.value = "На компьютере нет камеры: скопируйте ссылку на подписку и нажмите «Вставить»" },
+                    onSendToTv = {
+                        app.message.value = "Отправить на телевизор можно с телефона: IYKYK на телефоне → ⋯ → «Отправить на TV»"
+                    },
+                    onOpenBot = { app.openUrl("https://t.me/dlyasvoihVPS_bot") },
+                    onOpenUrl = app::openUrl,
+                    onImportText = app::importText,
+                    onClipboardDismiss = {},
+                    onCheck = app::check,
+                    onSendReport = app::saveReport,
+                    onCopyLink = app::copyLink,
+                    onDelete = app::deleteSubscription,
+                    onLoadDevices = {},
+                    onDeleteDevice = {},
+                    onOpenSettings = { screen = Screen.SETTINGS },
+                )
+                Screen.SETTINGS -> SettingsScreen(
+                    settings = settings,
+                    versions = app.versions.collectAsState().value,
+                    onBack = { screen = Screen.MAIN },
+                    onBypassChange = { value -> app.updateSettings(reconnect = true) { it.copy(bypassRussia = value) } },
+                    onFragmentChange = { value -> app.updateSettings(reconnect = true) { it.copy(fragment = value) } },
+                    onPreferXrayChange = { value -> app.updateSettings(reconnect = true) { it.copy(preferXray = value) } },
+                    onAutoLaunchChange = { value -> app.updateSettings { it.copy(autoConnectOnLaunch = value) } },
+                    onAutoBootChange = {},
+                    onRemindersChange = {},
+                    onOpenVpnSettings = {},
+                    onRemoteDnsChange = {},
+                    onDirectDnsChange = {},
+                    onAppModeChange = {},
+                    onChooseApps = {},
+                    onThemeChange = { mode -> app.updateSettings { it.copy(themeMode = mode) } },
+                    mobile = false,
+                )
+            }
+            message?.let { text ->
+                LaunchedEffect(text) {
+                    delay(4_000)
+                    if (app.message.value == text) app.message.value = null
+                }
+                Snackbar(modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)) { Text(text) }
+            }
+        }
+    }
+}
