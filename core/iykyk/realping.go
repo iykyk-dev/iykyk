@@ -15,8 +15,8 @@ import (
 	sjson "github.com/sagernet/sing/common/json"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	xnet "github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/core"
+	"golang.org/x/net/proxy"
 )
 
 // The real ping: an HTTPS request through each server, with the server's own
@@ -109,15 +109,22 @@ func timedRequest(dial dialFunc) int {
 // xrayTestDialer starts an Xray instance with only the server's outbound and
 // dials through its dispatcher.
 func xrayTestDialer(s *server, opts options) (dialFunc, func(), error) {
+	// Same path as a real connection: a loopback SOCKS inbound in front of the
+	// outbound. Dialing the instance directly (core.Dial) hangs with XTLS Vision.
+	port, err := freeLoopbackPort()
+	if err != nil {
+		return nil, nil, err
+	}
+	user, pass := randomToken(), randomToken()
 	var configJSON string
-	var err error
 	if s.Protocol == "xray-json" || s.Protocol == "xray-balancer" {
-		configJSON, err = xrayConfigFromJSON(s.Raw, 0, "", "", opts.Fragment)
+		configJSON, err = xrayConfigFromJSON(s.Raw, port, user, pass, opts.Fragment)
 	} else {
 		var out jsonObject
 		if out, err = xrayOutbound(s, opts); err == nil {
 			configJSON, err = marshal(jsonObject{
 				"log":       jsonObject{"loglevel": "none"},
+				"inbounds":  []any{xraySocksInbound("socks-in", port, user, pass)},
 				"outbounds": []any{out},
 			})
 		}
@@ -129,12 +136,14 @@ func xrayTestDialer(s *server, opts options) (dialFunc, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	dial := func(ctx context.Context, _ string, address string) (net.Conn, error) {
-		dest, err := xnet.ParseDestination("tcp:" + address)
-		if err != nil {
-			return nil, err
-		}
-		return core.Dial(ctx, instance, dest)
+	socks, err := proxy.SOCKS5("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)),
+		&proxy.Auth{User: user, Password: pass}, &net.Dialer{})
+	if err != nil {
+		_ = instance.Close()
+		return nil, nil, err
+	}
+	dial := func(ctx context.Context, network string, address string) (net.Conn, error) {
+		return socks.(proxy.ContextDialer).DialContext(ctx, "tcp", address)
 	}
 	return dial, func() { _ = instance.Close() }, nil
 }
