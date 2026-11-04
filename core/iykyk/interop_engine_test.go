@@ -14,6 +14,7 @@ import (
 	"encoding/pem"
 	"math/big"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -161,6 +162,18 @@ func TestNativeClientsAgainstXrayServers(t *testing.T) {
 			}
 			resp.Body.Close()
 			t.Logf("%s: HTTP %d in %d ms", c.name, resp.StatusCode, time.Since(start).Milliseconds())
+
+			// The whole app config (DNS, routing, rule sets) minus the TUN:
+			// a DNS query as apps send it, and the in-app tunnel check.
+			opts := `{"bypassRussia":true,"ruleSetDir":"` + os.Getenv("IYKYK_RULESET_DIR") + `"}`
+			full := fullConfigCheck(t, link, opts, nil)
+			t.Logf("%s: full config: %s", c.name, full)
+			if !strings.Contains(full, "rcode=Success") || strings.Contains(full, "answers=0") {
+				t.Errorf("DNS through the tunnel failed: %s", full)
+			}
+			if !strings.Contains(full, "check ok") {
+				t.Errorf("tunnel check failed: %s", full)
+			}
 		})
 	}
 }
