@@ -223,6 +223,7 @@ func atLeast(v any, min time.Duration) string {
 
 // stripSocketMark removes sockopt.mark: setting SO_MARK needs root on Android,
 // and Xray refuses to dial when it fails. Desktop templates often include it.
+// It also drops tlsSettings.allowInsecure, which current Xray rejects.
 func stripSocketMark(o any) {
 	outbound, ok := o.(map[string]any)
 	if !ok {
@@ -234,6 +235,10 @@ func stripSocketMark(o any) {
 	}
 	if sockopt, ok := stream["sockopt"].(map[string]any); ok {
 		delete(sockopt, "mark")
+	}
+	// Xray 26.10 refuses configs with the removed allowInsecure.
+	if tls, ok := stream["tlsSettings"].(map[string]any); ok {
+		delete(tls, "allowInsecure")
 	}
 }
 

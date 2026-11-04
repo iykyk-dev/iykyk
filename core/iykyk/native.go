@@ -20,7 +20,7 @@ import (
 // selectEngine is engineFor with the native sing-box path applied.
 func selectEngine(s *server, opts options) engine {
 	e := engineFor(s)
-	if e == engineXray && !opts.PreferXray && nativeInSingBox(s, opts) {
+	if e == engineXray && (!opts.PreferXray || mustUseSingBox(s, opts)) && nativeInSingBox(s, opts) {
 		return engineSingBox
 	}
 	return e
@@ -63,6 +63,12 @@ func nativeInSingBox(s *server, opts options) bool {
 		return true
 	}
 	return false // reality and anything unknown
+}
+
+// mustUseSingBox: TLS without certificate checks exists only in sing-box now
+// (Xray 26.10 removed allowInsecure), even with "everything through Xray".
+func mustUseSingBox(s *server, opts options) bool {
+	return s.Insecure && s.Security == "tls" && nativeInSingBox(s, opts)
 }
 
 // singBoxV2Ray builds a native sing-box outbound for VLESS, VMess or Trojan.

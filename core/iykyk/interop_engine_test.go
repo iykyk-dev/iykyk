@@ -219,13 +219,11 @@ func pemLines(text string) string {
 // client sends the site's name, as Happ and INCY do.
 func TestSiteNamesReachTheServer(t *testing.T) {
 	const uuid = "11111111-2222-3333-4444-555555555555"
-	certPEM, keyPEM := selfSignedCert(t, "example.com")
 	port, _ := freeLoopbackPort()
 	p := strconv.Itoa(port)
 	config := `{"log":{"loglevel":"warning"},"inbounds":[{"listen":"127.0.0.1","port":` + p + `,` +
 		`"protocol":"vless","settings":{"clients":[{"id":"` + uuid + `"}],"decryption":"none"},` +
-		`"streamSettings":{"network":"grpc","grpcSettings":{"serviceName":"svc"},"security":"tls",` +
-		`"tlsSettings":{"certificates":[{"certificate":` + pemLines(certPEM) + `,"key":` + pemLines(keyPEM) + `}]}}}],` +
+		`"streamSettings":{"network":"grpc","grpcSettings":{"serviceName":"svc"}}}],` +
 		`"outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"blackhole","tag":"block"}],` +
 		`"routing":{"rules":[{"ip":["0.0.0.0/0","::/0"],"outboundTag":"block"}]}}`
 	server, err := core.StartInstance("json", []byte(config))
@@ -234,7 +232,7 @@ func TestSiteNamesReachTheServer(t *testing.T) {
 	}
 	defer server.Close()
 
-	link := "vless://" + uuid + "@127.0.0.1:" + p + "?type=grpc&serviceName=svc&security=tls&sni=example.com&allowInsecure=1#g"
+	link := "vless://" + uuid + "@127.0.0.1:" + p + "?type=grpc&serviceName=svc&security=none#g"
 	profile, err := BuildProfileWithOptions(link, `{"preferXray":true}`)
 	if err != nil {
 		t.Fatal(err)

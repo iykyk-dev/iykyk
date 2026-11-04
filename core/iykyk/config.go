@@ -594,9 +594,8 @@ func xrayStreamSettings(s *server, opts options) (jsonObject, error) {
 		if len(s.ALPN) > 0 {
 			tls["alpn"] = s.ALPN
 		}
-		if s.Insecure {
-			tls["allowInsecure"] = true
-		}
+		// Xray 26.10 removed allowInsecure (it refuses configs with it); such
+		// servers run in sing-box, which still supports it (see native.go).
 		stream["tlsSettings"] = tls
 	case "reality":
 		if s.PublicKey == "" {

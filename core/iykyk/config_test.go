@@ -264,3 +264,18 @@ func TestNativeSingBox(t *testing.T) {
 }
 
 func vmessJSON(text string) string { return base64.StdEncoding.EncodeToString([]byte(text)) }
+
+func TestNoAllowInsecureForXray(t *testing.T) {
+	// Xray 26.10 rejects allowInsecure: such servers go to sing-box, even with preferXray.
+	p := buildXray(t, "trojan://pw@h.example.com:443?type=ws&path=%2Fws&security=tls&sni=h.example.com&allowInsecure=1#t")
+	if p.UsesXray {
+		t.Fatal("insecure TLS must run in sing-box")
+	}
+	if path(t, decode(t, p.SingBoxConfig), "outbounds", 0, "tls", "insecure") != true {
+		t.Fatal("sing-box must keep insecure")
+	}
+	x := buildXray(t, "trojan://pw@h.example.com:443?type=xhttp&security=tls&sni=h.example.com&allowInsecure=1#t")
+	if strings.Contains(x.XrayConfig, "allowInsecure") {
+		t.Fatal("allowInsecure must not reach Xray")
+	}
+}
