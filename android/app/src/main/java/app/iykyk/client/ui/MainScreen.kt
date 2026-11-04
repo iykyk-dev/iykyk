@@ -20,7 +20,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -75,9 +78,11 @@ fun MainScreen(
     onSortChange: (Boolean) -> Unit,
     onScanQr: () -> Unit,
     onOpenUrl: (String) -> Unit,
+    onImportText: (String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var showServers by remember { mutableStateOf(false) }
+    var showLinkInput by remember { mutableStateOf(false) }
     val server = profiles.current
 
     Surface(color = IykykColors.Background, modifier = Modifier.fillMaxSize()) {
@@ -151,7 +156,21 @@ fun MainScreen(
                     Text(stringResource(R.string.action_scan_qr))
                 }
             }
+            // For TVs (no clipboard, no camera) and anyone who prefers typing.
+            TextButton(onClick = { showLinkInput = true }) {
+                Text(stringResource(R.string.action_enter_link), color = IykykColors.Muted)
+            }
         }
+    }
+
+    if (showLinkInput) {
+        LinkInputDialog(
+            onConfirm = {
+                showLinkInput = false
+                onImportText(it)
+            },
+            onDismiss = { showLinkInput = false },
+        )
     }
 
     if (showServers) {
@@ -169,6 +188,47 @@ fun MainScreen(
             onDismiss = { showServers = false },
         )
     }
+}
+
+@Composable
+internal fun LinkInputDialog(
+    title: String = stringResource(R.string.enter_link_title),
+    hint: String = stringResource(R.string.enter_link_hint),
+    initial: String = "",
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = IykykColors.Surface,
+        title = { Text(title, color = IykykColors.Text) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                placeholder = { Text(hint) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = IykykColors.Accent,
+                    focusedTextColor = IykykColors.Text,
+                    unfocusedTextColor = IykykColors.Text,
+                    cursorColor = IykykColors.Accent,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text.trim()) }, enabled = text.isNotBlank()) {
+                Text(stringResource(R.string.action_add), color = IykykColors.Accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+            }
+        },
+    )
 }
 
 @Composable
@@ -622,6 +682,7 @@ private fun MainScreenPreview() {
             onSortChange = {},
             onScanQr = {},
             onOpenUrl = {},
+            onImportText = {},
             onOpenSettings = {},
         )
     }

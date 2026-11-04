@@ -9,7 +9,11 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.Network
 import android.net.VpnService
+import android.net.TrafficStats
 import android.os.ParcelFileDescriptor
+import android.os.PowerManager
+import android.os.Process
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -29,10 +33,14 @@ import app.iykyk.core.libbox.SystemProxyStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /**
  * The VPN service.
@@ -80,6 +88,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
     private var networkMonitor: NetworkMonitor? = null
     private var tun: ParcelFileDescriptor? = null
     private var serverName: String? = null
+    private var statsJob: Job? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -123,6 +132,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
                 startCore()
                 VpnState.set(VpnStatus.CONNECTED)
                 updateNotification(serverName ?: getString(R.string.notification_connected))
+                startTrafficStats()
             } catch (e: Exception) {
                 Log.e(TAG, "failed to connect", e)
                 VpnState.fail(e.message ?: e.javaClass.simpleName)
@@ -173,7 +183,57 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         }
     }
 
+    /**
+     * Speed and session traffic in the notification. All tunnelled traffic leaves
+     * through the cores in this process, so the app's own traffic counters measure it.
+     * Updated every 2 seconds, only while the screen is on.
+     */
+    private fun startTrafficStats() {
+        statsJob?.cancel()
+        statsJob = CoroutineScope(Dispatchers.Default).launch {
+            val uid = Process.myUid()
+            val power = getSystemService(PowerManager::class.java)
+            val startRx = TrafficStats.getUidRxBytes(uid)
+            val startTx = TrafficStats.getUidTxBytes(uid)
+            if (startRx < 0 || startTx < 0) return@launch // counters unavailable
+            var lastRx = startRx
+            var lastTx = startTx
+            var lastAt = SystemClock.elapsedRealtime()
+            while (isActive) {
+                delay(2_000)
+                if (!power.isInteractive) continue
+                val rx = TrafficStats.getUidRxBytes(uid)
+                val tx = TrafficStats.getUidTxBytes(uid)
+                val now = SystemClock.elapsedRealtime()
+                val seconds = ((now - lastAt) / 1000.0).coerceAtLeast(0.5)
+                val down = ((rx - lastRx) / seconds).toLong()
+                val up = ((tx - lastTx) / seconds).toLong()
+                lastRx = rx
+                lastTx = tx
+                lastAt = now
+                val total = (rx - startRx) + (tx - startTx)
+                val text = getString(R.string.notification_speed, formatRate(down), formatRate(up), formatSize(total))
+                updateNotification(text, serverName)
+            }
+        }
+    }
+
+    private fun formatRate(bytesPerSecond: Long): String = formatSize(bytesPerSecond.coerceAtLeast(0)) + "/с"
+
+    private fun formatSize(bytes: Long): String {
+        val units = listOf("Б", "КБ", "МБ", "ГБ")
+        var value = bytes.toDouble()
+        var unit = 0
+        while (value >= 1024 && unit < units.lastIndex) {
+            value /= 1024
+            unit++
+        }
+        return if (unit == 0) "$bytes ${units[0]}" else String.format(Locale.forLanguageTag("ru"), "%.1f %s", value, units[unit])
+    }
+
     private fun stopCore() {
+        statsJob?.cancel()
+        statsJob = null
         commandServer?.let { server ->
             runCatching { server.closeService() }.onFailure { Log.w(TAG, "closeService", it) }
             runCatching { server.close() }
@@ -222,6 +282,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
     }
 
     override fun onDestroy() {
+        statsJob?.cancel()
         if (commandServer != null) stopCore()
         scope.cancel()
         VpnState.set(VpnStatus.DISCONNECTED)
@@ -250,12 +311,13 @@ class IykykVpnService : VpnService(), CommandServerHandler {
 
     // --- Notification ---------------------------------------------------------------------
 
-    private fun updateNotification(text: String) {
+    private fun updateNotification(text: String, title: String? = null) {
+        if (!VpnState.status.value.isActive) return
         getSystemService(NotificationManager::class.java)
-            .notify(NOTIFICATION_ID, buildNotification(text))
+            .notify(NOTIFICATION_ID, buildNotification(text, title))
     }
 
-    private fun buildNotification(text: String): Notification {
+    private fun buildNotification(text: String, title: String? = null): Notification {
         val manager = getSystemService(NotificationManager::class.java)
         // IMPORTANCE_DEFAULT (silent) keeps the notification in the top section of the
         // shade; IMPORTANCE_LOW would push it down among silent notifications.
@@ -286,7 +348,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_tile)
-            .setContentTitle(getString(R.string.app_name))
+            .setContentTitle(title ?: getString(R.string.app_name))
             .setContentText(text)
             .setContentIntent(openApp)
             .addAction(R.drawable.ic_tile, getString(R.string.action_disconnect), disconnect)

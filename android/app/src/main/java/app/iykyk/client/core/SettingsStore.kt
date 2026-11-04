@@ -24,6 +24,10 @@ data class AppSettings(
     val autoConnectOnBoot: Boolean = false,
     /** Remind before the subscription expires. */
     val expiryReminders: Boolean = true,
+    /** DNS for tunnelled traffic: cloudflare, google, quad9, adguard or a DoH URL. */
+    val remoteDns: String = "cloudflare",
+    /** DNS for proxy servers and bypassed sites: yandex, cloudflare, google or an IP. */
+    val directDns: String = "yandex",
 )
 
 object SettingsStore {
@@ -36,6 +40,8 @@ object SettingsStore {
     private const val KEY_AUTO_LAUNCH = "auto_connect_launch"
     private const val KEY_AUTO_BOOT = "auto_connect_boot"
     private const val KEY_EXPIRY_REMINDERS = "expiry_reminders"
+    private const val KEY_REMOTE_DNS = "remote_dns"
+    private const val KEY_DIRECT_DNS = "direct_dns"
 
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -52,6 +58,8 @@ object SettingsStore {
             autoConnectOnLaunch = prefs.getBoolean(KEY_AUTO_LAUNCH, false),
             autoConnectOnBoot = prefs.getBoolean(KEY_AUTO_BOOT, false),
             expiryReminders = prefs.getBoolean(KEY_EXPIRY_REMINDERS, true),
+            remoteDns = prefs.getString(KEY_REMOTE_DNS, null) ?: "cloudflare",
+            directDns = prefs.getString(KEY_DIRECT_DNS, null) ?: "yandex",
         )
     }
 
@@ -67,6 +75,8 @@ object SettingsStore {
             .putBoolean(KEY_AUTO_LAUNCH, updated.autoConnectOnLaunch)
             .putBoolean(KEY_AUTO_BOOT, updated.autoConnectOnBoot)
             .putBoolean(KEY_EXPIRY_REMINDERS, updated.expiryReminders)
+            .putString(KEY_REMOTE_DNS, updated.remoteDns)
+            .putString(KEY_DIRECT_DNS, updated.directDns)
             .apply()
     }
 
@@ -75,5 +85,13 @@ object SettingsStore {
         .put("bypassRussia", _settings.value.bypassRussia)
         .put("ruleSetDir", RuleSets.prepare(context))
         .put("fragment", _settings.value.fragment)
+        .put("remoteDNS", _settings.value.remoteDns)
+        .put("directDNS", _settings.value.directDns)
+        .apply {
+            // The provider's routing from the subscription (Iykyk-Routing header).
+            ProfileStore.profiles.value.subscription?.routing
+                ?.takeIf { it.isNotBlank() }
+                ?.let { runCatching { put("routing", JSONObject(it)) } }
+        }
         .toString()
 }

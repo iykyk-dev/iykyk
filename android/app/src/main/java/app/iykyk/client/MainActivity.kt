@@ -92,6 +92,7 @@ class MainActivity : ComponentActivity() {
                         onPing = ::pingServers,
                         onScanQr = ::scanQr,
                         onOpenUrl = ::openUrl,
+                        onImportText = ::importText,
                         onSortChange = { value -> SettingsStore.update(this) { it.copy(sortByPing = value) } },
                         onOpenSettings = { screen = Screen.SETTINGS },
                     )
@@ -105,6 +106,8 @@ class MainActivity : ComponentActivity() {
                         onAutoBootChange = { value -> SettingsStore.update(this) { it.copy(autoConnectOnBoot = value) } },
                         onRemindersChange = { value -> SettingsStore.update(this) { it.copy(expiryReminders = value) } },
                         onOpenVpnSettings = ::openVpnSettings,
+                        onRemoteDnsChange = { value -> changeSettings { it.copy(remoteDns = value) } },
+                        onDirectDnsChange = { value -> changeSettings { it.copy(directDns = value) } },
                         onAppModeChange = { mode -> changeSettings { it.copy(appMode = mode) } },
                         onChooseApps = { screen = Screen.APPS },
                     )

@@ -37,6 +37,8 @@ data class SubscriptionInfo(
     val updateHours: Int = 0,
     /** Backup subscription URLs announced by the panel. */
     val fallbacks: List<String> = emptyList(),
+    /** Provider routing (JSON) from the Iykyk-Routing header, or "". */
+    val routing: String = "",
 )
 
 /** Whole days until the subscription expires (negative once expired), or null if it never does. */
@@ -239,6 +241,7 @@ object ProfileStore {
             fallbacks = root.optJSONArray("fallbacks")?.let { arr ->
                 (0 until arr.length()).map { arr.getString(it) }
             }.orEmpty(),
+            routing = root.optJSONObject("routing")?.toString().orEmpty(),
         )
         return Profiles(subscription = subscription.takeIf { url.isNotEmpty() }, servers = servers)
     }

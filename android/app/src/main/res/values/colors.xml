@@ -5,4 +5,8 @@
     <color name="brand_orange">#FFED8532</color>
     <color name="background">#FFEBEFF1</color>
     <color name="icon_background">#FFFFFFFF</color>
+    <color name="widget_background">#FFFFFFFF</color>
+    <color name="widget_button_off">#FFFFFFFF</color>
+    <color name="widget_text">#FF1B3E5E</color>
+    <color name="widget_muted">#FF63778B</color>
 </resources>

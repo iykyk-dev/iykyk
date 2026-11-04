@@ -52,6 +52,16 @@
     <string name="settings_title">Настройки</string>
     <string name="action_back">Назад</string>
     <string name="settings_routing">Маршрутизация</string>
+    <string name="settings_dns">DNS</string>
+    <string name="remote_dns_title">DNS через VPN</string>
+    <string name="direct_dns_title">DNS для прямых соединений</string>
+    <string name="dns_custom">Свой DoH-сервер</string>
+    <string name="dns_custom_hint">https://dns.example.com/dns-query</string>
+    <string name="dns_cloudflare">Cloudflare (1.1.1.1)</string>
+    <string name="dns_google">Google (8.8.8.8)</string>
+    <string name="dns_quad9">Quad9 (9.9.9.9)</string>
+    <string name="dns_adguard">AdGuard (блокирует рекламу)</string>
+    <string name="dns_yandex">Яндекс (77.88.8.8)</string>
     <string name="bypass_title">Российские сайты напрямую</string>
     <string name="bypass_subtitle">Госуслуги, банки, Яндекс и другие сайты в .ru и с российскими IP открываются без VPN</string>
     <string name="fragment_title">Обход DPI (фрагментация TLS)</string>
@@ -80,6 +90,11 @@
     <string name="action_support">Поддержка</string>
     <string name="action_website">Сайт</string>
     <string name="action_scan_qr">QR-код</string>
+    <string name="action_enter_link">Ввести ссылку вручную</string>
+    <string name="enter_link_title">Ссылка на подписку</string>
+    <string name="enter_link_hint">https://…</string>
+    <string name="action_add">Добавить</string>
+    <string name="action_cancel">Отмена</string>
     <string name="qr_prompt">Наведите камеру на QR-код подписки</string>
 
     <string name="settings_connection">Подключение</string>
@@ -93,5 +108,7 @@
     <string name="killswitch_subtitle">Откроются системные настройки VPN: включите для IYKYK «Постоянная VPN» и «Блокировать соединения без VPN»</string>
 
     <string name="notification_channel">Состояние VPN</string>
+    <string name="notification_speed">↓ %1$s  ↑ %2$s · за сеанс %3$s</string>
+    <string name="widget_description">Включение и выключение VPN</string>
     <string name="notification_connected">Защищённое соединение активно</string>
 </resources>

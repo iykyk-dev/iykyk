@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
@@ -23,6 +24,10 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -44,6 +49,8 @@ fun SettingsScreen(
     onAutoBootChange: (Boolean) -> Unit,
     onRemindersChange: (Boolean) -> Unit,
     onOpenVpnSettings: () -> Unit,
+    onRemoteDnsChange: (String) -> Unit,
+    onDirectDnsChange: (String) -> Unit,
     onAppModeChange: (AppMode) -> Unit,
     onChooseApps: () -> Unit,
 ) {
@@ -115,6 +122,36 @@ fun SettingsScreen(
                         subtitle = stringResource(R.string.fragment_subtitle),
                         checked = settings.fragment,
                         onChange = onFragmentChange,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+            SectionTitle(stringResource(R.string.settings_dns))
+            Card {
+                Column {
+                    ChoiceRow(
+                        title = stringResource(R.string.remote_dns_title),
+                        value = settings.remoteDns,
+                        choices = listOf(
+                            "cloudflare" to stringResource(R.string.dns_cloudflare),
+                            "google" to stringResource(R.string.dns_google),
+                            "quad9" to stringResource(R.string.dns_quad9),
+                            "adguard" to stringResource(R.string.dns_adguard),
+                        ),
+                        allowCustom = true,
+                        onChange = onRemoteDnsChange,
+                    )
+                    ChoiceRow(
+                        title = stringResource(R.string.direct_dns_title),
+                        value = settings.directDns,
+                        choices = listOf(
+                            "yandex" to stringResource(R.string.dns_yandex),
+                            "cloudflare" to stringResource(R.string.dns_cloudflare),
+                            "google" to stringResource(R.string.dns_google),
+                        ),
+                        allowCustom = false,
+                        onChange = onDirectDnsChange,
                     )
                 }
             }
@@ -206,6 +243,91 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChang
                 checkedThumbColor = IykykColors.OnAccent,
                 checkedTrackColor = IykykColors.Accent,
             ),
+        )
+    }
+}
+
+/** A setting with a few fixed values (and optionally a custom one), chosen in a dialog. */
+@Composable
+private fun ChoiceRow(
+    title: String,
+    value: String,
+    choices: List<Pair<String, String>>,
+    allowCustom: Boolean,
+    onChange: (String) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    var customInput by remember { mutableStateOf(false) }
+    val label = choices.firstOrNull { it.first == value }?.second ?: value
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { open = true }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = IykykColors.Text, fontWeight = FontWeight.Medium)
+            Text(label, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+        }
+        Text("›", color = IykykColors.Muted, fontSize = 22.sp)
+    }
+    if (open) {
+        AlertDialog(
+            onDismissRequest = { open = false },
+            containerColor = IykykColors.Surface,
+            title = { Text(title, color = IykykColors.Text) },
+            text = {
+                Column {
+                    for ((key, name) in choices) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    open = false
+                                    onChange(key)
+                                }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = value == key,
+                                onClick = {
+                                    open = false
+                                    onChange(key)
+                                },
+                                colors = RadioButtonDefaults.colors(selectedColor = IykykColors.Accent),
+                            )
+                            Text(name, color = IykykColors.Text)
+                        }
+                    }
+                    if (allowCustom) {
+                        TextButton(onClick = {
+                            open = false
+                            customInput = true
+                        }) {
+                            Text(stringResource(R.string.dns_custom), color = IykykColors.Accent)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { open = false }) {
+                    Text(stringResource(R.string.action_cancel), color = IykykColors.Muted)
+                }
+            },
+        )
+    }
+    if (customInput) {
+        LinkInputDialog(
+            title = stringResource(R.string.dns_custom),
+            hint = stringResource(R.string.dns_custom_hint),
+            initial = value.takeIf { it.startsWith("https://") }.orEmpty(),
+            onConfirm = {
+                customInput = false
+                if (it.startsWith("https://")) onChange(it)
+            },
+            onDismiss = { customInput = false },
         )
     }
 }
