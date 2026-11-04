@@ -3,6 +3,7 @@ package iykyk
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -18,6 +19,10 @@ import (
 
 const checkURL = "https://www.cloudflare.com/cdn-cgi/trace"
 
+// checkFallbackURL is tried when the trace fails (e.g. the provider's routing
+// blocks Cloudflare): the tunnel works, only IP and country stay unknown.
+const checkFallbackURL = "https://www.gstatic.com/generate_204"
+
 func CheckTunnel(port int, user, pass string) (*TunnelInfo, error) {
 	socks, err := proxy.SOCKS5("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)),
 		&proxy.Auth{User: user, Password: pass}, &net.Dialer{Timeout: 5 * time.Second})
@@ -29,28 +34,61 @@ func CheckTunnel(port int, user, pass string) (*TunnelInfo, error) {
 		return nil, errors.New("socks dialer")
 	}
 	client := &http.Client{
-		Timeout: 8 * time.Second,
+		Timeout: 10 * time.Second,
 		Transport: &http.Transport{
 			DialContext:       dialer.DialContext,
 			DisableKeepAlives: true,
 		},
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, checkURL, nil)
-	if err != nil {
-		return nil, err
-	}
 	start := time.Now()
-	resp, err := client.Do(req)
-	if err != nil {
+	resp, err := get(client, checkURL)
+	if err == nil && resp.StatusCode == http.StatusOK {
+		defer resp.Body.Close()
+		info := parseTrace(resp.Body)
+		info.Latency = int(time.Since(start).Milliseconds())
+		return info, nil
+	}
+	if resp != nil {
+		resp.Body.Close()
+	}
+	start = time.Now()
+	resp, err2 := get(client, checkFallbackURL)
+	if err2 != nil {
+		if err == nil {
+			err = err2
+		}
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode/100 != 2 {
 		return nil, errors.New("check: HTTP " + strconv.Itoa(resp.StatusCode))
 	}
-	info := parseTrace(resp.Body)
-	info.Latency = int(time.Since(start).Milliseconds())
-	return info, nil
+	return &TunnelInfo{Latency: int(time.Since(start).Milliseconds())}, nil
+}
+
+func get(client *http.Client, url string) (*http.Response, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	resp.Body = &cancelBody{ReadCloser: resp.Body, cancel: cancel}
+	return resp, nil
+}
+
+type cancelBody struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (b *cancelBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.cancel()
+	return err
 }

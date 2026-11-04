@@ -98,8 +98,9 @@ object SettingsStore {
         .put("bypassRussia", _settings.value.bypassRussia)
         .put("ruleSetDir", RuleSets.prepare(context))
         .put("fragment", _settings.value.fragment)
-        .put("remoteDNS", _settings.value.remoteDns)
-        .put("directDNS", _settings.value.directDns)
+        // DNS is not a user setting any more: the defaults suit everyone.
+        .put("remoteDNS", "cloudflare")
+        .put("directDNS", "yandex")
         .put("preferXray", _settings.value.preferXray)
         .put("logDir", AppLog.dir(context).absolutePath)
         .apply {

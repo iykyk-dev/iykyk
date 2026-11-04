@@ -170,6 +170,9 @@ func TestSlowObservatory(t *testing.T) {
 	if got := path(t, v, "observatory", "probeInterval"); got != "5m0s" {
 		t.Errorf("probeInterval = %v", got)
 	}
+	if path(t, v, "observatory", "enableConcurrency") != true {
+		t.Error("all servers must be probed at once")
+	}
 	if got := path(t, v, "burstObservatory", "pingConfig", "interval"); got != "10m" {
 		t.Errorf("a longer interval must stay: %v", got)
 	}

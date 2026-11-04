@@ -116,6 +116,8 @@ class IykykVpnService : VpnService(), CommandServerHandler {
     private var lastNetwork: Network? = null
     private var networkSeen = false
     private var failedReconnects = 0
+    /** A check passed since this connection started: the server works, so a failure later means the tunnel died. */
+    private var hadWorkingTunnel = false
     private var lastReconnectAt = 0L
     private var screenReceiver: BroadcastReceiver? = null
 
@@ -348,13 +350,15 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         healthJob?.cancel()
         val power = getSystemService(PowerManager::class.java)
         healthJob = healthScope.launch {
-            delay(1_500)
+            // Xray auto-select balancers need a few seconds to probe their servers.
+            delay(4_000)
             check("connect")
             while (isActive) {
                 delay(3 * 60_000L)
                 if (power.isInteractive) check("periodic")
             }
         }
+        hadWorkingTunnel = false
         if (screenReceiver == null) {
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context, intent: Intent) {
@@ -399,6 +403,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
                         AppLog.i("check ok ($reason): ${info.country}, ${info.latency} ms")
                     }
                     failedReconnects = 0
+                    hadWorkingTunnel = true
                     return
                 }
                 AppLog.i("check failed ($reason, $attempt/3): ${result.exceptionOrNull()?.message}")
@@ -411,16 +416,19 @@ class IykykVpnService : VpnService(), CommandServerHandler {
                 return
             }
             val now = SystemClock.elapsedRealtime()
-            val tooSoon = now - lastReconnectAt < 20_000
-            val gaveUp = failedReconnects >= 3 && now - lastReconnectAt < 5 * 60_000L
-            if (tooSoon || gaveUp) {
+            val tooSoon = now - lastReconnectAt < 30_000
+            val gaveUp = failedReconnects >= 2 && now - lastReconnectAt < 5 * 60_000L
+            // Reconnect only a tunnel that worked and then died (network switch,
+            // server restart). If it never worked since connecting, reconnecting
+            // will not help and would only interrupt traffic: tell the user instead.
+            if (!hadWorkingTunnel || tooSoon || gaveUp) {
                 VpnState.setTunnel(TunnelState.Failed)
                 updateNotification(getString(R.string.tunnel_failed), serverName)
                 return
             }
             failedReconnects++
             lastReconnectAt = now
-            AppLog.i("tunnel is dead, reconnecting ($failedReconnects/3)")
+            AppLog.i("tunnel is dead, reconnecting ($failedReconnects/2)")
             VpnState.setTunnel(TunnelState.Reconnecting)
             withContext(Dispatchers.Main) { reconnect() }
         } finally {

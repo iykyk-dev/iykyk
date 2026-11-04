@@ -195,6 +195,11 @@ const minProbeInterval = 5 * time.Minute
 func slowObservatory(config map[string]any) {
 	if o, ok := config["observatory"].(map[string]any); ok {
 		o["probeInterval"] = atLeast(o["probeInterval"], minProbeInterval)
+		// Without concurrency Xray probes one server per interval, so with a long
+		// interval most servers would stay untested for many minutes after
+		// connecting and the balancer would have nothing to choose from. With it,
+		// all servers are probed at once on start, then once per interval.
+		o["enableConcurrency"] = true
 	}
 	if b, ok := config["burstObservatory"].(map[string]any); ok {
 		ping, _ := b["pingConfig"].(map[string]any)

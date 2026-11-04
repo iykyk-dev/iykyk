@@ -69,7 +69,7 @@
     <string name="settings_apps">Приложения</string>
     <string name="apps_mode_all">Все приложения через VPN</string>
     <string name="apps_mode_only">Только выбранные через VPN</string>
-    <string name="apps_mode_except">Все, кроме выбранных</string>
+    <string name="apps_mode_except">Все через VPN, кроме выбранных</string>
     <string name="apps_choose">Выбрать приложения</string>
     <string name="apps_selected">Выбрано: %1$d</string>
     <string name="apps_search">Поиск</string>
@@ -216,4 +216,7 @@
     <string name="tv_receive_step1">На телефоне: IYKYK → ⋯ → «Отправить на TV»</string>
     <string name="tv_receive_step2">Наведите камеру телефона на этот код</string>
     <string name="tv_waiting">Жду телефон…</string>
+
+    <string name="apps_hint_only">Через VPN будут работать только отмеченные приложения, остальные — напрямую</string>
+    <string name="apps_hint_except">Отмеченные приложения будут работать без VPN. Заблокированные сайты в них не откроются</string>
 </resources>

@@ -152,36 +152,6 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(20.dp))
-            SectionTitle(stringResource(R.string.settings_dns))
-            Card {
-                Column {
-                    ChoiceRow(
-                        title = stringResource(R.string.remote_dns_title),
-                        value = settings.remoteDns,
-                        choices = listOf(
-                            "cloudflare" to stringResource(R.string.dns_cloudflare),
-                            "google" to stringResource(R.string.dns_google),
-                            "quad9" to stringResource(R.string.dns_quad9),
-                            "adguard" to stringResource(R.string.dns_adguard),
-                        ),
-                        allowCustom = true,
-                        onChange = onRemoteDnsChange,
-                    )
-                    ChoiceRow(
-                        title = stringResource(R.string.direct_dns_title),
-                        value = settings.directDns,
-                        choices = listOf(
-                            "yandex" to stringResource(R.string.dns_yandex),
-                            "cloudflare" to stringResource(R.string.dns_cloudflare),
-                            "google" to stringResource(R.string.dns_google),
-                        ),
-                        allowCustom = false,
-                        onChange = onDirectDnsChange,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
             SectionTitle(stringResource(R.string.settings_apps))
             Card {
                 Column {
@@ -206,6 +176,14 @@ fun SettingsScreen(
                         }
                     }
                     if (settings.appMode != AppMode.ALL) {
+                        Text(
+                            stringResource(
+                                if (settings.appMode == AppMode.ONLY_SELECTED) R.string.apps_hint_only else R.string.apps_hint_except,
+                            ),
+                            color = IykykColors.Muted,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

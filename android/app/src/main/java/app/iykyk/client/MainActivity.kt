@@ -103,7 +103,12 @@ class MainActivity : ComponentActivity() {
             IykykTheme(dark = dark) {
                 var screen by rememberSaveable { mutableStateOf(Screen.MAIN) }
                 BackHandler(enabled = screen != Screen.MAIN) {
-                    screen = if (screen == Screen.APPS) Screen.SETTINGS else Screen.MAIN
+                    if (screen == Screen.APPS) {
+                        screen = Screen.SETTINGS
+                        applyAppSelection()
+                    } else {
+                        screen = Screen.MAIN
+                    }
                 }
                 when (screen) {
                     Screen.MAIN -> MainScreen(
@@ -160,8 +165,7 @@ class MainActivity : ComponentActivity() {
                         selected = settings.apps,
                         onBack = {
                             screen = Screen.SETTINGS
-                            // Apply the new app list once, when leaving the picker.
-                            if (settings.appMode != AppMode.ALL) IykykVpnService.reconnect(this)
+                            applyAppSelection()
                         },
                         onToggle = { pkg ->
                             SettingsStore.update(this) {
@@ -175,12 +179,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private var lastPingAt = 0L
+    private var started = false
+
+    /** Applies the app list once, when leaving the picker (by the back button or the back gesture). */
+    private fun applyAppSelection() {
+        if (SettingsStore.settings.value.appMode != AppMode.ALL) IykykVpnService.reconnect(this)
+    }
 
     override fun onStart() {
         super.onStart()
+        // "Connect when the app opens" also covers coming back to it from the background.
+        if (started) autoConnectOnLaunch()
+        started = true
         IykykVpnService.check(this)
         lifecycleScope.launch {
             ProfileStore.refreshIfStale(this@MainActivity)
+            app.iykyk.client.core.ExpiryReminder.check(this@MainActivity)
             // Re-test the servers when the app opens, at most every 10 minutes.
             if (System.currentTimeMillis() - lastPingAt > 10 * 60_000L) pingServers()
         }
