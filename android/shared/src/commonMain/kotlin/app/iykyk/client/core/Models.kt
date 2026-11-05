@@ -46,6 +46,9 @@ fun SubscriptionInfo.daysLeft(now: Long = System.currentTimeMillis()): Int? {
     return if (millis < 0) -1 else (millis / 86_400_000L).toInt()
 }
 
+/** «Поддержка» in the app: the project's support bot, whatever the panel sends. */
+const val SUPPORT_URL = "https://t.me/dlyasvoih_support_bot"
+
 /** Where "Renew" leads: the provider's site, else the support link. */
 val SubscriptionInfo.renewUrl: String get() = webPageUrl.ifBlank { supportUrl }
 

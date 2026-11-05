@@ -93,6 +93,7 @@ import app.iykyk.client.core.EXPIRY_REMIND_DAYS
 import app.iykyk.client.core.Profiles
 import app.iykyk.client.core.ServerInfo
 import app.iykyk.client.core.SubscriptionInfo
+import app.iykyk.client.core.SUPPORT_URL
 import app.iykyk.client.core.daysLeft
 import app.iykyk.client.tv.TvShare
 import app.iykyk.client.vpn.TunnelState
@@ -877,9 +878,7 @@ private fun SubscriptionTab(
                 if (sub != null) {
                     ActionRow(Res.drawable.ic_refresh, stringResource(Res.string.sub_refresh), busy = refreshing, onClick = onRefresh)
                 }
-                if (sub?.supportUrl?.isNotBlank() == true) {
-                    ActionRow(Res.drawable.ic_help, stringResource(Res.string.action_support)) { onOpenUrl(sub.supportUrl) }
-                }
+                ActionRow(Res.drawable.ic_help, stringResource(Res.string.action_support)) { onOpenUrl(SUPPORT_URL) }
                 if (sub?.webPageUrl?.isNotBlank() == true) {
                     ActionRow(Res.drawable.ic_globe, stringResource(Res.string.action_website)) { onOpenUrl(sub.webPageUrl) }
                 }
