@@ -7,6 +7,7 @@ import android.os.Build
 import android.system.OsConstants
 import android.util.Log
 import androidx.annotation.RequiresApi
+import app.iykyk.client.core.AppLog
 import app.iykyk.client.core.NetworkMonitor
 import app.iykyk.core.libbox.BridgeOptions
 import app.iykyk.core.libbox.BridgeSession
@@ -71,12 +72,24 @@ class PlatformBridge(
                 options.inet4RouteRange.forEach { builder.addRoute(it.address(), it.prefix()) }
                 options.inet6RouteRange.forEach { builder.addRoute(it.address(), it.prefix()) }
             }
+            val allowed = mutableListOf<String>()
+            val disallowed = mutableListOf<String>()
+            val failed = mutableListOf<String>()
             options.includePackage.forEach { pkg ->
                 runCatching { builder.addAllowedApplication(pkg) }
+                    .onSuccess { allowed += pkg }
+                    .onFailure { failed += "$pkg (${it.javaClass.simpleName})" }
             }
             options.excludePackage.forEach { pkg ->
                 runCatching { builder.addDisallowedApplication(pkg) }
+                    .onSuccess { disallowed += pkg }
+                    .onFailure { failed += "$pkg (${it.javaClass.simpleName})" }
             }
+            AppLog.i(
+                "tun: only through VPN=$allowed, bypass=$disallowed" +
+                    (if (failed.isEmpty()) "" else ", failed=$failed") +
+                    ", dns=${options.dnsServerAddress.let { list -> buildList { list.forEach { add(it) } } }}",
+            )
         }
 
         val tun = builder.establish() ?: error("VPN permission was revoked")

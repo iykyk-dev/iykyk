@@ -193,6 +193,7 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         checkPass = profile.checkPass
         AppLog.resetCoreLogs(this)
         AppLog.i("connecting: ${profile.name} | ${profile.details} | ${profile.address}")
+        SettingsStore.settings.value.let { AppLog.i("apps: ${it.appMode}, selected=${it.apps}") }
 
         Iykyk.setSocketProtector { fd -> protect(fd) }
         Iykyk.startEngines(profile)

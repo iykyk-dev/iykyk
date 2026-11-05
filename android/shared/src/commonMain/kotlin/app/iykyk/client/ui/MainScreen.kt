@@ -392,11 +392,20 @@ private fun ConnectionTab(
     onManual: () -> Unit,
     onReceive: () -> Unit,
 ) {
+    Box(modifier = Modifier.fillMaxSize().then(topInsets)) {
+    val scroll = rememberScrollState()
+    // The map sits behind the connect button (8 + 48 top row + 28 + 80 dp to its
+    // centre) and scrolls away with it.
+    WorldMapBackground(
+        serverName = profiles.current?.name,
+        status = status,
+        anchorY = 164.dp - with(androidx.compose.ui.platform.LocalDensity.current) { scroll.value.toDp() },
+        modifier = Modifier.fillMaxSize(),
+    )
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .then(topInsets)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scroll)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -448,6 +457,7 @@ private fun ConnectionTab(
             onSelectServer = onSelectServer,
         )
         Spacer(Modifier.height(16.dp))
+    }
     }
 }
 
