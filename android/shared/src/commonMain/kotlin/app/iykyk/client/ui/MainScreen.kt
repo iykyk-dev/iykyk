@@ -434,14 +434,14 @@ private fun ConnectionTab(
         ConnectButton(status = status, enabled = profiles.hasServers, onClick = onToggle)
         Spacer(Modifier.height(16.dp))
         AnimatedVisibility(
-            visible = status == VpnStatus.CONNECTED && connectedAt > 0,
+            visible = status == VpnStatus.CONNECTED && (connectedAt > 0 || tunnel != null),
             enter = fadeIn(tween(300)) + expandVertically(tween(300)),
             exit = fadeOut(tween(200)) + shrinkVertically(tween(200)),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                SessionTimer(connectedAt)
+                if (connectedAt > 0) SessionTimer(connectedAt)
                 if (tunnel != null) {
-                    Spacer(Modifier.height(4.dp))
+                    if (connectedAt > 0) Spacer(Modifier.height(4.dp))
                     TunnelLine(tunnel, onCheck)
                 }
             }
@@ -914,7 +914,8 @@ private fun SubscriptionTab(
                 add(pluralStringResource(Res.plurals.servers_count, profiles.servers.size, profiles.servers.size))
             }
             Text(
-                parts.joinToString(" · "),
+                // Wraps only between the parts, never inside "6 серверов".
+                parts.joinToString(" · ") { it.replace(' ', '\u00A0') },
                 color = IykykColors.Muted,
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
