@@ -1,6 +1,17 @@
 package app.iykyk.client.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -419,15 +430,21 @@ private fun ConnectionTab(
             onManual = onManual,
             onReceive = onReceive,
         )
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(24.dp))
         ConnectButton(status = status, enabled = profiles.hasServers, onClick = onToggle)
         Spacer(Modifier.height(16.dp))
-        if (status == VpnStatus.CONNECTED && connectedAt > 0) {
-            SessionTimer(connectedAt)
-        }
-        if (status == VpnStatus.CONNECTED && tunnel != null) {
-            Spacer(Modifier.height(4.dp))
-            TunnelLine(tunnel, onCheck)
+        AnimatedVisibility(
+            visible = status == VpnStatus.CONNECTED && connectedAt > 0,
+            enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+            exit = fadeOut(tween(200)) + shrinkVertically(tween(200)),
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                SessionTimer(connectedAt)
+                if (tunnel != null) {
+                    Spacer(Modifier.height(4.dp))
+                    TunnelLine(tunnel, onCheck)
+                }
+            }
         }
         val failed = error != null && status == VpnStatus.DISCONNECTED
         if (failed) {
@@ -444,7 +461,7 @@ private fun ConnectionTab(
                 Text(stringResource(Res.string.action_send_report), color = IykykColors.Accent)
             }
         }
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(24.dp))
         SubscriptionCard(
             profiles = profiles,
             expanded = expanded,
@@ -505,7 +522,7 @@ private fun TopRow(
     }
 }
 
-/** A compact menu row: icon, text 25% smaller than the Material default, 38 dp tall. */
+/** A compact menu row: 18 dp icon, 13 sp text, 40 dp tall (Material dense). */
 @Composable
 private fun MenuItem(
     text: String,
@@ -523,7 +540,7 @@ private fun MenuItem(
         },
         onClick = onClick,
         contentPadding = PaddingValues(horizontal = 12.dp),
-        modifier = Modifier.height(38.dp),
+        modifier = Modifier.height(40.dp),
     )
 }
 
@@ -575,8 +592,8 @@ private fun SubscriptionCard(
                         if (sub != null) Res.string.subscription_label else Res.string.servers_title,
                     ),
                     color = IykykColors.Text,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 17.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
@@ -777,7 +794,7 @@ private fun SubscriptionTab(
             Text(
                 stringResource(Res.string.tab_subscription),
                 color = IykykColors.Text,
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.align(Alignment.Center),
             )
@@ -792,8 +809,8 @@ private fun SubscriptionTab(
                         Text(
                             sub.title.ifBlank { stringResource(Res.string.subscription_label) },
                             color = IykykColors.Text,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 18.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -837,7 +854,7 @@ private fun SubscriptionTab(
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
-                            Text("›", color = IykykColors.Muted, fontSize = 22.sp)
+                            Chevron()
                         }
                     }
                     if (sub.hwidLimitReached) {
@@ -852,7 +869,7 @@ private fun SubscriptionTab(
                     }
                 }
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
         }
 
         Surface(color = IykykColors.Surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
@@ -900,7 +917,8 @@ private fun SubscriptionTab(
                 parts.joinToString(" · "),
                 color = IykykColors.Muted,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(horizontal = 4.dp),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -1026,7 +1044,7 @@ private fun ActionRow(icon: DrawableResource?, text: String, busy: Boolean = fal
         }
         Spacer(Modifier.size(12.dp))
         Text(text, color = IykykColors.Text, modifier = Modifier.weight(1f))
-        Text("›", color = IykykColors.Muted, fontSize = 22.sp)
+        Chevron()
     }
 }
 
@@ -1072,12 +1090,17 @@ private fun ServerRow(server: ServerInfo, delay: Int?, selected: Boolean, onClic
         delay < 400 -> stringResource(Res.string.ping_ms, delay) to IykykColors.Warning
         else -> stringResource(Res.string.ping_ms, delay) to IykykColors.Error
     }
+    val highlight by animateColorAsState(
+        if (selected) IykykColors.Accent.copy(alpha = 0.14f) else IykykColors.Accent.copy(alpha = 0f),
+        animationSpec = tween(250),
+        label = "serverHighlight",
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(if (selected) IykykColors.Accent.copy(alpha = 0.14f) else Color.Transparent)
+            .background(highlight)
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1085,7 +1108,7 @@ private fun ServerRow(server: ServerInfo, delay: Int?, selected: Boolean, onClic
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(38.dp)
+                .size(40.dp)
                 .clip(CircleShape)
                 .background(IykykColors.SurfaceHigh),
         ) {
@@ -1157,14 +1180,14 @@ private fun WelcomeScreen(
         Spacer(Modifier.height(24.dp))
         Header()
         Spacer(Modifier.height(40.dp))
-        Text(stringResource(Res.string.welcome_title), color = IykykColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.welcome_title), color = IykykColors.Text, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(
             stringResource(Res.string.welcome_text),
             color = IykykColors.Muted,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(24.dp))
         if (canBuy) {
             LinkButton(stringResource(Res.string.action_buy), primary = true, modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
             Spacer(Modifier.height(32.dp))
@@ -1177,8 +1200,8 @@ private fun WelcomeScreen(
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(12.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(16.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             if (canBuy) {
                 LinkButton(stringResource(Res.string.action_get_in_bot), modifier = Modifier.fillMaxWidth(), onClick = onOpenBot)
             }
@@ -1187,12 +1210,13 @@ private fun WelcomeScreen(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onPaste,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 LinkButton(stringResource(Res.string.action_scan_qr), modifier = Modifier.weight(1f), onClick = onScanQr)
                 LinkButton(stringResource(Res.string.menu_manual), modifier = Modifier.weight(1f), onClick = onManual)
             }
         }
         // On a TV: no camera, no clipboard, typing with a remote is painful.
+        Spacer(Modifier.height(8.dp))
         TextButton(onClick = onReceive) {
             Text(stringResource(Res.string.menu_receive_tv), color = IykykColors.Accent)
         }
@@ -1397,13 +1421,22 @@ private fun ConnectButton(status: VpnStatus, enabled: Boolean, onClick: () -> Un
         if (status.isActive) Res.string.action_disconnect else Res.string.action_connect,
     )
 
+    // Shrinks a little under the finger and springs back, like a physical button.
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.94f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "buttonScale",
+    )
     Surface(
         onClick = onClick,
         enabled = enabled && !busy,
         shape = CircleShape,
         color = fill,
         border = BorderStroke(2.dp, IykykColors.Accent.copy(alpha = if (enabled) 0.5f else 0.15f)),
-        modifier = Modifier.size(160.dp),
+        interactionSource = interaction,
+        modifier = Modifier.size(160.dp).graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(
@@ -1412,10 +1445,11 @@ private fun ConnectButton(status: VpnStatus, enabled: Boolean, onClick: () -> Un
                 tint = iconTint,
                 modifier = Modifier.size(52.dp),
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
+            Crossfade(targetState = status, animationSpec = tween(250), label = "statusText") { shown ->
             Text(
                 text = stringResource(
-                    when (status) {
+                    when (shown) {
                         VpnStatus.DISCONNECTED -> Res.string.status_disconnected
                         VpnStatus.CONNECTING -> Res.string.status_connecting
                         VpnStatus.CONNECTED -> Res.string.status_connected
@@ -1423,9 +1457,10 @@ private fun ConnectButton(status: VpnStatus, enabled: Boolean, onClick: () -> Un
                     },
                 ),
                 color = iconTint,
-                fontSize = 15.sp,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
+            }
         }
     }
 }
@@ -1456,19 +1491,19 @@ private fun LinkButton(text: String, primary: Boolean = false, modifier: Modifie
     if (primary) {
         Button(
             onClick = onClick,
-            modifier = modifier,
+            modifier = modifier.heightIn(min = 48.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = IykykColors.Accent,
                 contentColor = IykykColors.OnAccent,
             ),
-        ) { Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        ) { Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold) }
     } else {
         OutlinedButton(
             onClick = onClick,
-            modifier = modifier,
+            modifier = modifier.heightIn(min = 48.dp),
             border = BorderStroke(1.dp, IykykColors.Muted.copy(alpha = 0.4f)),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = IykykColors.Text),
-        ) { Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        ) { Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge) }
     }
 }
 
@@ -1530,4 +1565,15 @@ internal fun QrCode(text: String, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/** "›" at the end of a row that opens something; one glyph everywhere. */
+@Composable
+internal fun Chevron() {
+    Icon(
+        painterResource(Res.drawable.ic_expand),
+        contentDescription = null,
+        tint = IykykColors.Muted,
+        modifier = Modifier.size(20.dp).rotate(-90f),
+    )
 }

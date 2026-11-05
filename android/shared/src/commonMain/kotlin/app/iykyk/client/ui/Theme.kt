@@ -2,6 +2,7 @@ package app.iykyk.client.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -10,6 +11,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
 
 /** Brand colours of «Для своих», taken from the logo. */
 object Brand {
@@ -71,6 +74,27 @@ object IykykColors {
     val Error: Color @Composable @ReadOnlyComposable get() = LocalPalette.current.Error
 }
 
+/**
+ * The Material 3 type scale with tighter tracking: the default 0.25–0.5 sp
+ * spacing on body text reads loose in Cyrillic, current apps use ~0.
+ * Sizes stay standard: 22 title / 16 body / 14 secondary / 12 caption.
+ */
+private val IykykTypography: Typography = Typography().let { t ->
+    fun TextStyle.tight(spacing: Float = 0f) = copy(letterSpacing = spacing.sp)
+    t.copy(
+        headlineSmall = t.headlineSmall.tight(),
+        titleLarge = t.titleLarge.tight(),
+        titleMedium = t.titleMedium.copy(fontSize = 17.sp, lineHeight = 24.sp).tight(),
+        titleSmall = t.titleSmall.copy(fontSize = 15.sp, lineHeight = 20.sp).tight(),
+        bodyLarge = t.bodyLarge.tight(),
+        bodyMedium = t.bodyMedium.tight(),
+        bodySmall = t.bodySmall.tight(0.1f),
+        labelLarge = t.labelLarge.copy(fontSize = 15.sp).tight(),
+        labelMedium = t.labelMedium.tight(0.2f),
+        labelSmall = t.labelSmall.tight(0.2f),
+    )
+}
+
 @Composable
 fun IykykTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val palette = if (dark) DarkPalette else LightPalette
@@ -100,6 +124,6 @@ fun IykykTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () ->
         )
     }
     CompositionLocalProvider(LocalPalette provides palette) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme, typography = IykykTypography, content = content)
     }
 }

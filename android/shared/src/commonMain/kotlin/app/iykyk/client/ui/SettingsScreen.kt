@@ -2,7 +2,12 @@ package app.iykyk.client.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.draw.rotate
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -85,7 +90,7 @@ fun SettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
             SectionTitle(stringResource(Res.string.settings_connection))
             Card {
                 Column {
@@ -124,13 +129,13 @@ fun SettingsScreen(
                                 )
                             }
                             Spacer(Modifier.width(12.dp))
-                            Text("›", color = IykykColors.Muted, fontSize = 22.sp)
+                            Chevron()
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
             SectionTitle(stringResource(Res.string.settings_routing))
             Card {
                 Column {
@@ -156,7 +161,7 @@ fun SettingsScreen(
             }
 
             if (mobile) {
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(24.dp))
                 SectionTitle(stringResource(Res.string.settings_apps))
                 Card {
                     Column {
@@ -218,7 +223,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
             SectionTitle(stringResource(Res.string.settings_about))
             Card {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -279,7 +284,7 @@ private fun ChoiceRow(
             Text(title, color = IykykColors.Text, fontWeight = FontWeight.Medium)
             Text(label, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
         }
-        Text("›", color = IykykColors.Muted, fontSize = 22.sp)
+        Chevron()
     }
     if (open) {
         AlertDialog(
@@ -343,12 +348,23 @@ private fun ChoiceRow(
 
 @Composable
 fun TopBar(title: String, onBack: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = onBack) {
-            Text("‹ " + stringResource(Res.string.action_back), color = IykykColors.Accent)
+    // Same layout as the main tabs: a 48 dp button on the left, the title centred.
+    Box(modifier = Modifier.fillMaxWidth()) {
+        IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+            Icon(
+                painterResource(Res.drawable.ic_expand),
+                contentDescription = stringResource(Res.string.action_back),
+                tint = IykykColors.Accent,
+                modifier = Modifier.rotate(90f),
+            )
         }
-        Spacer(Modifier.width(8.dp))
-        Text(title, color = IykykColors.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            title,
+            color = IykykColors.Text,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.align(Alignment.Center),
+        )
     }
 }
 
