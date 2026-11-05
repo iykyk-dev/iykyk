@@ -933,39 +933,26 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
         onDismissRequest = onDismiss,
         containerColor = IykykColors.Surface,
         title = {
-            Text(
-                stringResource(Res.string.devices_title) + "  " + if (devices.limit > 0) {
-                    stringResource(Res.string.devices_of, devices.used, devices.limit)
-                } else {
-                    devices.used.toString()
-                },
-                color = IykykColors.Text,
-            )
+            Column {
+                Text(stringResource(Res.string.devices_title), color = IykykColors.Text)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (devices.limit > 0) {
+                        stringResource(Res.string.devices_of, devices.used, devices.limit)
+                    } else {
+                        stringResource(Res.string.devices_unlimited, devices.used)
+                    },
+                    color = if (devices.limit > 0 && devices.used >= devices.limit) IykykColors.Warning else IykykColors.Muted,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                for (device in devices.devices) {
-                    Row(modifier = Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                device.model.ifBlank { device.platform.ifBlank { "?" } } +
-                                    if (device.current) " · " + stringResource(Res.string.device_current) else "",
-                                color = if (device.current) IykykColors.Accent else IykykColors.Text,
-                                fontWeight = FontWeight.Medium,
-                            )
-                            val details = listOfNotNull(
-                                listOf(device.platform, device.os).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null },
-                                device.app.ifBlank { null },
-                                isoDate(device.added)?.let { stringResource(Res.string.device_added, it) },
-                            ).joinToString(" · ")
-                            Text(details, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
-                        }
-                        if (!device.current) {
-                            TextButton(onClick = { confirm = device }) {
-                                Text(stringResource(Res.string.action_delete), color = IykykColors.Error)
-                            }
-                        }
-                    }
+                // This device first, then the most recently added.
+                val sorted = devices.devices.sortedWith(compareByDescending<DeviceInfo> { it.current }.thenByDescending { it.added })
+                for (device in sorted) {
+                    DeviceRow(device, onRemove = { confirm = device })
                 }
             }
         },
@@ -998,6 +985,62 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
                 }
             },
         )
+    }
+}
+
+/** One device: a type icon, the model on one line, details under it, delete on the right. */
+@Composable
+private fun DeviceRow(device: DeviceInfo, onRemove: () -> Unit) {
+    val kind = (device.platform + " " + device.model).lowercase()
+    val icon = when {
+        "tv" in kind -> Res.drawable.ic_tv
+        listOf("windows", "mac", "linux", "desktop").any { it in kind } -> Res.drawable.ic_computer
+        else -> Res.drawable.ic_phone
+    }
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(if (device.current) IykykColors.Accent.copy(alpha = 0.14f) else IykykColors.SurfaceHigh),
+        ) {
+            Icon(
+                painterResource(icon),
+                contentDescription = null,
+                tint = if (device.current) IykykColors.Accent else IykykColors.Muted,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(Modifier.size(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                device.model.ifBlank { device.platform.ifBlank { "?" } },
+                color = IykykColors.Text,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val details = listOfNotNull(
+                listOf(device.platform, device.os).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null },
+                isoDate(device.added)?.let { stringResource(Res.string.device_added, it) },
+            ).joinToString(" · ")
+            if (device.current) {
+                Text(stringResource(Res.string.device_current), color = IykykColors.Accent, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+            }
+            Text(details, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (!device.current) {
+            IconButton(onClick = onRemove) {
+                Icon(
+                    painterResource(Res.drawable.ic_delete),
+                    contentDescription = stringResource(Res.string.action_delete),
+                    tint = IykykColors.Error,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
     }
 }
 

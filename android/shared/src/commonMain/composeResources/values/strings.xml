@@ -202,7 +202,7 @@
     <string name="device_current">это устройство</string>
     <string name="device_added">добавлено %1$s</string>
     <string name="device_remove_title">Удалить устройство?</string>
-    <string name="device_remove_text">«%1$s» перестанет подключаться, а его место освободится для нового устройства. Подписку на нём можно будет добавить снова.</string>
+    <string name="device_remove_text">Место «%1$s» освободится для нового устройства. Если подписка на нём ещё добавлена, при следующем обновлении оно снова займёт место — поэтому удаляйте устройства, которыми больше не пользуетесь.</string>
     <string name="device_removed">Устройство удалено</string>
     <string name="device_remove_failed">Не удалось удалить: %1$s</string>
     <string name="hwid_limit_reached">Достигнут лимит устройств. Удалите старое устройство или напишите в поддержку.</string>
