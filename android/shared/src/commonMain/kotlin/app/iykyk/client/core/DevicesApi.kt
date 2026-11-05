@@ -12,7 +12,7 @@ import java.net.URL
  * next to the Remnawave panel) which devices use the subscription, and removes
  * one to free a slot. The admin token stays on the server; the app sends only
  * the subscription's short UUID, which already grants access to the subscription.
- * Returns null when the provider does not run the service. Shared by Android
+ * Throws when the provider does not run the service; callers show no row then. Shared by Android
  * and Windows; [hwid] is this install's device ID.
  */
 object DevicesApi {
@@ -41,9 +41,8 @@ object DevicesApi {
                 }
                 when (connection.responseCode) {
                     200 -> parse(connection.inputStream.bufferedReader().use { it.readText() })
-                    404 -> if (body == null) null else error("device not found")
-                    // No devices service in front of the panel (yet): no row, no noise.
-                    in 500..599 -> if (body == null) null else error("HTTP ${connection.responseCode}")
+                    // The caller shows no row on failure; the message goes to the log.
+                    404 -> error(if (body == null) "HTTP 404 (no service or subscription not found)" else "device not found")
                     else -> error("HTTP ${connection.responseCode}")
                 }
             } finally {
