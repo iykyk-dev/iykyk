@@ -168,6 +168,18 @@ jobs:
       - name: Build
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      # Renders the main screens to images and prints them into the log
+      # (base64), for design review without a device.
+      - name: Screenshots
+        continue-on-error: true
+        run: |
+          ./gradlew :shared:desktopTest --tests "app.iykyk.client.ui.Screenshots" --stacktrace
+          for f in shared/build/screenshots/*.jpg; do
+            echo "=== SCREENSHOT $(basename "$f") ==="
+            base64 -w0 "$f"; echo
+            echo "=== END ==="
+          done
+
       - name: Name the APK
         run: |
           mkdir -p "$RUNNER_TEMP/apk"

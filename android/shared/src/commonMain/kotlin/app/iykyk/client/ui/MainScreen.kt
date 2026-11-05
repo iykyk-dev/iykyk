@@ -127,6 +127,8 @@ fun MainScreen(
     onLoadDevices: () -> Unit,
     onDeleteDevice: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    /** 0 = Подключение, 1 = Подписка (screenshots open the second tab directly). */
+    initialTab: Int = 0,
 ) {
     var showLinkInput by remember { mutableStateOf(false) }
     var showShareQr by remember { mutableStateOf(false) }
@@ -142,7 +144,7 @@ fun MainScreen(
     )
     var showReceive by remember { mutableStateOf(false) }
     var expanded by rememberSaveable { mutableStateOf(true) }
-    var tab by rememberSaveable { mutableStateOf(0) }
+    var tab by rememberSaveable { mutableStateOf(initialTab) }
 
     Surface(color = IykykColors.Background, modifier = Modifier.fillMaxSize()) {
         if (!profiles.hasServers) {

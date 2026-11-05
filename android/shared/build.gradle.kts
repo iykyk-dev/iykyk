@@ -37,6 +37,11 @@ kotlin {
             // Android has org.json built in; the desktop app adds the library.
             compileOnly(libs.json)
         }
+        // Screenshots of the screens for design review (Screenshots.kt).
+        getByName("desktopTest").dependencies {
+            implementation(kotlin("test"))
+            implementation(compose.desktop.currentOs)
+        }
     }
 }
 

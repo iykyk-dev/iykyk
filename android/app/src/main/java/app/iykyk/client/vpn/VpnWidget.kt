@@ -41,6 +41,9 @@ class VpnWidget : AppWidgetProvider() {
     companion object {
         private const val ACTION_TOGGLE = "app.iykyk.client.action.WIDGET_TOGGLE"
 
+        /** Redraws the widgets with the new speed, if there are any on the home screen. */
+        fun updateSpeed(context: Context) = updateAll(context)
+
         /** Redraws every widget instance; called whenever the VPN state changes. */
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -73,6 +76,13 @@ class VpnWidget : AppWidgetProvider() {
                 R.id.widget_status,
                 if (connected && server != null) "${context.getString(text)} · $server" else context.getString(text),
             )
+            val speed = VpnState.speed.value
+            if (connected && speed != null) {
+                views.setTextViewText(R.id.widget_speed, speed)
+                views.setViewVisibility(R.id.widget_speed, android.view.View.VISIBLE)
+            } else {
+                views.setViewVisibility(R.id.widget_speed, android.view.View.GONE)
+            }
             val toggle = PendingIntent.getBroadcast(
                 context,
                 0,

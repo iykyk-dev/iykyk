@@ -260,6 +260,9 @@ class IykykVpnService : VpnService(), CommandServerHandler {
                 val total = (rx - startRx) + (tx - startTx)
                 val text = getString(R.string.notification_speed, formatRate(down), formatRate(up), formatSize(total))
                 updateNotification(text, serverName)
+                // The home-screen widget shows the speed too.
+                VpnState.setSpeed("↓ ${formatRate(down)}   ↑ ${formatRate(up)}")
+                VpnWidget.updateSpeed(this@IykykVpnService)
             }
         }
     }
