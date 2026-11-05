@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -493,23 +494,34 @@ private fun TopRow(
                 onDismissRequest = { menu = false },
                 containerColor = IykykColors.Surface,
             ) {
-                MenuItem(stringResource(Res.string.menu_paste)) { menu = false; onPaste() }
-                MenuItem(stringResource(Res.string.menu_scan_qr)) { menu = false; onScanQr() }
-                MenuItem(stringResource(Res.string.menu_manual)) { menu = false; onManual() }
-                MenuItem(stringResource(Res.string.menu_receive_tv)) { menu = false; onReceive() }
+                MenuItem(stringResource(Res.string.menu_paste), Res.drawable.ic_paste) { menu = false; onPaste() }
+                MenuItem(stringResource(Res.string.menu_scan_qr), Res.drawable.ic_scan) { menu = false; onScanQr() }
+                MenuItem(stringResource(Res.string.menu_manual), Res.drawable.ic_edit) { menu = false; onManual() }
+                MenuItem(stringResource(Res.string.menu_receive_tv), Res.drawable.ic_phone) { menu = false; onReceive() }
             }
         }
     }
 }
 
+/** A compact menu row: icon, text 25% smaller than the Material default, 38 dp tall. */
 @Composable
-private fun MenuItem(text: String, trailing: String? = null, onClick: () -> Unit) {
+private fun MenuItem(
+    text: String,
+    icon: DrawableResource,
+    trailing: String? = null,
+    color: Color = IykykColors.Text,
+    iconTint: Color = IykykColors.Accent,
+    onClick: () -> Unit,
+) {
     DropdownMenuItem(
-        text = { Text(text, color = IykykColors.Text) },
+        text = { Text(text, color = color, fontSize = 13.sp) },
+        leadingIcon = { Icon(painterResource(icon), contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp)) },
         trailingIcon = if (trailing == null) null else {
-            { Text(trailing, color = IykykColors.Accent) }
+            { Text(trailing, color = IykykColors.Accent, fontSize = 13.sp) }
         },
         onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        modifier = Modifier.height(38.dp),
     )
 }
 
@@ -584,26 +596,23 @@ private fun SubscriptionCard(
                         onDismissRequest = { menu = false },
                         containerColor = IykykColors.Surface,
                     ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.menu_send_tv), color = IykykColors.Text) },
-                            leadingIcon = {
-                                Icon(painterResource(Res.drawable.ic_tv), contentDescription = null, tint = IykykColors.Accent)
-                            },
-                            onClick = { menu = false; actions.onSendToTv() },
-                        )
+                        MenuItem(stringResource(Res.string.menu_send_tv), Res.drawable.ic_tv) { menu = false; actions.onSendToTv() }
                         if (actions.canShare) {
-                            MenuItem(stringResource(Res.string.menu_other_device)) { menu = false; actions.onShowQr() }
-                            MenuItem(stringResource(Res.string.menu_copy_link)) { menu = false; actions.onCopyLink() }
+                            MenuItem(stringResource(Res.string.menu_other_device), Res.drawable.ic_qr) { menu = false; actions.onShowQr() }
+                            MenuItem(stringResource(Res.string.menu_copy_link), Res.drawable.ic_copy) { menu = false; actions.onCopyLink() }
                         }
                         MenuItem(
                             stringResource(Res.string.menu_sort_ping),
+                            Res.drawable.ic_sort,
                             trailing = if (sortByPing) "✓" else null,
                         ) { menu = false; onSortChange(!sortByPing) }
                         HorizontalDivider(color = IykykColors.SurfaceHigh)
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.menu_delete), color = IykykColors.Error) },
-                            onClick = { menu = false; actions.onDelete() },
-                        )
+                        MenuItem(
+                            stringResource(Res.string.menu_delete),
+                            Res.drawable.ic_delete,
+                            color = IykykColors.Error,
+                            iconTint = IykykColors.Error,
+                        ) { menu = false; actions.onDelete() }
                     }
                 }
             }
@@ -850,17 +859,17 @@ private fun SubscriptionTab(
                     ActionRow(Res.drawable.ic_refresh, stringResource(Res.string.sub_refresh), busy = refreshing, onClick = onRefresh)
                 }
                 if (sub?.supportUrl?.isNotBlank() == true) {
-                    ActionRow(null, stringResource(Res.string.action_support)) { onOpenUrl(sub.supportUrl) }
+                    ActionRow(Res.drawable.ic_help, stringResource(Res.string.action_support)) { onOpenUrl(sub.supportUrl) }
                 }
                 if (sub?.webPageUrl?.isNotBlank() == true) {
-                    ActionRow(null, stringResource(Res.string.action_website)) { onOpenUrl(sub.webPageUrl) }
+                    ActionRow(Res.drawable.ic_globe, stringResource(Res.string.action_website)) { onOpenUrl(sub.webPageUrl) }
                 }
                 ActionRow(Res.drawable.ic_tv, stringResource(Res.string.menu_send_tv), onClick = actions.onSendToTv)
                 if (actions.canShare) {
-                    ActionRow(null, stringResource(Res.string.menu_other_device), onClick = actions.onShowQr)
-                    ActionRow(null, stringResource(Res.string.menu_copy_link), onClick = actions.onCopyLink)
+                    ActionRow(Res.drawable.ic_qr, stringResource(Res.string.menu_other_device), onClick = actions.onShowQr)
+                    ActionRow(Res.drawable.ic_copy, stringResource(Res.string.menu_copy_link), onClick = actions.onCopyLink)
                 }
-                ActionRow(null, stringResource(Res.string.action_send_report), onClick = onSendReport)
+                ActionRow(Res.drawable.ic_report, stringResource(Res.string.action_send_report), onClick = onSendReport)
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -870,7 +879,10 @@ private fun SubscriptionTab(
                     .fillMaxWidth()
                     .clickable(onClick = actions.onDelete)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                Icon(painterResource(Res.drawable.ic_delete), contentDescription = null, tint = IykykColors.Error)
+                Spacer(Modifier.size(12.dp))
                 Text(stringResource(Res.string.menu_delete), color = IykykColors.Error)
             }
         }
