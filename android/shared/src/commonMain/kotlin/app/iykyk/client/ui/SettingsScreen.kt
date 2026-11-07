@@ -1,6 +1,9 @@
 package app.iykyk.client.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -194,14 +197,16 @@ fun SettingsScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onAppModeChange(mode) }
+                                    .selectable(selected = settings.appMode == mode, role = Role.RadioButton, onClick = { onAppModeChange(mode) })
                                     .padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 RadioButton(
                                     selected = settings.appMode == mode,
-                                    onClick = { onAppModeChange(mode) },
+                                    onClick = null,
                                     colors = RadioButtonDefaults.colors(selectedColor = IykykColors.Accent),
+                                    // Same 48 dp as a clickable radio button: the row handles the tap.
+                                    modifier = Modifier.padding(14.dp),
                                 )
                                 Text(stringResource(label), color = IykykColors.Text)
                             }
@@ -317,7 +322,7 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChang
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onChange(!checked) }
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -328,7 +333,8 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChang
         Spacer(Modifier.width(12.dp))
         Switch(
             checked = checked,
-            onCheckedChange = onChange,
+            // The whole row is the switch for TalkBack: one focus stop, read as "on/off".
+            onCheckedChange = null,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = IykykColors.OnAccent,
                 checkedTrackColor = IykykColors.Accent,

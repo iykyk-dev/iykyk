@@ -19,6 +19,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1284,7 +1287,7 @@ private fun ServerRow(server: ServerInfo, delay: Int?, selected: Boolean, onClic
             .padding(horizontal = 8.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(highlight)
-            .clickable(onClick = onClick)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1296,7 +1299,8 @@ private fun ServerRow(server: ServerInfo, delay: Int?, selected: Boolean, onClic
                 .background(IykykColors.SurfaceHigh),
         ) {
             // The flag fills a fixed circle: sized in dp, so a large system font cannot crop it.
-            Text(flag ?: "🌐", fontSize = 20.dp.fixedSp(), maxLines = 1)
+            // Decorative: TalkBack reads the server name next to it.
+            Text(flag ?: "🌐", fontSize = 20.dp.fixedSp(), maxLines = 1, modifier = Modifier.clearAndSetSemantics {})
         }
         Spacer(Modifier.size(12.dp))
         Column(modifier = Modifier.weight(1f)) {
