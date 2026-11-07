@@ -32,6 +32,31 @@ env:
   CORE_TEST_TAGS: engine,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0
 
 jobs:
+  # Is this run a release? Yes for a tag v1.2.3, or for a push to main whose
+  # VERSION file names a version that has no tag yet: then this run builds the
+  # signed release and publishes it (and creates the tag).
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Release or not
+        id: plan
+        run: |
+          TAG=""
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
+            V="v$(tr -d '[:space:]' < VERSION)"
+            if ! git ls-remote --exit-code --tags origin "refs/tags/$V" >/dev/null; then TAG="$V"; fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release: ${TAG:-no}"
+
   core:
     name: Core (Go → .aar)
     runs-on: ubuntu-latest
@@ -143,8 +168,10 @@ jobs:
 
   android:
     name: Android APK
-    needs: core
+    needs: [plan, core]
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
     defaults:
       run:
         working-directory: android
@@ -189,11 +216,11 @@ jobs:
           if [ -n "$RELEASE_KEYSTORE_B64" ]; then
             echo "$RELEASE_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             export RELEASE_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
-          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          elif [ -n "$RELEASE_TAG" ]; then
             echo "::error::A release needs the RELEASE_KEYSTORE secrets"; exit 1
           fi
           VERSION_ARG=""
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then VERSION_ARG="-PappVersion=$GITHUB_REF_NAME"; fi
+          if [ -n "$RELEASE_TAG" ]; then VERSION_ARG="-PappVersion=$RELEASE_TAG"; fi
           ./gradlew :app:assembleRelease $VERSION_ARG --stacktrace
           rm -f "$RUNNER_TEMP/release.jks"
           mkdir -p "$RUNNER_TEMP/release"
@@ -207,7 +234,7 @@ jobs:
           ls -l "$RUNNER_TEMP/release"
 
       - name: Upload the release APKs
-        if: startsWith(github.ref, 'refs/tags/')
+        if: needs.plan.outputs.tag != ''
         uses: actions/upload-artifact@v7
         with:
           name: iykyk-android-release
@@ -259,8 +286,10 @@ jobs:
 
   windows-app:
     name: Windows app (IYKYK-Setup.exe)
-    needs: [windows-core, android]
+    needs: [plan, windows-core, android]
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
     defaults:
       run:
         shell: bash
@@ -290,7 +319,7 @@ jobs:
         working-directory: android
         run: |
           VERSION_ARG=""
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then VERSION_ARG="-PappVersion=$GITHUB_REF_NAME"; fi
+          if [ -n "$RELEASE_TAG" ]; then VERSION_ARG="-PappVersion=$RELEASE_TAG"; fi
           ./gradlew :desktop:createDistributable $VERSION_ARG --stacktrace
 
       - name: Build the installer
@@ -304,7 +333,7 @@ jobs:
           "$ISCC" \
             "/DAppImage=$(cygpath -w "$PWD/android/desktop/build/compose/binaries/main/app/IYKYK")" \
             "/DCoreDir=$(cygpath -w "$PWD/core-dist")" \
-            "/DAppVersion=$(if [[ "$GITHUB_REF" == refs/tags/* ]]; then echo "${GITHUB_REF_NAME#v}" | cut -d- -f1; else cat VERSION; fi).${{ github.run_number }}" \
+            "/DAppVersion=$(if [ -n "$RELEASE_TAG" ]; then V="$RELEASE_TAG"; else V="$(cat VERSION)"; fi; echo "${V#v}" | cut -d- -f1).${{ github.run_number }}" \
             "/O$(cygpath -w "$PWD/dist")" \
             android/desktop/installer/iykyk.iss
           ls -l dist
@@ -328,8 +357,8 @@ jobs:
   # of normal copies does not see it.
   release:
     name: Publish the release
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: [android, windows-app]
+    if: needs.plan.outputs.tag != ''
+    needs: [plan, android, windows-app]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -349,14 +378,14 @@ jobs:
 
       - name: Write version.json and the notes
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.plan.outputs.tag }}
           REPO: ${{ github.repository }}
         run: python3 scripts/release-manifest.py "$TAG" "$REPO" dist RELEASE_NOTES.md
 
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.plan.outputs.tag }}
         run: |
           FLAGS="--latest"
           if [[ "$TAG" == *-* ]]; then FLAGS="--prerelease --latest=false"; fi
@@ -364,6 +393,6 @@ jobs:
           # The old single "latest" release from before 1.0 is replaced by real ones.
           gh release delete latest --yes --cleanup-tag || true
           gh release create "$TAG" dist/IYKYK.apk dist/IYKYK-*.apk dist/IYKYK-Setup.exe dist/version.json \
-            --verify-tag $FLAGS \
+            --target "$GITHUB_SHA" $FLAGS \
             --title "IYKYK ${TAG#v}" \
             --notes-file dist/notes.md
