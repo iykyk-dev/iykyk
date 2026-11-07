@@ -145,6 +145,7 @@ private fun CheckRow(title: String, state: DiagState, detail: String) {
     }
 }
 
+@Composable
 private fun stateColor(state: DiagState): Color = when (state) {
     DiagState.OK -> Color(0xFF3FA66B)
     DiagState.FAIL -> IykykColors.Error
