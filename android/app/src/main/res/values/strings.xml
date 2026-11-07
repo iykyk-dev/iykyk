@@ -219,4 +219,13 @@
 
     <string name="apps_hint_only">Через VPN будут работать только отмеченные приложения, остальные — напрямую</string>
     <string name="apps_hint_except">Отмеченные приложения будут работать без VPN. Заблокированные сайты в них не откроются</string>
+    <string name="channel_updates">Обновления</string>
+    <string name="update_notification_title">Вышла новая версия IYKYK %1$s</string>
+    <string name="update_notification_text">Нажмите, чтобы обновиться</string>
+    <string name="update_allow_install">Разрешите IYKYK устанавливать обновления, вернитесь и нажмите «Обновить» ещё раз</string>
+    <string name="update_bad_checksum">файл повредился при скачивании, попробуйте ещё раз</string>
+    <string name="update_bad_signature">файл подписан не нашим ключом, установка отменена</string>
+    <string name="update_bad_file">не удалось открыть файл обновления</string>
+    <string name="update_cancelled">установка отменена</string>
+    <string name="update_failed_toast">Обновление не установлено: %1$s</string>
 </resources>

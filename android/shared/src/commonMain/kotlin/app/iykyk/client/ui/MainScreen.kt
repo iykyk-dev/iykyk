@@ -94,6 +94,7 @@ import app.iykyk.client.core.Profiles
 import app.iykyk.client.core.ServerInfo
 import app.iykyk.client.core.SubscriptionInfo
 import app.iykyk.client.core.SUPPORT_URL
+import app.iykyk.client.core.UpdateState
 import app.iykyk.client.core.daysLeft
 import app.iykyk.client.tv.TvShare
 import app.iykyk.client.vpn.TunnelState
@@ -141,7 +142,13 @@ fun MainScreen(
     onOpenSettings: () -> Unit,
     /** 0 = Подключение, 1 = Подписка (screenshots open the second tab directly). */
     initialTab: Int = 0,
+    update: UpdateState = UpdateState.Idle,
+    onUpdate: () -> Unit = {},
+    /** Version + notes to show once after an update, or null. */
+    whatsNew: Pair<String, String>? = null,
+    onWhatsNewSeen: () -> Unit = {},
 ) {
+    var updateHidden by remember { mutableStateOf(false) }
     var showLinkInput by remember { mutableStateOf(false) }
     var showShareQr by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -216,6 +223,14 @@ fun MainScreen(
                             onOpenSettings = onOpenSettings,
                         )
                     }
+                    if (!updateHidden || update is UpdateState.Downloading) {
+                        UpdateBanner(
+                            state = update,
+                            onUpdate = onUpdate,
+                            onLater = { updateHidden = true },
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                    }
                 }
                 NavigationBar(containerColor = IykykColors.Surface) {
                     TabItem(tab == 0, Res.drawable.ic_tile, Res.string.tab_connection) { tab = 0 }
@@ -223,6 +238,10 @@ fun MainScreen(
                 }
             }
         }
+    }
+
+    if (whatsNew != null) {
+        WhatsNewDialog(whatsNew.first, whatsNew.second, onDismiss = onWhatsNewSeen)
     }
 
     if (showLinkInput) {

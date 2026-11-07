@@ -35,6 +35,7 @@ class SubscriptionWorker(context: Context, params: WorkerParameters) : Coroutine
         SettingsStore.load(context)
         ProfileStore.refreshIfStale(context)
         ExpiryReminder.check(context)
+        app.iykyk.client.update.Updater.checkInBackground(context)
         return Result.success()
     }
 

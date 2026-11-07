@@ -25,12 +25,16 @@ dependencies {
     implementation(libs.json)
 }
 
-val appVersion = "0.1.0"
+// The release tag in CI, else the VERSION file. Windows wants plain numbers
+// for the package: "1.1.0-beta2" → "1.1.0".
+val fullVersion = (findProperty("appVersion") as String?)?.removePrefix("v")
+    ?: rootProject.file("../VERSION").readText().trim()
+val appVersion = fullVersion.substringBefore("-")
 
 compose.desktop {
     application {
         mainClass = "app.iykyk.desktop.MainKt"
-        jvmArgs += listOf("-Dfile.encoding=UTF-8", "-Xmx256m")
+        jvmArgs += listOf("-Dfile.encoding=UTF-8", "-Xmx256m", "-Diykyk.version=$fullVersion")
         nativeDistributions {
             // The installer is built with Inno Setup (installer/iykyk.iss) from
             // this app image, so it can also register the core service.

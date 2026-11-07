@@ -222,4 +222,19 @@
 
     <string name="win_autostart_title">Запускать вместе с Windows</string>
     <string name="win_autostart_subtitle">IYKYK будет в трее сразу после входа в Windows. Включите «Подключаться при запуске», чтобы VPN включался сам</string>
+    <string name="update_available">Доступна версия %1$s</string>
+    <string name="update_later">Позже</string>
+    <string name="update_now">Обновить</string>
+    <string name="whats_new_title">Что нового в %1$s</string>
+    <string name="update_check_title">Проверить обновления</string>
+    <string name="update_check_hint">Приложение проверяет само раз в день</string>
+    <string name="update_checking">Проверяю…</string>
+    <string name="update_up_to_date">У вас последняя версия</string>
+    <string name="update_downloading">Скачиваю обновление…</string>
+    <string name="update_failed">Не получилось: %1$s</string>
+    <string name="about_version">IYKYK %1$s</string>
+    <string name="about_source">Исходный код</string>
+    <string name="about_source_subtitle">Открытый код на GitHub, лицензия GPL-3.0</string>
+    <string name="about_signature">Подпись приложения</string>
+    <string name="about_signature_hint">Сверьте с отпечатком на сайте: если совпадает, приложение настоящее</string>
 </resources>

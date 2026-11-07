@@ -307,7 +307,7 @@ class DesktopController {
             core.post(
                 "/v1/fetch",
                 JSONObject().put("url", url).put("fallbacks", fallbacks)
-                    .put("userAgent", "IYKYK/0.1.0 (Windows ${System.getProperty("os.version")})")
+                    .put("userAgent", "IYKYK/${System.getProperty("iykyk.version") ?: "dev"} (Windows ${System.getProperty("os.version")})")
                     .put("device", device),
             )
         }

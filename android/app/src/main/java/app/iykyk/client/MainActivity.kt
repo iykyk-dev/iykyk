@@ -41,6 +41,9 @@ import app.iykyk.client.ui.AppPickerScreen
 import app.iykyk.client.ui.IykykTheme
 import app.iykyk.client.ui.MainScreen
 import app.iykyk.client.ui.SettingsScreen
+import app.iykyk.client.core.AboutInfo
+import app.iykyk.client.core.UpdateState
+import app.iykyk.client.update.Updater
 import app.iykyk.client.vpn.IykykVpnService
 import app.iykyk.client.vpn.VpnState
 import app.iykyk.core.iykyk.Iykyk
@@ -75,6 +78,8 @@ class MainActivity : ComponentActivity() {
     /** Set when the user leaves for the Telegram bot; checked when they come back. */
     private var openedBot = false
     private val versions by lazy { runCatching { Iykyk.versions() }.getOrDefault("") }
+    private val about by lazy { AboutInfo(BuildConfig.VERSION_NAME, Updater.signatureFingerprint(this)) }
+    private val whatsNew = MutableStateFlow<Pair<String, String>?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,6 +87,16 @@ class MainActivity : ComponentActivity() {
         askNotificationPermission()
         if (savedInstanceState == null) {
             if (!handleImportIntent(intent)) autoConnectOnLaunch()
+            whatsNew.value = Updater.pendingNotes(this)
+        }
+        // A failed download or install: say why once, then offer the update again.
+        lifecycleScope.launch {
+            Updater.state.collect { state ->
+                if (state is UpdateState.Failed) {
+                    toast(getString(R.string.update_failed_toast, state.message))
+                    Updater.acknowledgeFailure()
+                }
+            }
         }
 
         setContent {
@@ -145,6 +160,13 @@ class MainActivity : ComponentActivity() {
                         onImportText = ::importText,
                         onSortChange = { value -> SettingsStore.update(this) { it.copy(sortByPing = value) } },
                         onOpenSettings = { screen = Screen.SETTINGS },
+                        update = Updater.state.collectAsStateWithLifecycle().value,
+                        onUpdate = ::installUpdate,
+                        whatsNew = whatsNew.collectAsStateWithLifecycle().value,
+                        onWhatsNewSeen = {
+                            whatsNew.value = null
+                            Updater.notesSeen(this)
+                        },
                     )
                     Screen.SETTINGS -> SettingsScreen(
                         settings = settings,
@@ -162,6 +184,12 @@ class MainActivity : ComponentActivity() {
                         onAppModeChange = { mode -> changeSettings { it.copy(appMode = mode) } },
                         onChooseApps = { screen = Screen.APPS },
                         onThemeChange = { mode -> SettingsStore.update(this) { it.copy(themeMode = mode) } },
+                        about = about,
+                        update = Updater.state.collectAsStateWithLifecycle().value,
+                        onCheckUpdates = if (Updater.enabled) {
+                            { lifecycleScope.launch { Updater.checkNow(this@MainActivity) } }
+                        } else null,
+                        onOpenUrl = ::openUrl,
                     )
                     Screen.APPS -> AppPickerScreen(
                         selected = settings.apps,
@@ -197,6 +225,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             ProfileStore.refreshIfStale(this@MainActivity)
             app.iykyk.client.core.ExpiryReminder.check(this@MainActivity)
+            Updater.checkIfDue(this@MainActivity)
             // Re-test the servers when the app opens, at most every 10 minutes.
             if (System.currentTimeMillis() - lastPingAt > 10 * 60_000L) pingServers()
         }
@@ -211,6 +240,12 @@ class MainActivity : ComponentActivity() {
             refreshSubscription()
         } else {
             offerClipboardLink()
+        }
+    }
+
+    private fun installUpdate() {
+        lifecycleScope.launch {
+            if (!Updater.install(this@MainActivity)) toast(getString(R.string.update_allow_install))
         }
     }
 

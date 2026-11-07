@@ -43,6 +43,10 @@ import app.iykyk.shared.resources.*
 import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.AppSettings
 import app.iykyk.client.core.ThemeMode
+import app.iykyk.client.core.AboutInfo
+import app.iykyk.client.core.SOURCE_URL
+import app.iykyk.client.core.UpdateState
+import androidx.compose.ui.text.font.FontFamily
 
 @Composable
 fun SettingsScreen(
@@ -63,6 +67,11 @@ fun SettingsScreen(
     onThemeChange: (ThemeMode) -> Unit,
     /** Phone/TV-only settings: start on boot, reminders, kill switch, per-app routing. */
     mobile: Boolean = true,
+    about: AboutInfo? = null,
+    update: UpdateState = UpdateState.Idle,
+    /** Null when this build does not update itself (debug, store builds). */
+    onCheckUpdates: (() -> Unit)? = null,
+    onOpenUrl: (String) -> Unit = {},
 ) {
     Surface(color = IykykColors.Background, modifier = Modifier.fillMaxSize()) {
         Column(
@@ -226,13 +235,60 @@ fun SettingsScreen(
             Spacer(Modifier.height(24.dp))
             SectionTitle(stringResource(Res.string.settings_about))
             Card {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(Res.string.settings_versions), color = IykykColors.Text, fontWeight = FontWeight.Medium)
-                    Text(versions, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                Column {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            if (about != null) stringResource(Res.string.about_version, about.version) else stringResource(Res.string.settings_versions),
+                            color = IykykColors.Text,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(versions, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (onCheckUpdates != null) {
+                        LinkRow(
+                            title = stringResource(Res.string.update_check_title),
+                            subtitle = updateStatusText(update),
+                            onClick = onCheckUpdates,
+                        )
+                    }
+                    LinkRow(
+                        title = stringResource(Res.string.about_source),
+                        subtitle = stringResource(Res.string.about_source_subtitle),
+                        onClick = { onOpenUrl(SOURCE_URL) },
+                    )
+                    if (about != null && about.signature.isNotBlank()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(Res.string.about_signature), color = IykykColors.Text, fontWeight = FontWeight.Medium)
+                            Text(
+                                about.signature,
+                                color = IykykColors.Muted,
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            )
+                            Text(stringResource(Res.string.about_signature_hint), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun LinkRow(title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = IykykColors.Text, fontWeight = FontWeight.Medium)
+            Text(subtitle, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+        }
+        Spacer(Modifier.width(12.dp))
+        Chevron()
     }
 }
 

@@ -12,7 +12,10 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
         SettingsStore.load(context)
-        if (!SettingsStore.settings.value.autoConnectOnBoot) return
+        // After a self-update: reconnect if the VPN was on when the user tapped "Update".
+        val afterUpdate = intent.action == Intent.ACTION_MY_PACKAGE_REPLACED &&
+            app.iykyk.client.update.Updater.consumeReconnect(context)
+        if (!SettingsStore.settings.value.autoConnectOnBoot && !afterUpdate) return
         ProfileStore.load(context)
         if (!ProfileStore.profiles.value.hasServers) return
         // Without the permission the system would need to show a dialog: skip silently.

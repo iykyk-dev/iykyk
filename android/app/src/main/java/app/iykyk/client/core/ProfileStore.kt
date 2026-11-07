@@ -35,13 +35,22 @@ object ProfileStore {
     fun load(context: Context) {
         val prefs = prefs(context)
         val selected = prefs.getInt(KEY_SELECTED, 0)
-        val subUrl = prefs.getString(KEY_SUB_URL, null)
-        val subJson = prefs.getString(KEY_SUB_JSON, null)
+        val rawUrl = prefs.getString(KEY_SUB_URL, null)
+        val rawJson = prefs.getString(KEY_SUB_JSON, null)
+        val subUrl = SecretBox.decrypt(rawUrl)
+        val subJson = SecretBox.decrypt(rawJson)
+        // Saved by a version before encryption: encrypt it now.
+        if (subUrl != null && subJson != null && !SecretBox.isEncrypted(rawJson)) {
+            prefs.edit()
+                .putString(KEY_SUB_URL, SecretBox.encrypt(subUrl))
+                .putString(KEY_SUB_JSON, SecretBox.encrypt(subJson))
+                .apply()
+        }
         _profiles.value = when {
             subUrl != null && subJson != null -> runCatching {
                 parse(subUrl, subJson, prefs.getLong(KEY_SUB_UPDATED, 0)).copy(selected = selected)
             }.getOrDefault(Profiles())
-            else -> prefs.getString(KEY_LINK, null)
+            else -> SecretBox.decrypt(prefs.getString(KEY_LINK, null))
                 ?.let { link -> runCatching { Profiles(servers = listOf(describe(link))) }.getOrNull() }
                 ?: Profiles()
         }
@@ -77,7 +86,7 @@ object ProfileStore {
                 prefs(context).edit()
                     .clear()
                     .putString(KEY_HWID, hwid(context))
-                    .putString(KEY_LINK, trimmed)
+                    .putString(KEY_LINK, SecretBox.encrypt(trimmed))
                     .apply()
                 _profiles.value = Profiles(servers = listOf(server))
                 server.name
@@ -166,8 +175,8 @@ object ProfileStore {
     ) {
         prefs(context).edit()
             .remove(KEY_LINK)
-            .putString(KEY_SUB_URL, url)
-            .putString(KEY_SUB_JSON, json)
+            .putString(KEY_SUB_URL, SecretBox.encrypt(url))
+            .putString(KEY_SUB_JSON, SecretBox.encrypt(json))
             .putLong(KEY_SUB_UPDATED, updatedAt)
             .putInt(KEY_SELECTED, selected)
             .apply()

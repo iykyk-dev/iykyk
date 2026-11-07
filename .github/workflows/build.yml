@@ -3,9 +3,14 @@ name: Build
 on:
   push:
     branches: [main]
+    # A tag v1.2.3 (or v1.2.3-beta1) publishes a signed release; paths are not
+    # checked for tags.
+    tags: ["v*"]
     paths:
       - "android/**"
       - "core/**"
+      - "VERSION"
+      - "scripts/**"
       - ".github/workflows/build.yml"
   pull_request:
     paths:
@@ -22,6 +27,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # 32-bit ARM too: older phones and most Android TV boxes.
+  ANDROID_TARGETS: android/arm64,android/arm,android/amd64
   CORE_TEST_TAGS: engine,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0
 
 jobs:
@@ -41,7 +48,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: android/app/libs/iykyk-core.aar
-          key: core-android-${{ hashFiles('core/**') }}
+          key: core-android-${{ env.ANDROID_TARGETS }}-${{ hashFiles('core/**') }}
 
       - name: Set up Go
         if: steps.cache.outputs.cache-hit != 'true'
@@ -165,8 +172,48 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Build
+      # The test build (app.iykyk.client.debug) for testers, on every push to main.
+      - name: Build the test version
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: ./gradlew :app:assembleDebug --stacktrace
+
+      # The release build (app.iykyk.client), signed with the key from the secrets.
+      # On main it is built too, so R8 problems show up before a release.
+      - name: Build the release
+        env:
+          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_B64" ]; then
+            echo "$RELEASE_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            export RELEASE_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "::error::A release needs the RELEASE_KEYSTORE secrets"; exit 1
+          fi
+          VERSION_ARG=""
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then VERSION_ARG="-PappVersion=$GITHUB_REF_NAME"; fi
+          ./gradlew :app:assembleRelease $VERSION_ARG --stacktrace
+          rm -f "$RUNNER_TEMP/release.jks"
+          mkdir -p "$RUNNER_TEMP/release"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cp app/build/outputs/apk/release/app-$abi-release.apk "$RUNNER_TEMP/release/IYKYK-$abi.apk"
+          done
+          cp app/build/outputs/apk/release/app-universal-release.apk "$RUNNER_TEMP/release/IYKYK.apk"
+          # The signing certificate's fingerprint (public) for the site and Settings.
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
+          "$APKSIGNER" verify --print-certs "$RUNNER_TEMP/release/IYKYK.apk" | grep -i "SHA-256" | tee "$RUNNER_TEMP/release/signature.txt"
+          ls -l "$RUNNER_TEMP/release"
+
+      - name: Upload the release APKs
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v7
+        with:
+          name: iykyk-android-release
+          path: ${{ runner.temp }}/release/
+          if-no-files-found: error
+          retention-days: 7
 
       # Renders the main screens to images and prints them into the log
       # (base64), for design review without a device.
@@ -180,33 +227,35 @@ jobs:
             echo "=== END ==="
           done
 
-      - name: Name the APK
+      - name: Name the test APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: |
           mkdir -p "$RUNNER_TEMP/apk"
-          cp app/build/outputs/apk/debug/*.apk "$RUNNER_TEMP/apk/IYKYK.apk"
+          cp app/build/outputs/apk/debug/app-universal-debug.apk "$RUNNER_TEMP/apk/IYKYK-test.apk"
 
-      - name: Upload APK
+      - name: Upload the test APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v7
         with:
-          name: iykyk-debug-${{ github.run_number }}
-          path: ${{ runner.temp }}/apk/IYKYK.apk
+          name: iykyk-test-${{ github.run_number }}
+          path: ${{ runner.temp }}/apk/IYKYK-test.apk
           if-no-files-found: error
           retention-days: 3
 
-      # One release only: every build on main replaces it, so
-      # https://github.com/iykyk-dev/iykyk/releases/latest/download/IYKYK.apk
-      # always gives the newest APK (the project page will link here).
-      - name: Publish as the only release
+      # Test builds live in their own pre-release "test", replaced on every push,
+      # so they never become "latest" (what clients and the updater see).
+      - name: Publish the test build
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete latest --yes --cleanup-tag || true
-          gh release create latest "$RUNNER_TEMP/apk/IYKYK.apk" \
+          gh release delete test --yes --cleanup-tag || true
+          gh release create test "$RUNNER_TEMP/apk/IYKYK-test.apk" \
             --target "$GITHUB_SHA" \
-            --latest \
-            --title "IYKYK, сборка ${{ github.run_number }}" \
-            --notes "Тестовая сборка для Android (подписана отладочным ключом). Коммит ${GITHUB_SHA::7}."
+            --prerelease \
+            --latest=false \
+            --title "Тестовая сборка ${{ github.run_number }}" \
+            --notes "Для тестировщиков: отдельное приложение «IYKYK тест», ставится рядом с основным. Коммит ${GITHUB_SHA::7}."
 
   windows-app:
     name: Windows app (IYKYK-Setup.exe)
@@ -239,7 +288,10 @@ jobs:
 
       - name: Build the app image
         working-directory: android
-        run: ./gradlew :desktop:createDistributable --stacktrace
+        run: |
+          VERSION_ARG=""
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then VERSION_ARG="-PappVersion=$GITHUB_REF_NAME"; fi
+          ./gradlew :desktop:createDistributable $VERSION_ARG --stacktrace
 
       - name: Build the installer
         run: |
@@ -252,7 +304,7 @@ jobs:
           "$ISCC" \
             "/DAppImage=$(cygpath -w "$PWD/android/desktop/build/compose/binaries/main/app/IYKYK")" \
             "/DCoreDir=$(cygpath -w "$PWD/core-dist")" \
-            "/DAppVersion=0.1.0.${{ github.run_number }}" \
+            "/DAppVersion=$(if [[ "$GITHUB_REF" == refs/tags/* ]]; then echo "${GITHUB_REF_NAME#v}" | cut -d- -f1; else cat VERSION; fi).${{ github.run_number }}" \
             "/O$(cygpath -w "$PWD/dist")" \
             android/desktop/installer/iykyk.iss
           ls -l dist
@@ -265,8 +317,53 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-      - name: Add to the release
+      - name: Add to the test build
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload latest dist/IYKYK-Setup.exe --clobber -R "$GITHUB_REPOSITORY"
+        run: gh release upload test dist/IYKYK-Setup.exe --clobber -R "$GITHUB_REPOSITORY"
+
+  # Tag v1.2.3: one GitHub release with every file + version.json for the
+  # in-app updater. A tag with "-" (v1.2.3-beta1) is a pre-release: the updater
+  # of normal copies does not see it.
+  release:
+    name: Publish the release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [android, windows-app]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download Android
+        uses: actions/download-artifact@v8
+        with:
+          name: iykyk-android-release
+          path: dist
+
+      - name: Download Windows
+        uses: actions/download-artifact@v8
+        with:
+          name: iykyk-windows-${{ github.run_number }}
+          path: dist
+
+      - name: Write version.json and the notes
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: python3 scripts/release-manifest.py "$TAG" "$REPO" dist RELEASE_NOTES.md
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          FLAGS="--latest"
+          if [[ "$TAG" == *-* ]]; then FLAGS="--prerelease --latest=false"; fi
+          gh release delete "$TAG" --yes || true
+          # The old single "latest" release from before 1.0 is replaced by real ones.
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create "$TAG" dist/IYKYK.apk dist/IYKYK-*.apk dist/IYKYK-Setup.exe dist/version.json \
+            --verify-tag $FLAGS \
+            --title "IYKYK ${TAG#v}" \
+            --notes-file dist/notes.md
