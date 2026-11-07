@@ -72,7 +72,7 @@ def main() -> None:
     body += "\n### Проверка подлинности\n"
     if signature:
         # Same format as Settings → "Подпись приложения": AB:CD:…
-        hexdigest = signature.split(":", 1)[-1].strip().upper()
+        hexdigest = signature.rsplit(":", 1)[-1].strip().upper()
         pretty = ":".join(hexdigest[i:i + 2] for i in range(0, len(hexdigest), 2))
         body += f"Подпись Android-приложения (должна совпадать с «Настройки → Подпись приложения»):\n```\n{pretty}\n```\n"
     body += f"SHA-256 файлов:\n```\n{sums}\n```\n"
