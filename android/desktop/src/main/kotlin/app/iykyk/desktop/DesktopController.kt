@@ -7,6 +7,7 @@ import app.iykyk.client.core.EXPIRY_REMIND_DAYS
 import app.iykyk.client.core.daysLeft
 import app.iykyk.client.core.Profiles
 import app.iykyk.client.vpn.TunnelState
+import app.iykyk.client.core.AppMode
 import app.iykyk.client.vpn.VpnStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -93,6 +94,14 @@ class DesktopController {
                 delay(12 * 3_600_000L)
             }
         }
+        // "System proxy" mode: Windows' proxy points to IYKYK while connected, and
+        // is given back on disconnect (also after a crash, at the next start).
+        scope.launch {
+            status.collect { state ->
+                val wanted = state == VpnStatus.CONNECTED && settings.value.systemProxy
+                io { if (wanted) WindowsProxy.enable() else if (state == VpnStatus.DISCONNECTED) WindowsProxy.disableIfOurs() }
+            }
+        }
         scope.launch {
             updater.state.collect { state ->
                 if (state is app.iykyk.client.core.UpdateState.Failed) {
@@ -166,6 +175,11 @@ class DesktopController {
         }
     }
 
+    /** Quitting: give the system proxy back right away, the coroutine may not get to run. */
+    fun shutdown() {
+        runCatching { WindowsProxy.disableIfOurs() }
+    }
+
     fun disconnect() {
         busy = true
         status.value = VpnStatus.DISCONNECTING
@@ -188,6 +202,16 @@ class DesktopController {
         .put("remoteDNS", "cloudflare")
         .put("directDNS", "yandex")
         .put("preferXray", settings.value.preferXray)
+        .put(
+            "appMode",
+            when (settings.value.appMode) {
+                AppMode.ALL -> "all"
+                AppMode.ONLY_SELECTED -> "only"
+                AppMode.EXCEPT_SELECTED -> "except"
+            },
+        )
+        .put("apps", org.json.JSONArray(settings.value.apps.toList()))
+        .put("systemProxyPort", if (settings.value.systemProxy) WindowsProxy.PORT else 0)
         .apply {
             profiles.value.subscription?.routing?.takeIf { it.isNotBlank() }
                 ?.let { runCatching { put("routing", JSONObject(it)) } }

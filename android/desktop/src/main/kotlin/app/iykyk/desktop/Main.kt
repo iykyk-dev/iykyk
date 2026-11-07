@@ -1,6 +1,7 @@
 package app.iykyk.desktop
 
 import app.iykyk.client.core.AboutInfo
+import app.iykyk.client.core.AppMode
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -72,6 +73,7 @@ private fun runApp() = application {
             Separator()
             Item("Выход", onClick = {
                 app.disconnect()
+                app.shutdown()
                 exitApplication()
             })
         },
@@ -90,7 +92,7 @@ private fun runApp() = application {
     }
 }
 
-private enum class Screen { MAIN, SETTINGS }
+private enum class Screen { MAIN, SETTINGS, PROGRAMS }
 
 @Composable
 private fun App(app: DesktopController, quit: () -> Unit) {
@@ -161,14 +163,25 @@ private fun App(app: DesktopController, quit: () -> Unit) {
                     onOpenVpnSettings = {},
                     onRemoteDnsChange = {},
                     onDirectDnsChange = {},
-                    onAppModeChange = {},
-                    onChooseApps = {},
+                    onAppModeChange = { mode -> app.updateSettings(reconnect = true) { it.copy(appMode = mode) } },
+                    onChooseApps = { screen = Screen.PROGRAMS },
+                    onSystemProxyChange = { value -> app.updateSettings(reconnect = true) { it.copy(systemProxy = value) } },
                     onThemeChange = { mode -> app.updateSettings { it.copy(themeMode = mode) } },
                     mobile = false,
                     about = AboutInfo(System.getProperty("iykyk.version") ?: "dev", ""),
                     onOpenUrl = app::openUrl,
                     update = app.updater.state.collectAsState().value,
                     onCheckUpdates = if (app.updater.enabled) app::checkUpdates else null,
+                )
+                Screen.PROGRAMS -> ProgramsScreen(
+                    selected = settings.apps,
+                    onToggle = { name ->
+                        app.updateSettings(reconnect = settings.appMode != AppMode.ALL) {
+                            val has = it.apps.any { a -> a.equals(name, ignoreCase = true) }
+                            it.copy(apps = if (has) it.apps.filterNot { a -> a.equals(name, ignoreCase = true) }.toSet() else it.apps + name)
+                        }
+                    },
+                    onBack = { screen = Screen.SETTINGS },
                 )
             }
             message?.let { text ->

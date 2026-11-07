@@ -38,6 +38,15 @@ type options struct {
 	// "Send a report to support". Empty: no log files.
 	LogDir string `json:"logDir"`
 
+	// Desktop only. AppMode "only" sends just the programs in Apps through the
+	// VPN, "except" sends everything but them; "" or "all" sends everything.
+	// Apps are process names as Windows reports them ("chrome.exe").
+	AppMode string   `json:"appMode"`
+	Apps    []string `json:"apps"`
+	// SystemProxyPort > 0 replaces the TUN adapter with an HTTP/SOCKS proxy on
+	// 127.0.0.1:port, which the app then sets as the Windows system proxy.
+	SystemProxyPort int `json:"systemProxyPort"`
+
 	// The local check inbound (see check.go); set by BuildProfileWithOptions.
 	checkPort            int
 	checkUser, checkPass string
@@ -336,4 +345,26 @@ func tcpPing(address string) int {
 		return ms
 	}
 	return 1
+}
+
+// appRules routes programs by name (desktop): the rule goes before every other
+// so a program the user listed is never caught by a site rule first.
+func (o options) appRules() []any {
+	var names []string
+	for _, name := range o.Apps {
+		if name = strings.TrimSpace(name); name != "" {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	switch o.AppMode {
+	case "except":
+		return []any{jsonObject{"process_name": names, "outbound": "direct"}}
+	case "only":
+		// Everything else goes direct; the listed programs continue to the other rules.
+		return []any{jsonObject{"process_name": names, "invert": true, "outbound": "direct"}}
+	}
+	return nil
 }

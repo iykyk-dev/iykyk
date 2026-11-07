@@ -91,6 +91,8 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** Run VLESS/VMess/Trojan/Shadowsocks through Xray instead of sing-box (uses more battery). */
     val preferXray: Boolean = false,
+    /** Windows: the system proxy instead of the virtual adapter (no TUN). */
+    val systemProxy: Boolean = false,
 )
 
 

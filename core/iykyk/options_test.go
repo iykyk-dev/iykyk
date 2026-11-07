@@ -185,3 +185,50 @@ func TestParseTrace(t *testing.T) {
 		t.Fatalf("%+v", info)
 	}
 }
+
+func TestDesktopAppsAndSystemProxy(t *testing.T) {
+	p, err := BuildProfileWithOptions("hysteria2://pass@fi.example.com:443#FI",
+		`{"appMode":"except","apps":["Telegram.exe"," ","bank.exe"],"systemProxyPort":2080}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sb := decode(t, p.SingBoxConfig)
+	in := path(t, sb, "inbounds", 0)
+	if path(t, in, "type") != "mixed" || int(path(t, in, "listen_port").(float64)) != 2080 || path(t, in, "listen") != "127.0.0.1" {
+		t.Fatalf("system proxy inbound %v", in)
+	}
+	rules := path(t, sb, "route", "rules").([]any)
+	var appRule map[string]any
+	for _, r := range rules {
+		if m := r.(map[string]any); m["process_name"] != nil {
+			appRule = m
+			break
+		}
+	}
+	if appRule == nil || appRule["outbound"] != "direct" || len(appRule["process_name"].([]any)) != 2 || appRule["invert"] != nil {
+		t.Fatalf("except rule %v", appRule)
+	}
+	if path(t, sb, "route", "find_process") != true {
+		t.Fatal("find_process")
+	}
+
+	only, _ := BuildProfileWithOptions("hysteria2://pass@fi.example.com:443#FI", `{"appMode":"only","apps":["chrome.exe"]}`)
+	sb = decode(t, only.SingBoxConfig)
+	if path(t, sb, "inbounds", 0, "type") != "tun" {
+		t.Fatal("tun by default")
+	}
+	found := false
+	for _, r := range path(t, sb, "route", "rules").([]any) {
+		if m := r.(map[string]any); m["process_name"] != nil && m["invert"] == true && m["outbound"] == "direct" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("only rule")
+	}
+
+	all, _ := BuildProfileWithOptions("hysteria2://pass@fi.example.com:443#FI", `{"appMode":"all","apps":["chrome.exe"]}`)
+	if strings.Contains(all.SingBoxConfig, "process_name") || strings.Contains(all.SingBoxConfig, "find_process") {
+		t.Fatal("no app rules in 'all' mode")
+	}
+}

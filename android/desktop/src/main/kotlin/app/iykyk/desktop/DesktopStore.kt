@@ -4,6 +4,7 @@ import app.iykyk.client.core.AppSettings
 import app.iykyk.client.core.Profiles
 import app.iykyk.client.core.ServerInfo
 import app.iykyk.client.core.SubscriptionInfo
+import app.iykyk.client.core.AppMode
 import app.iykyk.client.core.ThemeMode
 import org.json.JSONObject
 import java.io.File
@@ -44,6 +45,9 @@ class DesktopStore {
         autoConnectOnBoot = props.getProperty("startWithWindows", "false").toBoolean(),
         expiryReminders = props.getProperty("expiryReminders", "true").toBoolean(),
         themeMode = runCatching { ThemeMode.valueOf(props.getProperty("themeMode")) }.getOrDefault(ThemeMode.SYSTEM),
+        appMode = runCatching { AppMode.valueOf(props.getProperty("appMode")) }.getOrDefault(AppMode.ALL),
+        apps = props.getProperty("apps").orEmpty().split('|').filter { it.isNotBlank() }.toSet(),
+        systemProxy = props.getProperty("systemProxy", "false").toBoolean(),
     )
 
     fun saveSettings(settings: AppSettings) {
@@ -55,6 +59,9 @@ class DesktopStore {
         props.setProperty("startWithWindows", settings.autoConnectOnBoot.toString())
         props.setProperty("expiryReminders", settings.expiryReminders.toString())
         props.setProperty("themeMode", settings.themeMode.name)
+        props.setProperty("appMode", settings.appMode.name)
+        props.setProperty("apps", settings.apps.joinToString("|"))
+        props.setProperty("systemProxy", settings.systemProxy.toString())
         save()
     }
 

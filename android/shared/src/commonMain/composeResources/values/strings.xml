@@ -249,4 +249,7 @@
     <string name="device_name_note">Название видно всем, кто пользуется этой подпиской. Оставьте пустым, чтобы убрать.</string>
     <string name="device_last_seen">активно %1$s</string>
     <string name="action_save">Сохранить</string>
+    <string name="system_proxy_title">Режим системного прокси</string>
+    <string name="system_proxy_subtitle">Без виртуального адаптера: через VPN идут браузеры и программы, которые используют прокси Windows. Включите, если обычный режим конфликтует с антивирусом или другим VPN</string>
+    <string name="settings_programs">Программы</string>
 </resources>

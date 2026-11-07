@@ -72,6 +72,8 @@ fun SettingsScreen(
     /** Null when this build does not update itself (debug, store builds). */
     onCheckUpdates: (() -> Unit)? = null,
     onOpenUrl: (String) -> Unit = {},
+    /** Windows only: the "system proxy" mode switch. */
+    onSystemProxyChange: ((Boolean) -> Unit)? = null,
 ) {
     Surface(color = IykykColors.Background, modifier = Modifier.fillMaxSize()) {
         Column(
@@ -115,6 +117,14 @@ fun SettingsScreen(
                         checked = settings.autoConnectOnBoot,
                         onChange = onAutoBootChange,
                     )
+                    if (onSystemProxyChange != null) {
+                        SwitchRow(
+                            title = stringResource(Res.string.system_proxy_title),
+                            subtitle = stringResource(Res.string.system_proxy_subtitle),
+                            checked = settings.systemProxy,
+                            onChange = onSystemProxyChange,
+                        )
+                    }
                     SwitchRow(
                         title = stringResource(Res.string.reminders_title),
                         subtitle = stringResource(Res.string.reminders_subtitle),
@@ -169,9 +179,9 @@ fun SettingsScreen(
                 }
             }
 
-            if (mobile) {
+            run {
                 Spacer(Modifier.height(24.dp))
-                SectionTitle(stringResource(Res.string.settings_apps))
+                SectionTitle(stringResource(if (mobile) Res.string.settings_apps else Res.string.settings_programs))
                 Card {
                     Column {
                         for ((mode, label) in listOf(

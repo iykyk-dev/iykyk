@@ -213,6 +213,8 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 		jsonObject{"protocol": "dns", "action": "hijack-dns"},
 		jsonObject{"ip_is_private": true, "outbound": "direct"},
 	}
+	appRules := opts.appRules()
+	routeRules = append(routeRules, appRules...)
 	var ruleSets []any
 	// The provider's rules come first, then the user's Russia bypass.
 	providerDNS, providerRoute, providerSets := opts.Routing.rules(opts.RuleSetDir)
@@ -243,6 +245,16 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 		// tunnel: TCP (most sites) hung, only UDP/QUIC (Google, YouTube) worked.
 		"stack": "gvisor",
 	}}
+	if opts.SystemProxyPort > 0 {
+		// Desktop "system proxy" mode: no adapter, programs that honour the
+		// Windows proxy settings connect here.
+		inbounds = []any{jsonObject{
+			"type":        "mixed",
+			"tag":         "proxy-in",
+			"listen":      "127.0.0.1",
+			"listen_port": opts.SystemProxyPort,
+		}}
+	}
 	if opts.checkPort > 0 {
 		inbounds = append(inbounds, jsonObject{
 			"type":        "mixed",
@@ -277,6 +289,9 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 	}
 	if len(ruleSets) > 0 {
 		config["route"].(jsonObject)["rule_set"] = ruleSets
+	}
+	if len(appRules) > 0 {
+		config["route"].(jsonObject)["find_process"] = true
 	}
 	return config
 }
