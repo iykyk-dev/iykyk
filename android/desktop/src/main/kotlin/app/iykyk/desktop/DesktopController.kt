@@ -319,7 +319,7 @@ class DesktopController {
     fun importText(text: String) {
         val trimmed = text.trim()
         if (!trimmed.startsWith("http://", true) && !trimmed.startsWith("https://", true)) {
-            if (locked.value) message.value = Lang.t("Эта ссылка не от «Для своих». IYKYK работает только с подписками нашего сервиса.", "This link is not from “Для своих”. IYKYK works only with our service’s subscriptions.")
+            if (locked.value) message.value = Lang.t("Эта ссылка не от нашего сервиса. IYKYK работает только с нашими подписками.", "This link is not from our service. IYKYK works only with our subscriptions.")
             return
         }
         message.value = Lang.t("Загружаю подписку…", "Loading subscription…")
@@ -505,7 +505,7 @@ class DesktopController {
 
     private fun friendly(e: Exception): String? = when {
         e.message.orEmpty().startsWith("subscription not allowed") ->
-            Lang.t("Эта ссылка не от «Для своих». IYKYK работает только с подписками нашего сервиса.", "This link is not from “Для своих”. IYKYK works only with our service’s subscriptions.")
+            Lang.t("Эта ссылка не от нашего сервиса. IYKYK работает только с нашими подписками.", "This link is not from our service. IYKYK works only with our subscriptions.")
         e.message.orEmpty().startsWith("hwid:") ->
             Lang.t("Достигнут лимит устройств подписки. Удалите старое устройство или напишите в поддержку.", "The subscription’s device limit is reached. Remove an old device or contact support.")
         else -> null

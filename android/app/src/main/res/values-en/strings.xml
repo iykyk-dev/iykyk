@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">IYKYK</string>
-    <string name="tagline">for friends</string>
 
     <string name="status_disconnected">Disconnected</string>
     <string name="status_connecting">Connecting…</string>
@@ -19,8 +18,8 @@
     <string name="action_paste_link">Paste a subscription or link</string>
     <string name="paste_hint">Copy a subscription link (https://…), a server link or a WireGuard/AmneziaWG file and tap the button below.</string>
     <string name="action_paste_subscription">Paste subscription link</string>
-    <string name="paste_hint_locked">Copy your subscription link from your “Для своих” account and tap the button below.</string>
-    <string name="link_not_allowed">This link is not from “Для своих”. IYKYK works only with our service’s subscriptions.</string>
+    <string name="paste_hint_locked">Copy your subscription link from the Telegram bot and tap the button below.</string>
+    <string name="link_not_allowed">This link is not from our service. IYKYK works only with our subscriptions.</string>
     <string name="link_saved">Added: %1$s</string>
     <string name="link_loading">Loading subscription…</string>
     <string name="link_clipboard_empty">The clipboard has no text</string>
@@ -149,7 +148,7 @@
     <string name="tab_connection">Connection</string>
     <string name="tab_subscription">Subscription</string>
     <string name="welcome_title">Welcome</string>
-    <string name="welcome_text">IYKYK is the secure connection app of “Для своих”. You need a subscription to connect.</string>
+    <string name="welcome_text">IYKYK connects you to a secure network with one tap. You need a subscription to connect.</string>
     <string name="action_buy">Get a subscription</string>
     <string name="welcome_have">Already have a subscription?</string>
     <string name="action_get_in_bot">Get the link in the Telegram bot</string>
@@ -177,7 +176,7 @@
     <string name="tunnel_reconnecting">Lost the server, reconnecting…</string>
     <string name="tunnel_failed">The server does not respond. Try another server</string>
     <string name="action_send_report">Send a report to support</string>
-    <string name="report_message">IYKYK report for “Для своих” support</string>
+    <string name="report_message">IYKYK report for support</string>
 
     <string name="menu_other_device">Connect another device</string>
     <string name="other_device_text">Scan this code in IYKYK on another phone or tablet. Do not show it to anyone else: it gives access to your subscription.</string>

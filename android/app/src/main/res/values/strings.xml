@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">IYKYK</string>
-    <string name="tagline">для своих</string>
 
     <string name="status_disconnected">Отключено</string>
     <string name="status_connecting">Подключение…</string>
@@ -19,8 +18,8 @@
     <string name="action_paste_link">Вставить подписку или ссылку</string>
     <string name="paste_hint">Скопируйте ссылку на подписку (https://…), ссылку на сервер или файл WireGuard/AmneziaWG и нажмите кнопку ниже.</string>
     <string name="action_paste_subscription">Вставить ссылку на подписку</string>
-    <string name="paste_hint_locked">Скопируйте ссылку на подписку из личного кабинета «Для своих» и нажмите кнопку ниже.</string>
-    <string name="link_not_allowed">Эта ссылка не от «Для своих». IYKYK работает только с подписками нашего сервиса.</string>
+    <string name="paste_hint_locked">Скопируйте ссылку на подписку из Telegram-бота и нажмите кнопку ниже.</string>
+    <string name="link_not_allowed">Эта ссылка не от нашего сервиса. IYKYK работает только с нашими подписками.</string>
     <string name="link_saved">Добавлено: %1$s</string>
     <string name="link_loading">Загружаю подписку…</string>
     <string name="link_clipboard_empty">В буфере обмена нет текста</string>
@@ -153,7 +152,7 @@
     <string name="tab_connection">Подключение</string>
     <string name="tab_subscription">Подписка</string>
     <string name="welcome_title">Добро пожаловать</string>
-    <string name="welcome_text">IYKYK это приложение для защищённого подключения «Для своих». Чтобы подключиться, нужна подписка.</string>
+    <string name="welcome_text">IYKYK подключает к защищённой сети в одно нажатие. Чтобы подключиться, нужна подписка.</string>
     <string name="action_buy">Купить подписку</string>
     <string name="welcome_have">Уже есть подписка?</string>
     <string name="action_get_in_bot">Взять ссылку в Telegram-боте</string>
@@ -183,7 +182,7 @@
     <string name="tunnel_reconnecting">Нет связи с сервером, переподключаюсь…</string>
     <string name="tunnel_failed">Сервер не отвечает. Попробуйте другой сервер</string>
     <string name="action_send_report">Отправить отчёт в поддержку</string>
-    <string name="report_message">Отчёт IYKYK для поддержки «Для своих»</string>
+    <string name="report_message">Отчёт IYKYK для поддержки</string>
 
     <string name="menu_other_device">Подключить другое устройство</string>
     <string name="other_device_text">Отсканируйте этот код в IYKYK на другом телефоне или планшете. Не показывайте его посторонним: это доступ к вашей подписке.</string>

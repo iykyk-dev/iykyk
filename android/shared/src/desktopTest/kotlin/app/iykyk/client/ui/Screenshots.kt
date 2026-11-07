@@ -31,7 +31,7 @@ class Screenshots {
     private val profiles = Profiles(
         subscription = SubscriptionInfo(
             url = "https://sub.example.com/api/sub/abc",
-            title = "VPN для своих",
+            title = "IYKYK",
             upload = 40L shl 20,
             download = 128L shl 20,
             total = 100L shl 30,

@@ -1578,11 +1578,6 @@ private fun Header(modifier: Modifier = Modifier) {
             fontWeight = FontWeight.Black,
             letterSpacing = 5.sp,
         )
-        Text(
-            text = stringResource(Res.string.tagline),
-            color = IykykColors.Muted,
-            style = MaterialTheme.typography.bodyMedium,
-        )
     }
 }
 
