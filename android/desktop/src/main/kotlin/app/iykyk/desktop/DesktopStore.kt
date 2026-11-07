@@ -27,6 +27,14 @@ class DesktopStore {
             save()
         }
 
+    /** The version a "new version" notification was already shown for. */
+    var notifiedUpdate: String?
+        get() = props.getProperty("notified_update")
+        set(value) {
+            if (value == null) props.remove("notified_update") else props.setProperty("notified_update", value)
+            save()
+        }
+
     fun loadSettings(): AppSettings = AppSettings(
         bypassRussia = props.getProperty("bypassRussia", "true").toBoolean(),
         fragment = props.getProperty("fragment", "false").toBoolean(),

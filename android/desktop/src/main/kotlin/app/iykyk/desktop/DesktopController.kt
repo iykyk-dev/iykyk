@@ -53,6 +53,9 @@ class DesktopController {
     /** A Windows notification to show from the tray: title to text. */
     val notification = MutableStateFlow<Pair<String, String>?>(null)
     val locked = MutableStateFlow(true)
+    val updater = DesktopUpdater()
+    /** Version + notes to show once after an update. */
+    val whatsNew = MutableStateFlow(updater.pendingNotes())
 
     private var busy = false
     private var checkJob: Job? = null
@@ -72,7 +75,31 @@ class DesktopController {
             refreshIfStale()
             remindIfExpiring()
             pingServers()
-            if (settings.value.autoConnectOnLaunch && profiles.value.hasServers) connect()
+            // Right after an update the service was reinstalled: reconnect if the VPN was on.
+            val afterUpdate = updater.takeReconnect()
+            if ((settings.value.autoConnectOnLaunch || afterUpdate) && profiles.value.hasServers) connect()
+        }
+        scope.launch {
+            // Check for a new version a little after start, then twice a day.
+            delay(15_000)
+            while (true) {
+                if (updater.check(manual = false)) {
+                    val version = (updater.state.value as? app.iykyk.client.core.UpdateState.Available)?.version
+                    if (version != null && store.notifiedUpdate != version) {
+                        store.notifiedUpdate = version
+                        notification.value = "Вышла новая версия IYKYK $version" to "Откройте IYKYK и нажмите «Обновить»"
+                    }
+                }
+                delay(12 * 3_600_000L)
+            }
+        }
+        scope.launch {
+            updater.state.collect { state ->
+                if (state is app.iykyk.client.core.UpdateState.Failed) {
+                    message.value = "Обновление не установлено: ${state.message}"
+                    updater.acknowledgeFailure()
+                }
+            }
         }
     }
 
@@ -384,6 +411,22 @@ class DesktopController {
         val url = profiles.value.subscription?.url ?: return
         Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(url), null)
         message.value = "Ссылка скопирована"
+    }
+
+    fun checkUpdates() {
+        scope.launch { updater.check(manual = true) }
+    }
+
+    /** Downloads the installer and starts it; the app quits so its files can be replaced. */
+    fun installUpdate(onQuit: () -> Unit) {
+        scope.launch {
+            if (updater.install(vpnWasOn = status.value != VpnStatus.DISCONNECTED)) onQuit()
+        }
+    }
+
+    fun whatsNewSeen() {
+        whatsNew.value = null
+        updater.notesSeen()
     }
 
     fun openUrl(url: String) {

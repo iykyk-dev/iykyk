@@ -85,14 +85,15 @@ private fun runApp() = application {
         icon = icon,
         state = rememberWindowState(size = DpSize(430.dp, 860.dp)),
     ) {
-        App(app)
+        // The installer replaces the app's files: quit once it has started.
+        App(app, quit = { exitApplication() })
     }
 }
 
 private enum class Screen { MAIN, SETTINGS }
 
 @Composable
-private fun App(app: DesktopController) {
+private fun App(app: DesktopController, quit: () -> Unit) {
     val settings by app.settings.collectAsState()
     val dark = when (settings.themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -141,6 +142,10 @@ private fun App(app: DesktopController) {
                     onLoadDevices = app::loadDevices,
                     onDeleteDevice = app::deleteDevice,
                     onOpenSettings = { screen = Screen.SETTINGS },
+                    update = app.updater.state.collectAsState().value,
+                    onUpdate = { app.installUpdate(onQuit = quit) },
+                    whatsNew = app.whatsNew.collectAsState().value,
+                    onWhatsNewSeen = app::whatsNewSeen,
                 )
                 Screen.SETTINGS -> SettingsScreen(
                     settings = settings,
@@ -161,6 +166,8 @@ private fun App(app: DesktopController) {
                     mobile = false,
                     about = AboutInfo(System.getProperty("iykyk.version") ?: "dev", ""),
                     onOpenUrl = app::openUrl,
+                    update = app.updater.state.collectAsState().value,
+                    onCheckUpdates = if (app.updater.enabled) app::checkUpdates else null,
                 )
             }
             message?.let { text ->

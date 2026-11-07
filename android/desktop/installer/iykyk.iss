@@ -50,6 +50,8 @@ Name: "{autodesktop}\IYKYK"; Filename: "{app}\IYKYK.exe"; Tasks: desktopicon
 ; Registers and starts the core service (replaces an older one on upgrade).
 Filename: "{app}\core\iykyk-service.exe"; Parameters: "install"; Flags: runhidden waituntilterminated; StatusMsg: "Настраиваю службу IYKYK…"
 Filename: "{app}\IYKYK.exe"; Description: "{cm:LaunchProgram,IYKYK}"; Flags: nowait postinstall skipifsilent
+; An update started from the app (/SILENT): start the new version as the user.
+Filename: "{app}\IYKYK.exe"; Flags: nowait runasoriginaluser; Check: WizardSilent
 
 [UninstallRun]
 Filename: "{app}\core\iykyk-service.exe"; Parameters: "uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveService"
