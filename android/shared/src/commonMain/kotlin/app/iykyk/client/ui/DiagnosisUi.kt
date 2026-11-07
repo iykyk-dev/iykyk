@@ -134,7 +134,6 @@ private fun CheckRow(title: String, state: DiagState, detail: String) {
     }
 }
 
-@Composable
 /** A drawn mark (not a font glyph, which sits off-centre in some fonts). */
 @Composable
 private fun StateMark(state: DiagState, color: Color) {
