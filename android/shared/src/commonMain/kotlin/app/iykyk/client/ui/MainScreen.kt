@@ -1515,7 +1515,7 @@ private fun TvReceiveDialog(onReceived: (String) -> Unit, onDismiss: () -> Unit)
 private val uiLocale: Locale get() = if (app.iykyk.client.core.Lang.english) Locale.UK else Locale.forLanguageTag("ru")
 
 private fun shortDate(unixSeconds: Long): String =
-    SimpleDateFormat(if (app.iykyk.client.core.Lang.english) "d MMM yyyy" else "dd.MM.yyyy", uiLocale).format(Date(unixSeconds * 1000))
+    SimpleDateFormat("dd.MM.yyyy", uiLocale).format(Date(unixSeconds * 1000))
 
 private fun longDate(unixSeconds: Long): String =
     SimpleDateFormat("d MMMM yyyy", uiLocale).format(Date(unixSeconds * 1000))

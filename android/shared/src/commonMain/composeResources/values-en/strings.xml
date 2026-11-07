@@ -247,7 +247,7 @@
     <string name="system_proxy_subtitle">No virtual adapter: browsers and programs that use the Windows proxy go through IYKYK. Turn on if the normal mode conflicts with an antivirus or another network program</string>
     <string name="settings_programs">Programs</string>
     <string name="welcome_manual">Manually</string>
-    <string name="action_troubleshoot">Not working? Check the connection</string>
+    <string name="action_troubleshoot">Not working? Run a check</string>
     <string name="diag_title">Connection check</string>
     <string name="diag_internet">Internet on the device</string>
     <string name="diag_subscription">Subscription</string>
