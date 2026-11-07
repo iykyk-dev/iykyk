@@ -237,4 +237,10 @@
     <string name="about_source_subtitle">Открытый код на GitHub, лицензия GPL-3.0</string>
     <string name="about_signature">Подпись приложения</string>
     <string name="about_signature_hint">Сверьте с отпечатком на сайте: если совпадает, приложение настоящее</string>
+    <string name="data_notice_title">Коротко о ваших данных</string>
+    <string name="data_notice_1">Ссылка на подписку хранится только на этом устройстве, в зашифрованном виде.</string>
+    <string name="data_notice_2">Чтобы считать устройства по вашему тарифу, приложение сообщает серверу подписки идентификатор устройства, его модель и версию системы.</string>
+    <string name="data_notice_3">IYKYK не собирает историю посещений, в нём нет аналитики и рекламы.</string>
+    <string name="data_notice_4">Отчёт об ошибке уходит в поддержку, только когда вы сами его отправите.</string>
+    <string name="data_notice_ok">Понятно</string>
 </resources>

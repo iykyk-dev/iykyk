@@ -80,6 +80,9 @@ class MainActivity : ComponentActivity() {
     private val versions by lazy { runCatching { Iykyk.versions() }.getOrDefault("") }
     private val about by lazy { AboutInfo(BuildConfig.VERSION_NAME, Updater.signatureFingerprint(this)) }
     private val whatsNew = MutableStateFlow<Pair<String, String>?>(null)
+    private val dataNotice by lazy {
+        MutableStateFlow(!getSharedPreferences("intro", MODE_PRIVATE).getBoolean("data_notice", false))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -163,6 +166,11 @@ class MainActivity : ComponentActivity() {
                         update = Updater.state.collectAsStateWithLifecycle().value,
                         onUpdate = ::installUpdate,
                         whatsNew = whatsNew.collectAsStateWithLifecycle().value,
+                        showDataNotice = dataNotice.collectAsStateWithLifecycle().value,
+                        onDataNoticeAccepted = {
+                            dataNotice.value = false
+                            getSharedPreferences("intro", MODE_PRIVATE).edit().putBoolean("data_notice", true).apply()
+                        },
                         onWhatsNewSeen = {
                             whatsNew.value = null
                             Updater.notesSeen(this)

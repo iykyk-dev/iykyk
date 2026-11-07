@@ -100,7 +100,7 @@ object Updater {
     private suspend fun check(context: Context, manual: Boolean): Release? = withContext(Dispatchers.IO) {
         if (manual) _state.value = UpdateState.Checking
         try {
-            val release = parse(get(UPDATE_MANIFEST_URL))
+            val release = parse(get(manifestUrl()))
             prefs(context).edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply()
             if (release != null && release.code > installedCode(context)) {
                 AppLog.i("update: ${release.version} is available")
@@ -192,6 +192,25 @@ object Updater {
     }.getOrNull().orEmpty()
 
     // --- network ---
+
+    /**
+     * Normal copies read the latest release. A beta copy (1.1.0-beta2) also gets newer
+     * betas: the newest release of any kind that carries a version.json.
+     */
+    private fun manifestUrl(): String {
+        if (!BuildConfig.VERSION_NAME.contains("-beta")) return UPDATE_MANIFEST_URL
+        val releases = org.json.JSONArray(get("https://api.github.com/repos/iykyk-dev/iykyk/releases?per_page=15"))
+        for (i in 0 until releases.length()) {
+            val release = releases.getJSONObject(i)
+            if (release.optBoolean("draft") || !release.optString("tag_name").startsWith("v")) continue
+            val assets = release.optJSONArray("assets") ?: continue
+            for (j in 0 until assets.length()) {
+                val asset = assets.getJSONObject(j)
+                if (asset.optString("name") == "version.json") return asset.getString("browser_download_url")
+            }
+        }
+        return UPDATE_MANIFEST_URL
+    }
 
     private fun get(url: String): String {
         val connection = open(url)

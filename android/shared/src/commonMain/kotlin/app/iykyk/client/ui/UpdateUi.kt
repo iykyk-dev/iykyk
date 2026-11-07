@@ -129,3 +129,31 @@ internal fun updateStatusText(state: UpdateState): String = when (state) {
     is UpdateState.Downloading -> stringResource(Res.string.update_downloading)
     is UpdateState.Failed -> stringResource(Res.string.update_failed, state.message)
 }
+
+/** Shown once before the first subscription: what the app sends and keeps. */
+@Composable
+internal fun DataNoticeDialog(onAccept: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = {},
+        containerColor = IykykColors.Surface,
+        title = { Text(stringResource(Res.string.data_notice_title), color = IykykColors.Text) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                for (line in listOf(Res.string.data_notice_1, Res.string.data_notice_2, Res.string.data_notice_3, Res.string.data_notice_4)) {
+                    Row {
+                        Text("•", color = IykykColors.Accent, modifier = Modifier.padding(end = 8.dp))
+                        Text(stringResource(line), color = IykykColors.Text, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onAccept) {
+                Text(stringResource(Res.string.data_notice_ok), color = IykykColors.Accent, fontWeight = FontWeight.SemiBold)
+            }
+        },
+    )
+}

@@ -147,6 +147,9 @@ fun MainScreen(
     /** Version + notes to show once after an update, or null. */
     whatsNew: Pair<String, String>? = null,
     onWhatsNewSeen: () -> Unit = {},
+    /** First launch: what the app sends and keeps, before any subscription is added. */
+    showDataNotice: Boolean = false,
+    onDataNoticeAccepted: () -> Unit = {},
 ) {
     var updateHidden by remember { mutableStateOf(false) }
     var showLinkInput by remember { mutableStateOf(false) }
@@ -238,6 +241,10 @@ fun MainScreen(
                 }
             }
         }
+    }
+
+    if (showDataNotice && !profiles.hasServers) {
+        DataNoticeDialog(onAccept = onDataNoticeAccepted)
     }
 
     if (whatsNew != null) {

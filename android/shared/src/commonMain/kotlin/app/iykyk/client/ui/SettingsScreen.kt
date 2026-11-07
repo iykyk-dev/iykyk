@@ -260,7 +260,8 @@ fun SettingsScreen(
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(stringResource(Res.string.about_signature), color = IykykColors.Text, fontWeight = FontWeight.Medium)
                             Text(
-                                about.signature,
+                                // 32 bytes as four lines of eight, so no line breaks mid-byte.
+                                about.signature.split(":").chunked(8).joinToString("\n") { it.joinToString(":") },
                                 color = IykykColors.Muted,
                                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                             )
