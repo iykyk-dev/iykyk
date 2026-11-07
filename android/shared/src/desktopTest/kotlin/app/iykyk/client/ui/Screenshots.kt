@@ -164,7 +164,14 @@ class Screenshots {
             it.first in setOf("main-connected-light", "subscription-dark", "welcome-light", "devices-light", "data-notice-light", "settings-light", "diagnosis-switch-dark")
         }
             .map { (name, content) -> "$name-font130" to content }
-        for ((name, content) in shots + dialogs + large) {
+        // English: the longest translations, at the large font too.
+        val english = (shots + dialogs).filter {
+            it.first in setOf("main-connected-light", "subscription-dark", "welcome-light", "settings-light", "diagnosis-switch-dark", "devices-light")
+        }
+            .flatMap { (name, content) -> listOf("$name-en" to content, "$name-en-font130" to content) }
+        val russian = java.util.Locale.getDefault()
+        for ((name, content) in shots + dialogs + large + english) {
+            java.util.Locale.setDefault(if (name.contains("-en")) java.util.Locale.ENGLISH else java.util.Locale.forLanguageTag("ru"))
             // 412 x 915 dp (a common phone) at density 2.
             val density = if (name.endsWith("-font130")) Density(2f, fontScale = 1.3f) else Density(2f)
             ImageComposeScene(width = 824, height = 1830, density = density, content = content).use { scene ->
@@ -178,5 +185,6 @@ class Screenshots {
                 File(out, "$name.jpg").writeBytes(data.bytes)
             }
         }
+        java.util.Locale.setDefault(russian)
     }
 }

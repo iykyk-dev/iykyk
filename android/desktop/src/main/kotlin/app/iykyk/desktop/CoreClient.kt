@@ -1,5 +1,7 @@
 package app.iykyk.desktop
 
+import app.iykyk.client.core.Lang
+
 import org.json.JSONObject
 import java.io.File
 import java.net.ConnectException
@@ -51,6 +53,6 @@ class CoreClient {
 
     companion object {
         const val SERVICE_NOT_RUNNING =
-            "служба IYKYK не запущена. Перезагрузите компьютер или переустановите приложение"
+            Lang.t("служба IYKYK не запущена. Перезагрузите компьютер или переустановите приложение", "the IYKYK service is not running. Restart the computer or reinstall the app")
     }
 }

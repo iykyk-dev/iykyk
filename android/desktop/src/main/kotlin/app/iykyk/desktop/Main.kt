@@ -1,5 +1,7 @@
 package app.iykyk.desktop
 
+import app.iykyk.client.core.Lang
+
 import app.iykyk.client.core.AboutInfo
 import app.iykyk.client.core.AppMode
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -68,10 +70,10 @@ private fun runApp() = application {
         tooltip = "IYKYK",
         onAction = { windowVisible.value = true },
         menu = {
-            Item("Открыть IYKYK", onClick = { windowVisible.value = true })
-            Item(if (status == VpnStatus.DISCONNECTED) "Подключить" else "Отключить", onClick = app::toggle)
+            Item(Lang.t("Открыть IYKYK", "Open IYKYK"), onClick = { windowVisible.value = true })
+            Item(if (status == VpnStatus.DISCONNECTED) Lang.t("Подключить", "Connect") else Lang.t("Отключить", "Disconnect"), onClick = app::toggle)
             Separator()
-            Item("Выход", onClick = {
+            Item(Lang.t("Выход", "Quit"), onClick = {
                 app.disconnect()
                 app.shutdown()
                 exitApplication()
@@ -80,7 +82,7 @@ private fun runApp() = application {
     )
 
     Window(
-        // Closing the window keeps the VPN and the tray icon; "Выход" quits.
+        // Closing the window keeps the VPN and the tray icon; Lang.t("Выход", "Quit") quits.
         onCloseRequest = { windowVisible.value = false },
         visible = visible,
         title = "IYKYK",
@@ -129,9 +131,9 @@ private fun App(app: DesktopController, quit: () -> Unit) {
                     onSelectServer = app::select,
                     onPing = app::pingServers,
                     onSortChange = { value -> app.updateSettings { it.copy(sortByPing = value) } },
-                    onScanQr = { app.message.value = "На компьютере нет камеры: скопируйте ссылку на подписку и нажмите «Вставить»" },
+                    onScanQr = { app.message.value = Lang.t("На компьютере нет камеры: скопируйте ссылку на подписку и нажмите «Вставить»", "This computer has no camera: copy the subscription link and click “Paste”") },
                     onSendToTv = {
-                        app.message.value = "Отправить на телевизор можно с телефона: IYKYK на телефоне → ⋯ → «Отправить на TV»"
+                        app.message.value = Lang.t("Отправить на телевизор можно с телефона: IYKYK на телефоне → ⋯ → «Отправить на TV»", "You can send to a TV from your phone: IYKYK on the phone → ⋯ → “Send to TV”")
                     },
                     onOpenBot = { app.openUrl("https://t.me/dlyasvoihVPS_bot") },
                     onOpenUrl = app::openUrl,

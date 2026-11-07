@@ -1,5 +1,7 @@
 package app.iykyk.desktop
 
+import app.iykyk.client.core.Lang
+
 import app.iykyk.client.core.UPDATE_MANIFEST_MIRROR
 import app.iykyk.client.core.UPDATE_MANIFEST_URL
 import app.iykyk.client.core.UpdateState
@@ -95,7 +97,7 @@ class DesktopUpdater {
             if (process.waitFor() != 0) {
                 props.remove("reconnect")
                 save()
-                error(if (output.contains("canceled", ignoreCase = true) || output.contains("отмен", ignoreCase = true)) "установка отменена" else output.trim().take(200))
+                error(if (output.contains("canceled", ignoreCase = true) || output.contains("отмен", ignoreCase = true)) Lang.t("установка отменена", "installation cancelled") else output.trim().take(200))
             }
             true
         } catch (e: Exception) {
@@ -170,7 +172,7 @@ class DesktopUpdater {
         val sha = digest.digest().joinToString("") { "%02x".format(it) }
         if (!sha.equals(release.sha256, ignoreCase = true)) {
             file.delete()
-            error("файл повредился при скачивании, попробуйте ещё раз")
+            error(Lang.t("файл повредился при скачивании, попробуйте ещё раз", "the file was damaged while downloading, try again"))
         }
     }
 

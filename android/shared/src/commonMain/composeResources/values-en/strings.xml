@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">IYKYK</string>
+    <string name="tagline">for friends</string>
+
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnecting">Disconnecting…</string>
+
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+
+    <string name="server_label">Server</string>
+    <string name="server_none">not selected</string>
+    <string name="protocol_label">Protocol</string>
+    <string name="action_change_server">Change</string>
+    <string name="servers_title">Servers</string>
+    <string name="action_paste_link">Paste a subscription or link</string>
+    <string name="paste_hint">Copy a subscription link (https://…), a server link or a WireGuard/AmneziaWG file and tap the button below.</string>
+    <string name="action_paste_subscription">Paste subscription link</string>
+    <string name="paste_hint_locked">Copy your subscription link from your “Для своих” account and tap the button below.</string>
+    <string name="link_not_allowed">This link is not from “Для своих”. IYKYK works only with our service’s subscriptions.</string>
+    <string name="link_saved">Added: %1$s</string>
+    <string name="link_loading">Loading subscription…</string>
+    <string name="link_clipboard_empty">The clipboard has no text</string>
+    <string name="link_invalid">Could not add: %1$s</string>
+
+    <string name="subscription_label">Subscription</string>
+    <string name="traffic_label">Traffic</string>
+    <string name="traffic_used_of">%1$s of %2$s</string>
+    <string name="traffic_unlimited">%1$s, no limit</string>
+    <string name="expire_label">Valid until</string>
+    <string name="expire_never">no end date</string>
+    <string name="expire_expired">ended %1$s</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="refreshing">Refreshing…</string>
+    <string name="refresh_done">Subscription updated</string>
+    <string name="refresh_failed">Could not update: %1$s</string>
+
+    <string name="error_no_server">Add a server first</string>
+    <string name="error_prefix">Could not connect: %1$s</string>
+
+    <string name="action_ping">Test ping</string>
+    <string name="pinging">Testing…</string>
+    <string name="ping_ms">%1$d ms</string>
+    <string name="ping_failed">unavailable</string>
+    <string name="ping_udp">-</string>
+    <string name="sort_by_ping">By ping</string>
+    <string name="sort_by_order">In order</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="action_back">Back</string>
+    <string name="settings_routing">Routing</string>
+    <string name="settings_dns">DNS</string>
+    <string name="remote_dns_title">DNS inside the connection</string>
+    <string name="direct_dns_title">DNS for direct connections</string>
+    <string name="dns_custom">Custom DoH server</string>
+    <string name="dns_custom_hint">https://dns.example.com/dns-query</string>
+    <string name="dns_cloudflare">Cloudflare (1.1.1.1)</string>
+    <string name="dns_google">Google (8.8.8.8)</string>
+    <string name="dns_quad9">Quad9 (9.9.9.9)</string>
+    <string name="dns_adguard">AdGuard (blocks ads)</string>
+    <string name="dns_yandex">Yandex (77.88.8.8)</string>
+    <string name="bypass_title">Russian sites directly</string>
+    <string name="bypass_subtitle">Gosuslugi, banks, Yandex and other sites in .ru and on Russian IPs open directly</string>
+    <string name="fragment_title">DPI bypass (TLS fragmentation)</string>
+    <string name="fragment_subtitle">Turn on if the connection does not start: the beginning of the secure connection is sent in parts</string>
+    <string name="settings_apps">Apps</string>
+    <string name="apps_mode_all">All apps through IYKYK</string>
+    <string name="apps_mode_only">Only selected through IYKYK</string>
+    <string name="apps_mode_except">All through IYKYK except selected</string>
+    <string name="apps_choose">Choose apps</string>
+    <string name="apps_selected">Selected: %1$d</string>
+    <string name="apps_search">Search</string>
+    <string name="settings_reconnect_hint">Changes apply right away, IYKYK reconnects by itself</string>
+    <string name="settings_about">About</string>
+    <string name="settings_versions">Core versions</string>
+
+    <string name="channel_subscription">Subscription</string>
+    <string name="expiry_ended">Your subscription has ended. Renew it to keep IYKYK working.</string>
+    <string name="expiry_today">Your subscription ends today</string>
+    <plurals name="expiry_in_days">
+        <item quantity="one">Your subscription ends in %1$d day</item>
+        <item quantity="other">Your subscription ends in %1$d days</item>
+    </plurals>
+    <string name="action_renew">Renew</string>
+    <string name="action_support">Support</string>
+    <string name="action_website">Website</string>
+    <string name="action_scan_qr">QR code</string>
+    <string name="action_enter_link">Enter link manually</string>
+    <string name="enter_link_title">Subscription link</string>
+    <string name="enter_link_hint">https://…</string>
+    <string name="action_add">Add</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="qr_prompt">Point the camera at the subscription QR code</string>
+
+    <string name="settings_connection">Connection</string>
+    <string name="auto_launch_title">Connect on launch</string>
+    <string name="auto_launch_subtitle">IYKYK connects by itself when you open the app</string>
+    <string name="auto_boot_title">Connect when the phone starts</string>
+    <string name="auto_boot_subtitle">IYKYK connects by itself after a restart</string>
+    <string name="reminders_title">Subscription reminders</string>
+    <string name="reminders_subtitle">3 days before it ends and when traffic is almost used up</string>
+    <string name="killswitch_title">Internet only through IYKYK</string>
+    <string name="killswitch_subtitle">System VPN settings will open: turn on “Always-on VPN” and “Block connections without VPN” for IYKYK</string>
+
+    <string name="notification_channel">Connection status</string>
+    <string name="notification_speed">↓ %1$s  ↑ %2$s · this session %3$s</string>
+    <string name="widget_description">Connect with one tap</string>
+    <string name="notification_connected">Secure connection is active</string>
+
+    <string name="cd_settings">Settings</string>
+    <string name="cd_add">Add</string>
+    <string name="cd_refresh">Refresh subscription</string>
+    <string name="cd_ping">Test ping</string>
+    <string name="cd_more">More</string>
+    <string name="cd_expand">Show or hide servers</string>
+    <string name="menu_paste">Paste from clipboard</string>
+    <string name="menu_scan_qr">Scan QR code</string>
+    <string name="menu_manual">Enter manually</string>
+    <string name="menu_receive_tv">Receive from phone</string>
+    <string name="menu_send_tv">Send to TV</string>
+    <string name="menu_sort_ping">Sort by ping</string>
+    <string name="sub_updated">Updated %1$s</string>
+    <string name="sub_auto_update">auto-update every %1$d h</string>
+    <plurals name="servers_count">
+        <item quantity="one">%1$d server</item>
+        <item quantity="other">%1$d servers</item>
+    </plurals>
+    <string name="expire_until">until %1$s</string>
+    <string name="empty_title">Add a subscription</string>
+
+    <string name="tv_receive_title">Receive from phone</string>
+    <string name="tv_receive_text">On your phone, open IYKYK, tap ⋯ next to the subscription → “Send to TV” and point the camera at this code. The phone and the TV must be on the same Wi-Fi network.</string>
+    <string name="tv_receive_no_network">The TV is not connected to a local network. Connect it to Wi-Fi or a cable and try again.</string>
+    <string name="tv_scan_prompt">Point the camera at the QR code on the TV screen</string>
+    <string name="tv_sending">Sending to the TV…</string>
+    <string name="tv_sent">Subscription sent to the TV</string>
+    <string name="tv_send_failed">Could not send: %1$s</string>
+    <string name="tv_nothing_to_send">Add a subscription first</string>
+
+    <string name="settings_appearance">Appearance</string>
+    <string name="theme_title">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+
+    <string name="tab_connection">Connection</string>
+    <string name="tab_subscription">Subscription</string>
+    <string name="welcome_title">Welcome</string>
+    <string name="welcome_text">IYKYK is the secure connection app of “Для своих”. You need a subscription to connect.</string>
+    <string name="action_buy">Get a subscription</string>
+    <string name="welcome_have">Already have a subscription?</string>
+    <string name="action_get_in_bot">Get the link in the Telegram bot</string>
+    <string name="sub_status_active">Active</string>
+    <string name="sub_status_ending">Ending soon</string>
+    <string name="sub_status_expired">Ended</string>
+    <string name="sub_status_unlimited">No end date</string>
+    <string name="action_renew_bot">Renew subscription</string>
+    <plurals name="sub_days_left">
+        <item quantity="one">%1$d day left</item>
+        <item quantity="other">%1$d days left</item>
+    </plurals>
+    <string name="sub_valid_until">Valid until %1$s</string>
+    <string name="sub_traffic">Traffic</string>
+    <string name="sub_actions">Actions</string>
+    <string name="sub_refresh">Refresh subscription</string>
+    <string name="clipboard_found_title">Add this subscription?</string>
+    <string name="clipboard_found_text">The clipboard has a link:\n%1$s</string>
+    <string name="prefer_xray_title">Compatibility: everything through Xray</string>
+    <string name="prefer_xray_subtitle">Turn on only if a server stopped connecting after an update. Uses more battery</string>
+
+    <string name="tunnel_checking">Checking the connection…</string>
+    <string name="tunnel_ok">%1$s · %2$s · %3$d ms</string>
+    <string name="tunnel_no_internet">No internet. IYKYK will connect when the network is back</string>
+    <string name="tunnel_reconnecting">Lost the server, reconnecting…</string>
+    <string name="tunnel_failed">The server does not respond. Try another server</string>
+    <string name="action_send_report">Send a report to support</string>
+    <string name="report_message">IYKYK report for “Для своих” support</string>
+
+    <string name="menu_other_device">Connect another device</string>
+    <string name="other_device_text">Scan this code in IYKYK on another phone or tablet. Do not show it to anyone else: it gives access to your subscription.</string>
+    <string name="menu_copy_link">Copy link</string>
+    <string name="link_copied">Link copied</string>
+    <string name="menu_delete">Delete subscription</string>
+    <string name="delete_title">Delete the subscription?</string>
+    <string name="delete_text">The subscription and servers will disappear from the app and IYKYK will disconnect. The subscription itself is not cancelled: you can add it again.</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_close">Close</string>
+
+    <string name="devices_label">Devices</string>
+    <string name="devices_of">%1$d of %2$d</string>
+    <string name="devices_unlimited">%1$d, no limit</string>
+    <string name="devices_title">Devices</string>
+    <string name="device_current">this device</string>
+    <string name="device_added">added %1$s</string>
+    <string name="device_remove_title">Remove the device?</string>
+    <string name="device_remove_text">The slot of “%1$s” will be free for a new device. If the subscription is still added on it, it will take the slot again at the next update. So remove only devices you no longer use.</string>
+    <string name="device_removed">Device removed</string>
+    <string name="device_remove_failed">Could not remove: %1$s</string>
+    <string name="hwid_limit_reached">Device limit reached. Remove an old device or contact support.</string>
+    <string name="error_device_limit">The subscription’s device limit is reached. Remove an old device in IYKYK on another phone or contact support.</string>
+
+    <string name="tv_send_step1">Open IYKYK on the TV</string>
+    <string name="tv_send_step2">Tap “Receive from phone”</string>
+    <string name="tv_send_step3">Point the camera at the code on the screen</string>
+    <string name="tv_same_wifi">The phone and the TV are on the same Wi-Fi network</string>
+    <string name="tv_scan_button">Scan code</string>
+    <string name="tv_receive_step1">On the phone: IYKYK → ⋯ → “Send to TV”</string>
+    <string name="tv_receive_step2">Point the phone’s camera at this code</string>
+    <string name="tv_waiting">Waiting for the phone…</string>
+
+    <string name="apps_hint_only">Only the checked apps will go through IYKYK, the rest directly</string>
+    <string name="apps_hint_except">The checked apps will work directly, without IYKYK</string>
+
+    <string name="win_autostart_title">Start with Windows</string>
+    <string name="win_autostart_subtitle">IYKYK will be in the tray right after you sign in to Windows. Turn on “Connect on launch” to have IYKYK connect by itself</string>
+    <string name="update_available">Version %1$s is available</string>
+    <string name="update_later">Later</string>
+    <string name="update_now">Update</string>
+    <string name="whats_new_title">What’s new in %1$s</string>
+    <string name="update_check_title">Check for updates</string>
+    <string name="update_check_hint">The app checks by itself once a day</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_up_to_date">You have the latest version</string>
+    <string name="update_downloading">Downloading the update…</string>
+    <string name="update_failed">Did not work: %1$s</string>
+    <string name="about_version">IYKYK %1$s</string>
+    <string name="about_source">Source code</string>
+    <string name="about_source_subtitle">Open source on GitHub, GPL-3.0 license</string>
+    <string name="about_signature">App signature</string>
+    <string name="about_signature_hint">Compare it with the fingerprint on the website: if it matches, the app is genuine</string>
+    <string name="data_notice_title">Your data in short</string>
+    <string name="data_notice_1">The subscription link is stored only on this device, encrypted.</string>
+    <string name="data_notice_2">To count devices for your plan, the app tells the subscription server the device ID, its model and system version.</string>
+    <string name="data_notice_3">IYKYK does not collect browsing history and has no analytics or ads.</string>
+    <string name="data_notice_4">An error report goes to support only when you send it yourself.</string>
+    <string name="data_notice_ok">Got it</string>
+    <string name="device_name_add">Add a name</string>
+    <string name="device_name_title">Device name</string>
+    <string name="device_name_hint">For example, “Mom’s phone”</string>
+    <string name="device_name_note">Everyone who uses this subscription sees the name. Leave it empty to remove it.</string>
+    <string name="device_last_seen">active %1$s</string>
+    <string name="action_save">Save</string>
+    <string name="system_proxy_title">System proxy mode</string>
+    <string name="system_proxy_subtitle">No virtual adapter: browsers and programs that use the Windows proxy go through IYKYK. Turn on if the normal mode conflicts with an antivirus or another network program</string>
+    <string name="settings_programs">Programs</string>
+    <string name="welcome_manual">Manually</string>
+    <string name="action_troubleshoot">Not working? Check the connection</string>
+    <string name="diag_title">Connection check</string>
+    <string name="diag_internet">Internet on the device</string>
+    <string name="diag_subscription">Subscription</string>
+    <string name="diag_servers">Servers</string>
+    <string name="diag_tunnel">Connection</string>
+    <string name="diag_report">Send a report</string>
+    <string name="diag_button_switch">Switch</string>
+    <string name="diag_button_apply">Turn on</string>
+    <string name="diag_button_connect">Connect</string>
+    <string name="diag_button_reconnect">Reconnect</string>
+    <string name="diag_fix_none">Everything is fine. If a site or app still does not open, send a report and we will take a look.</string>
+    <string name="diag_fix_no_internet">There is no internet even without IYKYK. Check Wi-Fi or mobile data and try again.</string>
+    <string name="diag_fix_device_limit">The device limit is reached. Remove an old device under “Devices” or contact support.</string>
+    <string name="diag_fix_renew">The subscription has ended or the traffic is used up. Renew it and the connection will work.</string>
+    <string name="diag_fix_switch_server">The current server does not respond, but %1$s works. Switch to it?</string>
+    <string name="diag_fix_fragment">Servers respond only with fragmentation. The network seems to interfere. Turn it on in settings?</string>
+    <string name="diag_fix_engine">Servers respond through the other engine. Switch the engine in settings?</string>
+    <string name="diag_fix_connect">Everything is ready. Tap “Connect”.</string>
+    <string name="diag_fix_reconnect">Servers respond, but no data goes through the current connection. Try reconnecting.</string>
+    <string name="diag_fix_servers_down">No server responds from this network. Try another network (Wi-Fi or mobile) or send a report.</string>
+    <string name="preset_banks_title">Banks and Gosuslugi directly</string>
+    <string name="preset_banks_subtitle">Add installed bank, Gosuslugi and marketplace apps to the exceptions</string>
+</resources>

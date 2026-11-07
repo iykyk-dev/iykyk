@@ -1,5 +1,7 @@
 package app.iykyk.desktop
 
+import app.iykyk.client.core.Lang
+
 import app.iykyk.client.core.AppSettings
 import app.iykyk.client.core.DevicesApi
 import app.iykyk.client.core.DevicesInfo
@@ -88,7 +90,7 @@ class DesktopController {
                     val version = (updater.state.value as? app.iykyk.client.core.UpdateState.Available)?.version
                     if (version != null && store.notifiedUpdate != version) {
                         store.notifiedUpdate = version
-                        notification.value = "Вышла новая версия IYKYK $version" to "Откройте IYKYK и нажмите «Обновить»"
+                        notification.value = Lang.t("Вышла новая версия IYKYK $version", "IYKYK $version is out") to Lang.t("Откройте IYKYK и нажмите «Обновить»", "Open IYKYK and click “Update”")
                     }
                 }
                 delay(12 * 3_600_000L)
@@ -105,7 +107,7 @@ class DesktopController {
         scope.launch {
             updater.state.collect { state ->
                 if (state is app.iykyk.client.core.UpdateState.Failed) {
-                    message.value = "Обновление не установлено: ${state.message}"
+                    message.value = Lang.t("Обновление не установлено: ${state.message}", "Update not installed: ${state.message}")
                     updater.acknowledgeFailure()
                 }
             }
@@ -247,11 +249,11 @@ class DesktopController {
         if (store.lastReminderDay == today) return
         store.lastReminderDay = today
         val text = when {
-            days < 0 -> "Подписка закончилась. Продлите её, чтобы IYKYK продолжил работать."
-            days == 0 -> "Подписка заканчивается сегодня"
-            days == 1 -> "Подписка заканчивается через 1 день"
-            days in 2..4 -> "Подписка заканчивается через $days дня"
-            else -> "Подписка заканчивается через $days дней"
+            days < 0 -> Lang.t("Подписка закончилась. Продлите её, чтобы IYKYK продолжил работать.", "Your subscription has ended. Renew it to keep IYKYK working.")
+            days == 0 -> Lang.t("Подписка заканчивается сегодня", "Your subscription ends today")
+            days == 1 -> Lang.t("Подписка заканчивается через 1 день", "Your subscription ends in 1 day")
+            days in 2..4 -> Lang.t("Подписка заканчивается через $days дня", "Your subscription ends in $days days")
+            else -> Lang.t("Подписка заканчивается через $days дней", "Your subscription ends in $days days")
         }
         notification.value = sub.title.ifBlank { "IYKYK" } to text
     }
@@ -269,7 +271,7 @@ class DesktopController {
             try {
                 devices.value = DevicesApi.rename(sub, store.hwid, id, name)
             } catch (e: Exception) {
-                message.value = "Не удалось сохранить название: ${e.message}"
+                message.value = Lang.t("Не удалось сохранить название: ${e.message}", "Could not save the name: ${e.message}")
             }
         }
     }
@@ -279,9 +281,9 @@ class DesktopController {
         scope.launch {
             try {
                 devices.value = DevicesApi.delete(sub, store.hwid, id)
-                message.value = "Устройство удалено"
+                message.value = Lang.t("Устройство удалено", "Device removed")
             } catch (e: Exception) {
-                message.value = "Не удалось удалить: ${e.message}"
+                message.value = Lang.t("Не удалось удалить: ${e.message}", "Could not remove: ${e.message}")
             }
         }
     }
@@ -317,19 +319,19 @@ class DesktopController {
     fun importText(text: String) {
         val trimmed = text.trim()
         if (!trimmed.startsWith("http://", true) && !trimmed.startsWith("https://", true)) {
-            if (locked.value) message.value = "Эта ссылка не от «Для своих». IYKYK работает только с подписками нашего сервиса."
+            if (locked.value) message.value = Lang.t("Эта ссылка не от «Для своих». IYKYK работает только с подписками нашего сервиса.", "This link is not from “Для своих”. IYKYK works only with our service’s subscriptions.")
             return
         }
-        message.value = "Загружаю подписку…"
+        message.value = Lang.t("Загружаю подписку…", "Loading subscription…")
         scope.launch {
             try {
                 download(trimmed)
-                message.value = "Добавлено: " + (profiles.value.subscription?.title?.ifBlank { null } ?: "${profiles.value.servers.size}")
+                message.value = Lang.t("Добавлено: ", "Added: ") + (profiles.value.subscription?.title?.ifBlank { null } ?: "${profiles.value.servers.size}")
                 pings.value = emptyMap()
                 reconnectIfConnected()
                 pingServers()
             } catch (e: Exception) {
-                message.value = friendly(e) ?: "Не удалось добавить: ${e.message}"
+                message.value = friendly(e) ?: Lang.t("Не удалось добавить: ${e.message}", "Could not add: ${e.message}")
             }
         }
     }
@@ -341,10 +343,10 @@ class DesktopController {
         scope.launch {
             try {
                 download(url)
-                message.value = "Подписка обновлена"
+                message.value = Lang.t("Подписка обновлена", "Subscription updated")
                 remindIfExpiring()
             } catch (e: Exception) {
-                message.value = friendly(e) ?: "Не удалось обновить: ${e.message}"
+                message.value = friendly(e) ?: Lang.t("Не удалось обновить: ${e.message}", "Could not update: ${e.message}")
             } finally {
                 refreshing.value = false
             }
@@ -436,7 +438,7 @@ class DesktopController {
             Toolkit.getDefaultToolkit().systemClipboard.getData(DataFlavor.stringFlavor) as String
         }.getOrNull()?.trim()
         if (text.isNullOrEmpty()) {
-            message.value = "В буфере обмена нет текста"
+            message.value = Lang.t("В буфере обмена нет текста", "The clipboard has no text")
             return
         }
         importText(text)
@@ -445,7 +447,7 @@ class DesktopController {
     fun copyLink() {
         val url = profiles.value.subscription?.url ?: return
         Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(url), null)
-        message.value = "Ссылка скопирована"
+        message.value = Lang.t("Ссылка скопирована", "Link copied")
     }
 
     fun checkUpdates() {
@@ -488,7 +490,7 @@ class DesktopController {
                 val desktop = File(System.getProperty("user.home"), "Desktop").takeIf { it.isDirectory } ?: File(System.getProperty("user.home"))
                 File(desktop, "IYKYK-report.txt").apply { writeText(text) }
             }
-            message.value = "Отчёт сохранён на рабочий стол: ${file.name}. Отправьте его в поддержку"
+            message.value = Lang.t("Отчёт сохранён на рабочий стол: ${file.name}. Отправьте его в поддержку", "Report saved to the desktop: ${file.name}. Send it to support")
             runCatching { Runtime.getRuntime().exec(arrayOf("explorer.exe", "/select,", file.absolutePath)) }
         }
     }
@@ -503,9 +505,9 @@ class DesktopController {
 
     private fun friendly(e: Exception): String? = when {
         e.message.orEmpty().startsWith("subscription not allowed") ->
-            "Эта ссылка не от «Для своих». IYKYK работает только с подписками нашего сервиса."
+            Lang.t("Эта ссылка не от «Для своих». IYKYK работает только с подписками нашего сервиса.", "This link is not from “Для своих”. IYKYK works only with our service’s subscriptions.")
         e.message.orEmpty().startsWith("hwid:") ->
-            "Достигнут лимит устройств подписки. Удалите старое устройство или напишите в поддержку."
+            Lang.t("Достигнут лимит устройств подписки. Удалите старое устройство или напишите в поддержку.", "The subscription’s device limit is reached. Remove an old device or contact support.")
         else -> null
     }
 

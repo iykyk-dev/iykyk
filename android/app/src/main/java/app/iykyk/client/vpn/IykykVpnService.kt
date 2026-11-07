@@ -267,18 +267,9 @@ class IykykVpnService : VpnService(), CommandServerHandler {
         }
     }
 
-    private fun formatRate(bytesPerSecond: Long): String = formatSize(bytesPerSecond.coerceAtLeast(0)) + "/с"
+    private fun formatRate(bytesPerSecond: Long): String = app.iykyk.client.core.Lang.rate(bytesPerSecond)
 
-    private fun formatSize(bytes: Long): String {
-        val units = listOf("Б", "КБ", "МБ", "ГБ")
-        var value = bytes.toDouble()
-        var unit = 0
-        while (value >= 1024 && unit < units.lastIndex) {
-            value /= 1024
-            unit++
-        }
-        return if (unit == 0) "$bytes ${units[0]}" else String.format(Locale.forLanguageTag("ru"), "%.1f %s", value, units[unit])
-    }
+    private fun formatSize(bytes: Long): String = app.iykyk.client.core.Lang.bytes(bytes)
 
     private fun stopCore() {
         stopHealth()

@@ -1,5 +1,7 @@
 package app.iykyk.desktop
 
+import app.iykyk.client.core.Lang
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -58,10 +60,10 @@ fun ProgramsScreen(selected: Set<String>, onToggle: (String) -> Unit, onBack: ()
 
     Surface(color = IykykColors.Background, modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
-            TopBar("Программы", onBack)
+            TopBar(Lang.t("Программы", "Programs"), onBack)
             Text(
-                "Отмеченные программы идут через IYKYK или напрямую, в зависимости от режима в настройках. " +
-                    "Нужной программы нет в списке? Запустите её или добавьте файл .exe.",
+                Lang.t("Отмеченные программы идут через IYKYK или напрямую, в зависимости от режима в настройках. " +
+                    "Нужной программы нет в списке? Запустите её или добавьте файл .exe.", "Checked programs go through IYKYK or directly, depending on the mode in settings. Is a program missing from the list? Start it or add its .exe file."),
                 color = IykykColors.Muted,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(vertical = 8.dp),
@@ -69,7 +71,7 @@ fun ProgramsScreen(selected: Set<String>, onToggle: (String) -> Unit, onBack: ()
             OutlinedButton(
                 onClick = { pickExe()?.let(onToggle) },
                 modifier = Modifier.heightIn(min = 48.dp),
-            ) { Text("Добавить программу…", color = IykykColors.Text) }
+            ) { Text(Lang.t("Добавить программу…", "Add a program…"), color = IykykColors.Text) }
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -116,7 +118,7 @@ private fun runningPrograms(): List<Program> {
 }
 
 private fun pickExe(): String? {
-    val dialog = FileDialog(null as Frame?, "Выберите программу", FileDialog.LOAD).apply {
+    val dialog = FileDialog(null as Frame?, Lang.t("Выберите программу", "Choose a program"), FileDialog.LOAD).apply {
         setFilenameFilter { _, name -> name.endsWith(".exe", ignoreCase = true) }
         file = "*.exe"
         isVisible = true

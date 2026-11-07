@@ -744,7 +744,7 @@ private fun countryLabel(code: String): String {
     if (code.length != 2 || !code.all { it.isLetter() }) return code
     val upper = code.uppercase(Locale.ROOT)
     val flag = String(Character.toChars(0x1F1E6 + (upper[0] - 'A'))) + String(Character.toChars(0x1F1E6 + (upper[1] - 'A')))
-    val name = Locale("", upper).getDisplayCountry(Locale.forLanguageTag("ru")).ifBlank { upper }
+    val name = Locale("", upper).getDisplayCountry(uiLocale).ifBlank { upper }
     return "$flag $name"
 }
 
@@ -1512,14 +1512,16 @@ private fun TvReceiveDialog(onReceived: (String) -> Unit, onDismiss: () -> Unit)
     )
 }
 
+private val uiLocale: Locale get() = if (app.iykyk.client.core.Lang.english) Locale.UK else Locale.forLanguageTag("ru")
+
 private fun shortDate(unixSeconds: Long): String =
-    SimpleDateFormat("dd.MM.yyyy", Locale.forLanguageTag("ru")).format(Date(unixSeconds * 1000))
+    SimpleDateFormat(if (app.iykyk.client.core.Lang.english) "d MMM yyyy" else "dd.MM.yyyy", uiLocale).format(Date(unixSeconds * 1000))
 
 private fun longDate(unixSeconds: Long): String =
-    SimpleDateFormat("d MMMM yyyy", Locale.forLanguageTag("ru")).format(Date(unixSeconds * 1000))
+    SimpleDateFormat("d MMMM yyyy", uiLocale).format(Date(unixSeconds * 1000))
 
 private fun dateTime(millis: Long): String =
-    SimpleDateFormat("dd.MM.yy HH:mm", Locale.forLanguageTag("ru")).format(Date(millis))
+    SimpleDateFormat("dd.MM.yy HH:mm", uiLocale).format(Date(millis))
 
 @Composable
 internal fun LinkInputDialog(
@@ -1695,16 +1697,7 @@ private fun LinkButton(text: String, primary: Boolean = false, modifier: Modifie
     }
 }
 
-private fun formatBytes(bytes: Long): String {
-    val units = listOf("Б", "КБ", "МБ", "ГБ", "ТБ")
-    var value = bytes.toDouble()
-    var unit = 0
-    while (value >= 1024 && unit < units.lastIndex) {
-        value /= 1024
-        unit++
-    }
-    return if (unit == 0) "$bytes ${units[0]}" else String.format(Locale.forLanguageTag("ru"), "%.1f %s", value, units[unit])
-}
+private fun formatBytes(bytes: Long): String = app.iykyk.client.core.Lang.bytes(bytes)
 
 private fun protocolTitle(protocol: String): String = when (protocol) {
     "vless" -> "VLESS"
@@ -1721,7 +1714,7 @@ private fun protocolTitle(protocol: String): String = when (protocol) {
     "socks" -> "SOCKS5"
     "http" -> "HTTP"
     "xray-json" -> "Xray"
-    "xray-balancer" -> "Xray · автовыбор"
+    "xray-balancer" -> app.iykyk.client.core.Lang.t("Xray · автовыбор", "Xray · auto")
     else -> protocol
 }
 

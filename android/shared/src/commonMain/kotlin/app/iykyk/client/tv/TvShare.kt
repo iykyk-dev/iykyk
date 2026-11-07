@@ -1,5 +1,7 @@
 package app.iykyk.client.tv
 
+import app.iykyk.client.core.Lang
+
 import java.io.BufferedInputStream
 import java.io.Closeable
 import java.io.IOException
@@ -100,12 +102,12 @@ object TvShare {
         val token = rest.substringAfter('/', "").trimEnd('/')
         val host = hostPort.substringBeforeLast(':')
         val port = hostPort.substringAfterLast(':').toIntOrNull()
-        require(port != null && token.isNotEmpty() && token.all { it.isLetterOrDigit() }) { "неверный код" }
+        require(port != null && token.isNotEmpty() && token.all { it.isLetterOrDigit() }) { Lang.t("неверный код", "invalid code") }
         // Only a literal address in the local network: a QR code must not make the
         // phone send its subscription anywhere on the internet.
-        require(Regex("""\d{1,3}(\.\d{1,3}){3}""").matches(host)) { "неверный адрес" }
+        require(Regex("""\d{1,3}(\.\d{1,3}){3}""").matches(host)) { Lang.t("неверный адрес", "invalid address") }
         val address = InetAddress.getByName(host)
-        require(address.isSiteLocalAddress) { "адрес не в локальной сети" }
+        require(address.isSiteLocalAddress) { Lang.t("адрес не в локальной сети", "the address is not on the local network") }
 
         val body = text.toByteArray(Charsets.UTF_8)
         Socket().use { socket ->
@@ -121,7 +123,7 @@ object TvShare {
                 flush()
             }
             val status = readLine(BufferedInputStream(socket.getInputStream())).orEmpty()
-            check(status.contains(" 200")) { status.ifEmpty { "телевизор не ответил" } }
+            check(status.contains(" 200")) { status.ifEmpty { Lang.t("телевизор не ответил", "the TV did not respond") } }
         }
     }
 

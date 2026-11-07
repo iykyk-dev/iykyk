@@ -1,4 +1,4 @@
-; IYKYK for Windows: the desktop app (Compose, from :desktop:createDistributable)
+﻿; IYKYK for Windows: the desktop app (Compose, from :desktop:createDistributable)
 ; plus the core service (iykyk-service.exe), which keeps the VPN and needs
 ; administrator rights once, at installation.
 ;
@@ -34,6 +34,10 @@ LicenseFile=..\..\..\LICENSE
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
+[CustomMessages]
+ru.SetupService=Настраиваю службу IYKYK…
+en.SetupService=Setting up the IYKYK service…
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
@@ -48,7 +52,7 @@ Name: "{autodesktop}\IYKYK"; Filename: "{app}\IYKYK.exe"; Tasks: desktopicon
 
 [Run]
 ; Registers and starts the core service (replaces an older one on upgrade).
-Filename: "{app}\core\iykyk-service.exe"; Parameters: "install"; Flags: runhidden waituntilterminated; StatusMsg: "Настраиваю службу IYKYK…"
+Filename: "{app}\core\iykyk-service.exe"; Parameters: "install"; Flags: runhidden waituntilterminated; StatusMsg: "{cm:SetupService}"
 Filename: "{app}\IYKYK.exe"; Description: "{cm:LaunchProgram,IYKYK}"; Flags: nowait postinstall skipifsilent
 ; An update started from the app (/SILENT): start the new version as the user.
 Filename: "{app}\IYKYK.exe"; Flags: nowait runasoriginaluser; Check: WizardSilent
