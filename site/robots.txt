@@ -1,0 +1,3 @@
+# The page is shared by link only, not through search engines.
+User-agent: *
+Disallow: /

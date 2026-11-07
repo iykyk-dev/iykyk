@@ -247,7 +247,7 @@ class DesktopController {
         if (store.lastReminderDay == today) return
         store.lastReminderDay = today
         val text = when {
-            days < 0 -> "Подписка закончилась. Продлите её, чтобы VPN продолжил работать."
+            days < 0 -> "Подписка закончилась. Продлите её, чтобы IYKYK продолжил работать."
             days == 0 -> "Подписка заканчивается сегодня"
             days == 1 -> "Подписка заканчивается через 1 день"
             days in 2..4 -> "Подписка заканчивается через $days дня"

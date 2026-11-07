@@ -1,22 +1,31 @@
 # IYKYK
 
-VPN-клиент «для своих» для Android и iOS.
+Клиент защищённого подключения «Для своих» для Android и Windows. Версия для iPhone и Mac позже.
+
+Сайт: https://app.dlyasvoih.xyz
 
 ## Устройство
 
 | Часть | Что делает |
 |---|---|
 | Ядро Xray (XTLS/Xray-core) | VLESS (REALITY, XTLS-Vision, XHTTP), VMess, Trojan, Shadowsocks |
-| sing-box + Mieru | TUIC, Hysteria2, NaiveProxy, ShadowTLS, AnyTLS, WireGuard / AmneziaWG, Mieru |
-| Приложение | Интерфейс, подписка, кабинет, пинг, обходы, уведомления |
+| sing-box, Mieru, AmneziaWG | TUIC, Hysteria2, NaiveProxy, ShadowTLS, AnyTLS, WireGuard, AmneziaWG, Mieru |
+| Приложение | Интерфейс, подписка, устройства, пинг, маршрутизация, уведомления, обновления |
 
 ## Структура репозитория
 
 ```
-android/   приложение для Android (Kotlin, Jetpack Compose)
-core/      общее Go-ядро для Android и iOS (появится на шаге 2)
-ios/       приложение для iOS (позже)
+android/   приложения: app (Android), desktop (Windows), shared (общий интерфейс)
+core/      общее Go-ядро и служба для Windows
+server/    сервис устройств рядом с панелью
+site/      страница проекта (GitHub Pages)
 ```
+
+## Выпуск версии
+
+Поменять номер в `VERSION` и добавить раздел в `RELEASE_NOTES.md`. Сборка подпишет
+приложения, создаст тег и опубликует релиз с `version.json` для автообновления.
+Версии с `-beta` выходят как пред-релиз.
 
 ## Сборка
 

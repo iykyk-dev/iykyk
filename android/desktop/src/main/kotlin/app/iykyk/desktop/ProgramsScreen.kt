@@ -60,7 +60,7 @@ fun ProgramsScreen(selected: Set<String>, onToggle: (String) -> Unit, onBack: ()
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
             TopBar("Программы", onBack)
             Text(
-                "Отмеченные программы идут через VPN или мимо него, в зависимости от режима в настройках. " +
+                "Отмеченные программы идут через IYKYK или напрямую, в зависимости от режима в настройках. " +
                     "Нужной программы нет в списке? Запустите её или добавьте файл .exe.",
                 color = IykykColors.Muted,
                 style = MaterialTheme.typography.bodySmall,

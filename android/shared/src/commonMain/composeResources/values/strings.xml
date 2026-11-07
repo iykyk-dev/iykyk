@@ -53,7 +53,7 @@
     <string name="action_back">Назад</string>
     <string name="settings_routing">Маршрутизация</string>
     <string name="settings_dns">DNS</string>
-    <string name="remote_dns_title">DNS через VPN</string>
+    <string name="remote_dns_title">DNS внутри подключения</string>
     <string name="direct_dns_title">DNS для прямых соединений</string>
     <string name="dns_custom">Свой DoH-сервер</string>
     <string name="dns_custom_hint">https://dns.example.com/dns-query</string>
@@ -63,22 +63,22 @@
     <string name="dns_adguard">AdGuard (блокирует рекламу)</string>
     <string name="dns_yandex">Яндекс (77.88.8.8)</string>
     <string name="bypass_title">Российские сайты напрямую</string>
-    <string name="bypass_subtitle">Госуслуги, банки, Яндекс и другие сайты в .ru и с российскими IP открываются без VPN</string>
+    <string name="bypass_subtitle">Госуслуги, банки, Яндекс и другие сайты в .ru и с российскими IP открываются напрямую</string>
     <string name="fragment_title">Обход DPI (фрагментация TLS)</string>
-    <string name="fragment_subtitle">Включите, если сервер блокируют по имени: начало защищённого соединения отправляется по частям</string>
+    <string name="fragment_subtitle">Включите, если подключение не устанавливается: начало защищённого соединения отправляется по частям</string>
     <string name="settings_apps">Приложения</string>
-    <string name="apps_mode_all">Все приложения через VPN</string>
-    <string name="apps_mode_only">Только выбранные через VPN</string>
-    <string name="apps_mode_except">Все через VPN, кроме выбранных</string>
+    <string name="apps_mode_all">Все приложения через IYKYK</string>
+    <string name="apps_mode_only">Только выбранные через IYKYK</string>
+    <string name="apps_mode_except">Все через IYKYK, кроме выбранных</string>
     <string name="apps_choose">Выбрать приложения</string>
     <string name="apps_selected">Выбрано: %1$d</string>
     <string name="apps_search">Поиск</string>
-    <string name="settings_reconnect_hint">Изменения применяются сразу, VPN переподключится сам</string>
+    <string name="settings_reconnect_hint">Изменения применяются сразу, IYKYK переподключится сам</string>
     <string name="settings_about">О приложении</string>
     <string name="settings_versions">Версии ядер</string>
 
     <string name="channel_subscription">Подписка</string>
-    <string name="expiry_ended">Подписка закончилась. Продлите её, чтобы VPN продолжил работать.</string>
+    <string name="expiry_ended">Подписка закончилась. Продлите её, чтобы IYKYK продолжил работать.</string>
     <string name="expiry_today">Подписка заканчивается сегодня</string>
     <plurals name="expiry_in_days">
         <item quantity="one">Подписка заканчивается через %1$d день</item>
@@ -99,17 +99,17 @@
 
     <string name="settings_connection">Подключение</string>
     <string name="auto_launch_title">Подключаться при запуске</string>
-    <string name="auto_launch_subtitle">VPN включается сам, когда вы открываете приложение</string>
+    <string name="auto_launch_subtitle">IYKYK подключается сам, когда вы открываете приложение</string>
     <string name="auto_boot_title">Подключаться при включении телефона</string>
-    <string name="auto_boot_subtitle">VPN включается сам после перезагрузки</string>
+    <string name="auto_boot_subtitle">IYKYK подключается сам после перезагрузки</string>
     <string name="reminders_title">Напоминать об окончании подписки</string>
     <string name="reminders_subtitle">Уведомление за 3 дня до конца подписки</string>
-    <string name="killswitch_title">Блокировать интернет без VPN</string>
+    <string name="killswitch_title">Интернет только через IYKYK</string>
     <string name="killswitch_subtitle">Откроются системные настройки VPN: включите для IYKYK «Постоянная VPN» и «Блокировать соединения без VPN»</string>
 
-    <string name="notification_channel">Состояние VPN</string>
+    <string name="notification_channel">Состояние подключения</string>
     <string name="notification_speed">↓ %1$s  ↑ %2$s · за сеанс %3$s</string>
-    <string name="widget_description">Включение и выключение VPN</string>
+    <string name="widget_description">Подключение одним нажатием</string>
     <string name="notification_connected">Защищённое соединение активно</string>
 
     <string name="cd_settings">Настройки</string>
@@ -153,7 +153,7 @@
     <string name="tab_connection">Подключение</string>
     <string name="tab_subscription">Подписка</string>
     <string name="welcome_title">Добро пожаловать</string>
-    <string name="welcome_text">IYKYK это приложение VPN «Для своих». Чтобы подключиться, нужна подписка.</string>
+    <string name="welcome_text">IYKYK это приложение для защищённого подключения «Для своих». Чтобы подключиться, нужна подписка.</string>
     <string name="action_buy">Купить подписку</string>
     <string name="welcome_have">Уже есть подписка?</string>
     <string name="action_get_in_bot">Взять ссылку в Telegram-боте</string>
@@ -179,7 +179,7 @@
 
     <string name="tunnel_checking">Проверяю соединение…</string>
     <string name="tunnel_ok">%1$s · %2$s · %3$d мс</string>
-    <string name="tunnel_no_internet">Нет интернета. VPN заработает, когда сеть появится</string>
+    <string name="tunnel_no_internet">Нет интернета. IYKYK подключится, когда сеть появится</string>
     <string name="tunnel_reconnecting">Нет связи с сервером, переподключаюсь…</string>
     <string name="tunnel_failed">Сервер не отвечает. Попробуйте другой сервер</string>
     <string name="action_send_report">Отправить отчёт в поддержку</string>
@@ -191,7 +191,7 @@
     <string name="link_copied">Ссылка скопирована</string>
     <string name="menu_delete">Удалить подписку</string>
     <string name="delete_title">Удалить подписку?</string>
-    <string name="delete_text">Подписка и серверы исчезнут из приложения, VPN отключится. Сама подписка не отменяется: её можно добавить снова.</string>
+    <string name="delete_text">Подписка и серверы исчезнут из приложения, IYKYK отключится. Сама подписка не отменяется: её можно добавить снова.</string>
     <string name="action_delete">Удалить</string>
     <string name="action_close">Закрыть</string>
 
@@ -217,11 +217,11 @@
     <string name="tv_receive_step2">Наведите камеру телефона на этот код</string>
     <string name="tv_waiting">Жду телефон…</string>
 
-    <string name="apps_hint_only">Через VPN будут работать только отмеченные приложения, остальные напрямую</string>
-    <string name="apps_hint_except">Отмеченные приложения будут работать без VPN. Заблокированные сайты в них не откроются</string>
+    <string name="apps_hint_only">Через IYKYK будут работать только отмеченные приложения, остальные напрямую</string>
+    <string name="apps_hint_except">Отмеченные приложения будут работать напрямую, без IYKYK</string>
 
     <string name="win_autostart_title">Запускать вместе с Windows</string>
-    <string name="win_autostart_subtitle">IYKYK будет в трее сразу после входа в Windows. Включите «Подключаться при запуске», чтобы VPN включался сам</string>
+    <string name="win_autostart_subtitle">IYKYK будет в трее сразу после входа в Windows. Включите «Подключаться при запуске», чтобы IYKYK подключался сам</string>
     <string name="update_available">Доступна версия %1$s</string>
     <string name="update_later">Позже</string>
     <string name="update_now">Обновить</string>
@@ -250,7 +250,7 @@
     <string name="device_last_seen">активно %1$s</string>
     <string name="action_save">Сохранить</string>
     <string name="system_proxy_title">Режим системного прокси</string>
-    <string name="system_proxy_subtitle">Без виртуального адаптера: через VPN идут браузеры и программы, которые используют прокси Windows. Включите, если обычный режим конфликтует с антивирусом или другим VPN</string>
+    <string name="system_proxy_subtitle">Без виртуального адаптера: через IYKYK идут браузеры и программы, которые используют прокси Windows. Включите, если обычный режим конфликтует с антивирусом или другой сетевой программой</string>
     <string name="settings_programs">Программы</string>
     <string name="welcome_manual">Вручную</string>
 </resources>
