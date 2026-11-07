@@ -1369,7 +1369,7 @@ private fun WelcomeScreen(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 LinkButton(stringResource(Res.string.action_scan_qr), modifier = Modifier.weight(1f), onClick = onScanQr)
-                LinkButton(stringResource(Res.string.menu_manual), modifier = Modifier.weight(1f), onClick = onManual)
+                LinkButton(stringResource(Res.string.welcome_manual), modifier = Modifier.weight(1f), onClick = onManual)
             }
         }
         // On a TV: no camera, no clipboard, typing with a remote is painful.
