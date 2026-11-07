@@ -1,8 +1,27 @@
 # iykyk-devices
 
 Маленький сервис рядом с панелью Remnawave. Показывает в приложении IYKYK,
-сколько устройств подключено к подписке («2 из 3»), и позволяет клиенту
-удалить старое устройство, чтобы освободить место.
+сколько устройств подключено к подписке («2 из 3»), позволяет клиенту
+удалить старое устройство, чтобы освободить место, и дать устройствам названия
+(«Мамин телефон»). Удалять и называть устройства можно только с устройства,
+которое уже есть в этой подписке.
+
+Названия хранятся в `/data/names.json` внутри контейнера — подключите к `/data`
+том, чтобы они не пропадали при обновлении сервиса. В файле только хэши и
+названия: ни HWID, ни ID пользователей там нет.
+
+## Обновление
+
+```
+docker pull ghcr.io/iykyk-dev/iykyk-devices:latest
+docker rm -f iykyk-devices
+docker run -d --name iykyk-devices --restart always \
+  --env-file /opt/iykyk-devices/.env \
+  -e REMNAWAVE_URL=https://vpn.example.com \
+  -v iykyk-devices-data:/data \
+  --network <сеть Caddy> \
+  ghcr.io/iykyk-dev/iykyk-devices:latest
+```
 
 Ключ API Remnawave хранится только в этом сервисе на вашем сервере.
 Приложение передаёт лишь short UUID своей подписки — тот же секрет, что уже
@@ -25,6 +44,8 @@
       # Лимит устройств по умолчанию (HWID_FALLBACK_DEVICE_LIMIT панели),
       # для пользователей без собственного лимита. 0 — без лимита.
       FALLBACK_DEVICE_LIMIT: "3"
+    volumes:
+      - iykyk-devices-data:/data
     networks:
       - remnawave-network
 ```

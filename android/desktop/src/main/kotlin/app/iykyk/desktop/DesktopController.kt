@@ -239,6 +239,17 @@ class DesktopController {
         scope.launch { devices.value = runCatching { DevicesApi.load(sub, store.hwid) }.getOrNull() }
     }
 
+    fun renameDevice(id: String, name: String) {
+        val sub = profiles.value.subscription ?: return
+        scope.launch {
+            try {
+                devices.value = DevicesApi.rename(sub, store.hwid, id, name)
+            } catch (e: Exception) {
+                message.value = "Не удалось сохранить название: ${e.message}"
+            }
+        }
+    }
+
     fun deleteDevice(id: String) {
         val sub = profiles.value.subscription ?: return
         scope.launch {

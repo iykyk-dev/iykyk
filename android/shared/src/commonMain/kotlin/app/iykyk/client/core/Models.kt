@@ -103,6 +103,8 @@ data class DeviceInfo(
     val added: String,
     val lastSeen: String,
     val current: Boolean,
+    /** A name the owner gave it ("Мамин телефон"), or empty. */
+    val name: String = "",
 )
 
 /** Devices on the subscription: [used] of [limit] (0 = unlimited). */

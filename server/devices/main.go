@@ -6,8 +6,12 @@
 //
 //	GET  /iykyk/api/devices          X-Subscription: <shortUuid>, X-Hwid: <this device>
 //	POST /iykyk/api/devices/delete   same headers, body {"id": "<device id>"}
+//	POST /iykyk/api/devices/name     same headers, body {"id": "<device id>", "name": "Мамин телефон"}
 //
-// Device IDs in responses are hashes: raw HWIDs never leave the server.
+// Device IDs in responses are hashes: raw HWIDs never leave the server. Removing
+// or naming a device is allowed only from a device of the same subscription.
+// Names live in a small JSON file (NAMES_FILE) keyed by hashes, so it holds no
+// HWIDs or user IDs either.
 package main
 
 import (
@@ -22,11 +26,13 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 type config struct {
@@ -34,13 +40,15 @@ type config struct {
 	token         string // Remnawave API token
 	fallbackLimit int    // the panel's HWID_FALLBACK_DEVICE_LIMIT, for users without their own
 	listen        string
+	namesFile     string // device names chosen by the users
 }
 
 func main() {
 	cfg := config{
-		panelURL: strings.TrimRight(env("REMNAWAVE_URL", "http://remnawave:3000"), "/"),
-		token:    os.Getenv("REMNAWAVE_TOKEN"),
-		listen:   env("LISTEN", ":8080"),
+		panelURL:  strings.TrimRight(env("REMNAWAVE_URL", "http://remnawave:3000"), "/"),
+		token:     os.Getenv("REMNAWAVE_TOKEN"),
+		listen:    env("LISTEN", ":8080"),
+		namesFile: env("NAMES_FILE", "/data/names.json"),
 	}
 	cfg.fallbackLimit, _ = strconv.Atoi(env("FALLBACK_DEVICE_LIMIT", "0"))
 	if cfg.token == "" {
@@ -70,6 +78,7 @@ type device struct {
 	OS       string `json:"os,omitempty"`
 	Model    string `json:"model,omitempty"`
 	App      string `json:"app,omitempty"`
+	Name     string `json:"name,omitempty"`
 	Added    string `json:"added,omitempty"`
 	LastSeen string `json:"lastSeen,omitempty"`
 	Current  bool   `json:"current,omitempty"`
@@ -83,10 +92,19 @@ type devicesResponse struct {
 
 var shortUUID = regexp.MustCompile(`^[A-Za-z0-9_-]{6,64}$`)
 
+type action int
+
+const (
+	actionList action = iota
+	actionDelete
+	actionName
+)
+
 func newHandler(cfg config, p panelAPI) http.Handler {
 	limiter := newRateLimiter(30, time.Minute)
+	names := loadNames(cfg.namesFile)
 	mux := http.NewServeMux()
-	handle := func(w http.ResponseWriter, r *http.Request, del bool) {
+	handle := func(w http.ResponseWriter, r *http.Request, act action) {
 		w.Header().Set("Cache-Control", "no-store")
 		if !limiter.allow(clientIP(r)) {
 			httpError(w, http.StatusTooManyRequests, "too many requests")
@@ -102,9 +120,11 @@ func newHandler(cfg config, p panelAPI) http.Handler {
 			httpError(w, http.StatusNotFound, "subscription not found")
 			return
 		}
-		if del {
+		current := strings.TrimSpace(r.Header.Get("X-Hwid"))
+		if act != actionList {
 			var body struct {
-				ID string `json:"id"`
+				ID   string `json:"id"`
+				Name string `json:"name"`
 			}
 			if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body); err != nil || body.ID == "" {
 				httpError(w, http.StatusBadRequest, "bad request")
@@ -115,20 +135,35 @@ func newHandler(cfg config, p panelAPI) http.Handler {
 				httpError(w, http.StatusBadGateway, "panel error")
 				return
 			}
-			found := false
-			for _, d := range devices {
-				if deviceID(d.HWID) == body.ID {
-					if err := p.deleteDevice(u, d.HWID); err != nil {
-						httpError(w, http.StatusBadGateway, "panel error")
-						return
-					}
-					found = true
+			// Only a device of this subscription may change it: a leaked link alone is not enough.
+			if !hasDevice(devices, current) {
+				httpError(w, http.StatusForbidden, "this device is not in the subscription")
+				return
+			}
+			var target *panelDevice
+			for i := range devices {
+				if deviceID(devices[i].HWID) == body.ID {
+					target = &devices[i]
 					break
 				}
 			}
-			if !found {
+			if target == nil {
 				httpError(w, http.StatusNotFound, "device not found")
 				return
+			}
+			switch act {
+			case actionDelete:
+				if err := p.deleteDevice(u, target.HWID); err != nil {
+					httpError(w, http.StatusBadGateway, "panel error")
+					return
+				}
+				_ = names.set(nameKey(u, target.HWID), "")
+			case actionName:
+				if err := names.set(nameKey(u, target.HWID), cleanName(body.Name)); err != nil {
+					log.Printf("names: %v", err)
+					httpError(w, http.StatusInternalServerError, "cannot save the name")
+					return
+				}
 			}
 		}
 		devices, err := p.devices(u)
@@ -136,7 +171,6 @@ func newHandler(cfg config, p panelAPI) http.Handler {
 			httpError(w, http.StatusBadGateway, "panel error")
 			return
 		}
-		current := strings.TrimSpace(r.Header.Get("X-Hwid"))
 		resp := devicesResponse{Used: len(devices), Limit: cfg.fallbackLimit, Devices: []device{}}
 		if u.Limit != nil {
 			resp.Limit = *u.Limit
@@ -147,6 +181,7 @@ func newHandler(cfg config, p panelAPI) http.Handler {
 				Platform: d.Platform,
 				OS:       d.OSVersion,
 				Model:    d.DeviceModel,
+				Name:     names.get(nameKey(u, d.HWID)),
 				App:      appName(d.UserAgent),
 				Added:    d.CreatedAt,
 				LastSeen: d.UpdatedAt,
@@ -156,10 +191,105 @@ func newHandler(cfg config, p panelAPI) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	}
-	mux.HandleFunc("GET /iykyk/api/devices", func(w http.ResponseWriter, r *http.Request) { handle(w, r, false) })
-	mux.HandleFunc("POST /iykyk/api/devices/delete", func(w http.ResponseWriter, r *http.Request) { handle(w, r, true) })
+	mux.HandleFunc("GET /iykyk/api/devices", func(w http.ResponseWriter, r *http.Request) { handle(w, r, actionList) })
+	mux.HandleFunc("POST /iykyk/api/devices/delete", func(w http.ResponseWriter, r *http.Request) { handle(w, r, actionDelete) })
+	mux.HandleFunc("POST /iykyk/api/devices/name", func(w http.ResponseWriter, r *http.Request) { handle(w, r, actionName) })
 	mux.HandleFunc("GET /iykyk/api/health", func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, "ok") })
 	return mux
+}
+
+func hasDevice(devices []panelDevice, hwid string) bool {
+	if hwid == "" {
+		return false
+	}
+	for _, d := range devices {
+		if d.HWID == hwid {
+			return true
+		}
+	}
+	return false
+}
+
+// --- Device names ---------------------------------------------------------------
+
+const maxNameRunes = 40
+
+// cleanName keeps a short single line of printable text.
+func cleanName(name string) string {
+	var b strings.Builder
+	n := 0
+	for _, r := range strings.TrimSpace(name) {
+		if n >= maxNameRunes {
+			break
+		}
+		if unicode.IsControl(r) {
+			r = ' '
+		}
+		b.WriteRune(r)
+		n++
+	}
+	return strings.TrimSpace(b.String())
+}
+
+// nameKey ties a name to one device of one subscription without storing either.
+func nameKey(u *panelUser, hwid string) string {
+	sum := sha256.Sum256([]byte("iykyk-name:" + u.key() + ":" + hwid))
+	return hex.EncodeToString(sum[:16])
+}
+
+type nameStore struct {
+	mu    sync.Mutex
+	path  string
+	names map[string]string
+}
+
+func loadNames(path string) *nameStore {
+	s := &nameStore{path: path, names: map[string]string{}}
+	if path == "" {
+		return s
+	}
+	if data, err := os.ReadFile(path); err == nil {
+		if err := json.Unmarshal(data, &s.names); err != nil {
+			log.Printf("names: %s is damaged, starting empty: %v", path, err)
+			s.names = map[string]string{}
+		}
+	}
+	return s
+}
+
+func (s *nameStore) get(key string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.names[key]
+}
+
+// set saves the name ("" removes it) and writes the file atomically.
+func (s *nameStore) set(key, name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.names[key] == name {
+		return nil
+	}
+	if name == "" {
+		delete(s.names, key)
+	} else {
+		if len(s.names) >= 100000 {
+			return errors.New("too many names")
+		}
+		s.names[key] = name
+	}
+	if s.path == "" {
+		return nil
+	}
+	data, _ := json.Marshal(s.names)
+	tmp := s.path + ".tmp"
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, s.path)
 }
 
 func deviceID(hwid string) string {

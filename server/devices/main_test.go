@@ -48,7 +48,8 @@ func TestDevicesAPI(t *testing.T) {
 	remna := fakePanel(t)
 	defer remna.Close()
 	p := &panel{base: remna.URL, token: "secret", client: remna.Client()}
-	srv := httptest.NewServer(newHandler(config{fallbackLimit: 5}, p))
+	names := t.TempDir() + "/names.json"
+	srv := httptest.NewServer(newHandler(config{fallbackLimit: 5, namesFile: names}, p))
 	defer srv.Close()
 
 	get := func() devicesResponse {
@@ -72,19 +73,56 @@ func TestDevicesAPI(t *testing.T) {
 		t.Fatalf("raw hwid leaked or bad app: %+v", out.Devices)
 	}
 
-	req, _ := http.NewRequest("POST", srv.URL+"/iykyk/api/devices/delete", strings.NewReader(`{"id":"`+out.Devices[1].ID+`"}`))
-	req.Header.Set("X-Subscription", "abcdef12")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil || resp.StatusCode != 200 {
-		t.Fatalf("delete: %v %v", err, resp.Status)
+	post := func(path, body, hwid string) int {
+		req, _ := http.NewRequest("POST", srv.URL+path, strings.NewReader(body))
+		req.Header.Set("X-Subscription", "abcdef12")
+		if hwid != "" {
+			req.Header.Set("X-Hwid", hwid)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+
+	// Naming: from a device of the subscription only; trimmed to one short line.
+	nameBody := `{"id":"` + out.Devices[1].ID + `","name":"  Мамин iPhone\nс очень длинным названием, которое не влезет никуда  "}`
+	if code := post("/iykyk/api/devices/name", nameBody, ""); code != http.StatusForbidden {
+		t.Fatalf("name without a device: %d", code)
+	}
+	if code := post("/iykyk/api/devices/name", nameBody, "hw-stranger"); code != http.StatusForbidden {
+		t.Fatalf("name from a stranger: %d", code)
+	}
+	if code := post("/iykyk/api/devices/name", nameBody, "hw-phone"); code != 200 {
+		t.Fatalf("name: %d", code)
+	}
+	named := get().Devices[1].Name
+	if !strings.HasPrefix(named, "Мамин iPhone с очень") || len([]rune(named)) > maxNameRunes || strings.Contains(named, "\n") {
+		t.Fatalf("name: %q", named)
+	}
+	// Survives a restart.
+	if loadNames(names).get(nameKey(&panelUser{ID: 7}, "hw-old")) != named {
+		t.Fatal("name not saved to the file")
+	}
+
+	if code := post("/iykyk/api/devices/delete", `{"id":"`+out.Devices[1].ID+`"}`, ""); code != http.StatusForbidden {
+		t.Fatalf("delete without a device: %d", code)
+	}
+	if code := post("/iykyk/api/devices/delete", `{"id":"`+out.Devices[1].ID+`"}`, "hw-phone"); code != 200 {
+		t.Fatalf("delete: %d", code)
+	}
+	if loadNames(names).get(nameKey(&panelUser{ID: 7}, "hw-old")) != "" {
+		t.Fatal("name of a deleted device kept")
 	}
 	if out := get(); out.Used != 1 {
 		t.Fatalf("after delete: %+v", out)
 	}
 
-	req, _ = http.NewRequest("GET", srv.URL+"/iykyk/api/devices", nil)
+	req, _ := http.NewRequest("GET", srv.URL+"/iykyk/api/devices", nil)
 	req.Header.Set("X-Subscription", "nope!!")
-	resp, _ = http.DefaultClient.Do(req)
+	resp, _ := http.DefaultClient.Do(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad id: %s", resp.Status)
 	}

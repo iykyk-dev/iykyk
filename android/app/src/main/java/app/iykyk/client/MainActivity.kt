@@ -159,6 +159,7 @@ class MainActivity : ComponentActivity() {
                         onDelete = ::deleteSubscription,
                         onLoadDevices = ::loadDevices,
                         onDeleteDevice = ::deleteDevice,
+                        onRenameDevice = ::renameDevice,
                         onOpenUrl = ::openUrl,
                         onImportText = ::importText,
                         onSortChange = { value -> SettingsStore.update(this) { it.copy(sortByPing = value) } },
@@ -424,6 +425,17 @@ class MainActivity : ComponentActivity() {
                 toast(getString(R.string.device_removed))
             } catch (e: Exception) {
                 toast(getString(R.string.device_remove_failed, e.message ?: e.javaClass.simpleName))
+            }
+        }
+    }
+
+    private fun renameDevice(id: String, name: String) {
+        val sub = ProfileStore.profiles.value.subscription ?: return
+        lifecycleScope.launch {
+            try {
+                devices.value = Devices.rename(this@MainActivity, sub, id, name)
+            } catch (e: Exception) {
+                toast(getString(R.string.device_rename_failed, e.message ?: e.javaClass.simpleName))
             }
         }
     }

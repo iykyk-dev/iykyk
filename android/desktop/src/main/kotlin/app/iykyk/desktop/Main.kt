@@ -141,6 +141,7 @@ private fun App(app: DesktopController, quit: () -> Unit) {
                     onDelete = app::deleteSubscription,
                     onLoadDevices = app::loadDevices,
                     onDeleteDevice = app::deleteDevice,
+                    onRenameDevice = app::renameDevice,
                     onOpenSettings = { screen = Screen.SETTINGS },
                     update = app.updater.state.collectAsState().value,
                     onUpdate = { app.installUpdate(onQuit = quit) },

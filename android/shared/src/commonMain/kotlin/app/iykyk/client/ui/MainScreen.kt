@@ -146,6 +146,8 @@ fun MainScreen(
     onUpdate: () -> Unit = {},
     /** Version + notes to show once after an update, or null. */
     whatsNew: Pair<String, String>? = null,
+    /** Device id and its new name ("" removes it). */
+    onRenameDevice: (String, String) -> Unit = { _, _ -> },
     onWhatsNewSeen: () -> Unit = {},
     /** First launch: what the app sends and keeps, before any subscription is added. */
     showDataNotice: Boolean = false,
@@ -222,6 +224,7 @@ fun MainScreen(
                             devices = devices,
                             onLoadDevices = onLoadDevices,
                             onDeleteDevice = onDeleteDevice,
+                            onRenameDevice = onRenameDevice,
                             onSendReport = onSendReport,
                             onOpenSettings = onOpenSettings,
                         )
@@ -798,6 +801,7 @@ private fun SubscriptionTab(
     devices: DevicesInfo?,
     onLoadDevices: () -> Unit,
     onDeleteDevice: (String) -> Unit,
+    onRenameDevice: (String, String) -> Unit,
     onSendReport: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -805,7 +809,7 @@ private fun SubscriptionTab(
     var showDevices by remember { mutableStateOf(false) }
     LaunchedEffect(sub?.url, sub?.updatedAt) { onLoadDevices() }
     if (showDevices && devices != null) {
-        DevicesDialog(devices, onDelete = onDeleteDevice, onDismiss = { showDevices = false })
+        DevicesDialog(devices, onDelete = onDeleteDevice, onRename = onRenameDevice, onDismiss = { showDevices = false })
     }
     Column(
         modifier = Modifier
@@ -953,8 +957,14 @@ private fun SubscriptionTab(
 
 /** The subscription's devices; any but this one can be removed to free a slot. */
 @Composable
-private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDismiss: () -> Unit) {
+private fun DevicesDialog(
+    devices: DevicesInfo,
+    onDelete: (String) -> Unit,
+    onRename: (String, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     var confirm by remember { mutableStateOf<DeviceInfo?>(null) }
+    var naming by remember { mutableStateOf<DeviceInfo?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = IykykColors.Surface,
@@ -978,7 +988,7 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
                 // This device first, then the most recently added.
                 val sorted = devices.devices.sortedWith(compareByDescending<DeviceInfo> { it.current }.thenByDescending { it.added })
                 for (device in sorted) {
-                    DeviceRow(device, onRemove = { confirm = device })
+                    DeviceRow(device, onRemove = { confirm = device }, onName = { naming = device })
                 }
             }
         },
@@ -988,6 +998,16 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
             }
         },
     )
+    naming?.let { device ->
+        DeviceNameDialog(
+            initial = device.name,
+            onSave = { name ->
+                naming = null
+                if (name != device.name) onRename(device.id, name)
+            },
+            onDismiss = { naming = null },
+        )
+    }
     confirm?.let { device ->
         AlertDialog(
             onDismissRequest = { confirm = null },
@@ -995,7 +1015,7 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
             title = { Text(stringResource(Res.string.device_remove_title), color = IykykColors.Text) },
             text = {
                 Text(
-                    stringResource(Res.string.device_remove_text, device.model.ifBlank { device.platform }),
+                    stringResource(Res.string.device_remove_text, device.name.ifBlank { device.model.ifBlank { device.platform } }),
                     color = IykykColors.Muted,
                 )
             },
@@ -1014,9 +1034,12 @@ private fun DevicesDialog(devices: DevicesInfo, onDelete: (String) -> Unit, onDi
     }
 }
 
-/** One device: a type icon, the model on one line, details under it, delete on the right. */
+/**
+ * One device: a type icon, its name (or model) on one line, details under it,
+ * delete on the right. Tapping the text gives the device a name.
+ */
 @Composable
-private fun DeviceRow(device: DeviceInfo, onRemove: () -> Unit) {
+private fun DeviceRow(device: DeviceInfo, onRemove: () -> Unit, onName: () -> Unit) {
     val kind = (device.platform + " " + device.model).lowercase()
     val icon = when {
         "tv" in kind -> Res.drawable.ic_tv
@@ -1039,9 +1062,15 @@ private fun DeviceRow(device: DeviceInfo, onRemove: () -> Unit) {
             )
         }
         Spacer(Modifier.size(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onName),
+        ) {
+            val model = device.model.ifBlank { device.platform.ifBlank { "?" } }
             Text(
-                device.model.ifBlank { device.platform.ifBlank { "?" } },
+                device.name.ifBlank { model },
                 color = IykykColors.Text,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
@@ -1049,13 +1078,31 @@ private fun DeviceRow(device: DeviceInfo, onRemove: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
             val details = listOfNotNull(
+                model.takeIf { device.name.isNotBlank() },
                 listOf(device.platform, device.os).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null },
-                isoDate(device.added)?.let { stringResource(Res.string.device_added, it) },
             ).joinToString(" · ")
-            if (device.current) {
-                Text(stringResource(Res.string.device_current), color = IykykColors.Accent, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+            val activity = if (device.current) {
+                stringResource(Res.string.device_current)
+            } else {
+                isoDate(device.lastSeen.ifBlank { device.added })?.let { stringResource(Res.string.device_last_seen, it) }
             }
             Text(details, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (activity != null) {
+                Text(
+                    activity,
+                    color = if (device.current) IykykColors.Accent else IykykColors.Muted,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = if (device.current) FontWeight.Medium else null,
+                )
+            }
+            if (device.name.isBlank()) {
+                Text(
+                    stringResource(Res.string.device_name_add),
+                    color = IykykColors.Accent,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
         }
         if (!device.current) {
             IconButton(onClick = onRemove) {
@@ -1068,6 +1115,45 @@ private fun DeviceRow(device: DeviceInfo, onRemove: () -> Unit) {
             }
         }
     }
+}
+
+/** "Мамин телефон": a name for a device, up to 40 characters; empty removes it. */
+@Composable
+private fun DeviceNameDialog(initial: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = IykykColors.Surface,
+        title = { Text(stringResource(Res.string.device_name_title), color = IykykColors.Text) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.replace("\n", " ").take(40) },
+                    singleLine = true,
+                    placeholder = { Text(stringResource(Res.string.device_name_hint)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = IykykColors.Accent,
+                        focusedTextColor = IykykColors.Text,
+                        unfocusedTextColor = IykykColors.Text,
+                        cursorColor = IykykColors.Accent,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(stringResource(Res.string.device_name_note), color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(text.trim()) }) {
+                Text(stringResource(Res.string.action_save), color = IykykColors.Accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.action_cancel), color = IykykColors.Muted)
+            }
+        },
+    )
 }
 
 /** "2026-10-01T10:00:00Z" → "01.10.2026". */

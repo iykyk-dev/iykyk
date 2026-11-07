@@ -243,4 +243,10 @@
     <string name="data_notice_3">IYKYK не собирает историю посещений, в нём нет аналитики и рекламы.</string>
     <string name="data_notice_4">Отчёт об ошибке уходит в поддержку, только когда вы сами его отправите.</string>
     <string name="data_notice_ok">Понятно</string>
+    <string name="device_name_add">Добавить название</string>
+    <string name="device_name_title">Название устройства</string>
+    <string name="device_name_hint">Например, «Мамин телефон»</string>
+    <string name="device_name_note">Название видно всем, кто пользуется этой подпиской. Оставьте пустым, чтобы убрать.</string>
+    <string name="device_last_seen">активно %1$s</string>
+    <string name="action_save">Сохранить</string>
 </resources>

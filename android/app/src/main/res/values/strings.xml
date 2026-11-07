@@ -228,4 +228,5 @@
     <string name="update_bad_file">не удалось открыть файл обновления</string>
     <string name="update_cancelled">установка отменена</string>
     <string name="update_failed_toast">Обновление не установлено: %1$s</string>
+    <string name="device_rename_failed">Не удалось сохранить название: %1$s</string>
 </resources>

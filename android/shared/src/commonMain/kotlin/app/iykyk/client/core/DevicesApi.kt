@@ -22,6 +22,10 @@ object DevicesApi {
     suspend fun delete(sub: SubscriptionInfo, hwid: String, id: String): DevicesInfo? =
         request(sub, hwid, "devices/delete", JSONObject().put("id", id).toString())
 
+    /** Gives a device a name; an empty [name] removes it. */
+    suspend fun rename(sub: SubscriptionInfo, hwid: String, id: String, name: String): DevicesInfo? =
+        request(sub, hwid, "devices/name", JSONObject().put("id", id).put("name", name).toString())
+
     private suspend fun request(sub: SubscriptionInfo, hwid: String, path: String, body: String?): DevicesInfo? =
         withContext(Dispatchers.IO) {
             val base = apiBase(sub) ?: return@withContext null
@@ -43,6 +47,7 @@ object DevicesApi {
                     200 -> parse(connection.inputStream.bufferedReader().use { it.readText() })
                     // The caller shows no row on failure; the message goes to the log.
                     404 -> error(if (body == null) "HTTP 404 (no service or subscription not found)" else "device not found")
+                    403 -> error("only a device of this subscription can change it")
                     else -> error("HTTP ${connection.responseCode}")
                 }
             } finally {
@@ -72,6 +77,7 @@ object DevicesApi {
                 added = d.optString("added"),
                 lastSeen = d.optString("lastSeen"),
                 current = d.optBoolean("current"),
+                name = d.optString("name"),
             )
         }
         return DevicesInfo(root.optInt("used", devices.size), root.optInt("limit"), devices)
