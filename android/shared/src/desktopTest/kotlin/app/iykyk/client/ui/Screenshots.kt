@@ -185,6 +185,25 @@ class Screenshots {
                 File(out, "$name.jpg").writeBytes(data.bytes)
             }
         }
+        // Wide screens: a 10" tablet in landscape (1280 x 800 dp) and a TV (960 x 540 dp at density 2).
+        val wide = listOf(
+            Triple("tablet-main", 2560 to 1600, shots.first { it.first == "main-connected-light" }.second),
+            Triple("tablet-subscription", 2560 to 1600, shots.first { it.first == "subscription-dark" }.second),
+            Triple("tablet-settings", 2560 to 1600, shots.first { it.first == "settings-light" }.second),
+            Triple("tv-main", 1920 to 1080, shots.first { it.first == "main-connected-dark" }.second),
+        )
+        java.util.Locale.setDefault(java.util.Locale.forLanguageTag("ru"))
+        for ((name, size, content) in wide) {
+            ImageComposeScene(width = size.first, height = size.second, density = Density(2f), content = content).use { scene ->
+                var image = scene.render(0)
+                for (frame in 1..40) {
+                    Thread.sleep(25)
+                    image = scene.render(frame * 100_000_000L)
+                }
+                val data = image.encodeToData(EncodedImageFormat.JPEG, 70) ?: error("encode $name")
+                File(out, "$name.jpg").writeBytes(data.bytes)
+            }
+        }
         java.util.Locale.setDefault(russian)
     }
 }
