@@ -74,6 +74,8 @@ fun SettingsScreen(
     onOpenUrl: (String) -> Unit = {},
     /** Windows only: the "system proxy" mode switch. */
     onSystemProxyChange: ((Boolean) -> Unit)? = null,
+    /** Phone only: put the installed bank and government apps into the exceptions. */
+    onBankPreset: (() -> Unit)? = null,
 ) {
     Surface(color = IykykColors.Background, modifier = Modifier.fillMaxSize()) {
         Column(
@@ -230,6 +232,13 @@ fun SettingsScreen(
                                     color = IykykColors.Muted,
                                 )
                             }
+                        }
+                        if (onBankPreset != null && settings.appMode != AppMode.ONLY_SELECTED) {
+                            LinkRow(
+                                title = stringResource(Res.string.preset_banks_title),
+                                subtitle = stringResource(Res.string.preset_banks_subtitle),
+                                onClick = onBankPreset,
+                            )
                         }
                     }
                 }

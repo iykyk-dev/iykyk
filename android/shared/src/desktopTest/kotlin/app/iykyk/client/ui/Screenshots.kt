@@ -7,6 +7,10 @@ import androidx.compose.ui.use
 import app.iykyk.client.core.AppSettings
 import app.iykyk.client.core.DeviceInfo
 import app.iykyk.client.core.DevicesInfo
+import app.iykyk.client.core.DiagCheck
+import app.iykyk.client.core.DiagFix
+import app.iykyk.client.core.DiagState
+import app.iykyk.client.core.Diagnosis
 import app.iykyk.client.core.UpdateState
 import app.iykyk.client.core.Profiles
 import app.iykyk.client.core.ServerInfo
@@ -58,6 +62,7 @@ class Screenshots {
         update: UpdateState = UpdateState.Idle,
         dataNotice: Boolean = false,
         whatsNew: Pair<String, String>? = null,
+        diagnosis: Diagnosis? = null,
     ) {
         MainScreen(
             status = status,
@@ -82,6 +87,8 @@ class Screenshots {
             update = update,
             showDataNotice = dataNotice,
             whatsNew = whatsNew,
+            onTroubleshoot = {},
+            diagnosis = diagnosis,
         )
     }
 
@@ -101,7 +108,7 @@ class Screenshots {
                         onBack = {}, onBypassChange = {}, onFragmentChange = {}, onPreferXrayChange = {},
                         onAutoLaunchChange = {}, onAutoBootChange = {}, onRemindersChange = {}, onOpenVpnSettings = {},
                         onRemoteDnsChange = {}, onDirectDnsChange = {}, onAppModeChange = {}, onChooseApps = {},
-                        onThemeChange = {},
+                        onThemeChange = {}, onBankPreset = {},
                     )
                 }
             },
@@ -122,6 +129,30 @@ class Screenshots {
                 IykykTheme(dark = false) { Main(VpnStatus.CONNECTED, update = UpdateState.Available("1.2.0", "")) }
             },
             "data-notice-light" to { IykykTheme(dark = false) { Main(VpnStatus.DISCONNECTED, Profiles(), dataNotice = true) } },
+            "diagnosis-running-light" to {
+                IykykTheme(dark = false) {
+                    Main(
+                        VpnStatus.CONNECTED,
+                        diagnosis = Diagnosis()
+                            .with(DiagCheck.INTERNET, DiagState.OK)
+                            .with(DiagCheck.SUBSCRIPTION, DiagState.OK)
+                            .with(DiagCheck.SERVERS, DiagState.RUNNING),
+                    )
+                }
+            },
+            "diagnosis-switch-dark" to {
+                IykykTheme(dark = true) {
+                    Main(
+                        VpnStatus.CONNECTED,
+                        diagnosis = Diagnosis()
+                            .with(DiagCheck.INTERNET, DiagState.OK)
+                            .with(DiagCheck.SUBSCRIPTION, DiagState.OK)
+                            .with(DiagCheck.SERVERS, DiagState.WARN, "5 / 7")
+                            .with(DiagCheck.TUNNEL, DiagState.SKIPPED)
+                            .copy(done = true, fix = DiagFix.SWITCH_SERVER, serverIndex = 1, serverName = "🇫🇮 Финляндия"),
+                    )
+                }
+            },
             "whats-new-dark" to {
                 IykykTheme(dark = true) {
                     Main(VpnStatus.CONNECTED, whatsNew = "1.2.0" to "- Помощник «Не работает?»\n- Названия устройств\n- Быстрее подключение")
@@ -130,7 +161,7 @@ class Screenshots {
         )
         // The same screens with the largest common system font (130%), where cut text shows up.
         val large = (shots + dialogs).filter {
-            it.first in setOf("main-connected-light", "subscription-dark", "welcome-light", "devices-light", "data-notice-light", "settings-light")
+            it.first in setOf("main-connected-light", "subscription-dark", "welcome-light", "devices-light", "data-notice-light", "settings-light", "diagnosis-switch-dark")
         }
             .map { (name, content) -> "$name-font130" to content }
         for ((name, content) in shots + dialogs + large) {

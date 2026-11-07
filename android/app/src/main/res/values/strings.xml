@@ -102,8 +102,8 @@
     <string name="auto_launch_subtitle">IYKYK подключается сам, когда вы открываете приложение</string>
     <string name="auto_boot_title">Подключаться при включении телефона</string>
     <string name="auto_boot_subtitle">IYKYK подключается сам после перезагрузки</string>
-    <string name="reminders_title">Напоминать об окончании подписки</string>
-    <string name="reminders_subtitle">Уведомление за 3 дня до конца подписки</string>
+    <string name="reminders_title">Напоминать о подписке</string>
+    <string name="reminders_subtitle">За 3 дня до окончания и когда трафик почти закончился</string>
     <string name="killswitch_title">Интернет только через IYKYK</string>
     <string name="killswitch_subtitle">Откроются системные настройки VPN: включите для IYKYK «Постоянная VPN» и «Блокировать соединения без VPN»</string>
 
@@ -230,4 +230,10 @@
     <string name="update_failed_toast">Обновление не установлено: %1$s</string>
     <string name="device_rename_failed">Не удалось сохранить название: %1$s</string>
     <string name="widget_tap_to_connect">Нажмите, чтобы подключить</string>
+    <string name="traffic_low_title">Трафик почти закончился</string>
+    <string name="traffic_low_text">Использовано %1$d%% трафика подписки. Продлите её заранее, чтобы не остаться без связи.</string>
+    <string name="traffic_out_title">Трафик закончился</string>
+    <string name="traffic_out_text">Трафик подписки израсходован. Продлите подписку, чтобы снова подключиться.</string>
+    <string name="preset_banks_none">Подходящих приложений не нашлось</string>
+    <string name="preset_banks_added">Напрямую: %1$s</string>
 </resources>

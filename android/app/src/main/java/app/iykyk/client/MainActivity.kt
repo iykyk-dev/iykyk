@@ -28,6 +28,9 @@ import com.journeyapps.barcodescanner.ScanOptions
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import app.iykyk.client.core.AppMode
+import app.iykyk.client.core.BankPreset
+import app.iykyk.client.core.DiagFix
+import app.iykyk.client.core.Troubleshooter
 import app.iykyk.client.core.ProfileStore
 import app.iykyk.client.core.AppLog
 import app.iykyk.client.core.Devices
@@ -176,6 +179,10 @@ class MainActivity : ComponentActivity() {
                             whatsNew.value = null
                             Updater.notesSeen(this)
                         },
+                        onTroubleshoot = ::troubleshoot,
+                        diagnosis = Troubleshooter.state.collectAsStateWithLifecycle().value,
+                        onDiagnosisFix = ::applyFix,
+                        onDiagnosisClose = Troubleshooter::close,
                     )
                     Screen.SETTINGS -> SettingsScreen(
                         settings = settings,
@@ -199,6 +206,7 @@ class MainActivity : ComponentActivity() {
                             { lifecycleScope.launch { Updater.checkNow(this@MainActivity) } }
                         } else null,
                         onOpenUrl = ::openUrl,
+                        onBankPreset = ::applyBankPreset,
                     )
                     Screen.APPS -> AppPickerScreen(
                         selected = settings.apps,
@@ -234,6 +242,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             ProfileStore.refreshIfStale(this@MainActivity)
             app.iykyk.client.core.ExpiryReminder.check(this@MainActivity)
+            app.iykyk.client.core.TrafficReminder.check(this@MainActivity)
             Updater.checkIfDue(this@MainActivity)
             // Re-test the servers when the app opens, at most every 10 minutes.
             if (System.currentTimeMillis() - lastPingAt > 10 * 60_000L) pingServers()
@@ -266,6 +275,39 @@ class MainActivity : ComponentActivity() {
                 toast(e.message ?: e.javaClass.simpleName)
             }
         }
+    }
+
+    private fun troubleshoot() {
+        lifecycleScope.launch { Troubleshooter.run(this@MainActivity) }
+    }
+
+    /** The fix proposed by "Не работает?". */
+    private fun applyFix(fix: DiagFix) {
+        val diagnosis = Troubleshooter.state.value
+        Troubleshooter.close()
+        AppLog.i("diagnosis: applying $fix")
+        when (fix) {
+            DiagFix.RENEW -> openBot()
+            DiagFix.SWITCH_SERVER -> diagnosis?.serverIndex?.takeIf { it >= 0 }?.let(::selectServer)
+            DiagFix.ENABLE_FRAGMENT -> changeSettings { it.copy(fragment = true) }
+            DiagFix.SWITCH_ENGINE -> changeSettings { it.copy(preferXray = !it.preferXray) }
+            DiagFix.CONNECT -> if (!VpnState.status.value.isActive) toggleVpn()
+            DiagFix.RECONNECT -> IykykVpnService.reconnect(this)
+            else -> {}
+        }
+    }
+
+    /** "Банки и Госуслуги напрямую": installed bank and government apps go around the tunnel. */
+    private fun applyBankPreset() {
+        val found = BankPreset.installed(this)
+        if (found.isEmpty()) {
+            toast(getString(R.string.preset_banks_none))
+            return
+        }
+        changeSettings {
+            it.copy(appMode = AppMode.EXCEPT_SELECTED, apps = (if (it.appMode == AppMode.EXCEPT_SELECTED) it.apps else emptySet()) + found.keys)
+        }
+        toast(getString(R.string.preset_banks_added, found.values.sorted().joinToString(", ")))
     }
 
     private fun openBot() {

@@ -102,8 +102,8 @@
     <string name="auto_launch_subtitle">IYKYK подключается сам, когда вы открываете приложение</string>
     <string name="auto_boot_title">Подключаться при включении телефона</string>
     <string name="auto_boot_subtitle">IYKYK подключается сам после перезагрузки</string>
-    <string name="reminders_title">Напоминать об окончании подписки</string>
-    <string name="reminders_subtitle">Уведомление за 3 дня до конца подписки</string>
+    <string name="reminders_title">Напоминать о подписке</string>
+    <string name="reminders_subtitle">За 3 дня до окончания и когда трафик почти закончился</string>
     <string name="killswitch_title">Интернет только через IYKYK</string>
     <string name="killswitch_subtitle">Откроются системные настройки VPN: включите для IYKYK «Постоянная VPN» и «Блокировать соединения без VPN»</string>
 
@@ -253,4 +253,27 @@
     <string name="system_proxy_subtitle">Без виртуального адаптера: через IYKYK идут браузеры и программы, которые используют прокси Windows. Включите, если обычный режим конфликтует с антивирусом или другой сетевой программой</string>
     <string name="settings_programs">Программы</string>
     <string name="welcome_manual">Вручную</string>
+    <string name="action_troubleshoot">Не работает? Проверить связь</string>
+    <string name="diag_title">Проверка связи</string>
+    <string name="diag_internet">Интернет на устройстве</string>
+    <string name="diag_subscription">Подписка</string>
+    <string name="diag_servers">Серверы</string>
+    <string name="diag_tunnel">Подключение</string>
+    <string name="diag_report">Отправить отчёт</string>
+    <string name="diag_button_switch">Переключить</string>
+    <string name="diag_button_apply">Включить</string>
+    <string name="diag_button_connect">Подключить</string>
+    <string name="diag_button_reconnect">Переподключить</string>
+    <string name="diag_fix_none">Всё в порядке. Если какой-то сайт или приложение всё равно не открывается, отправьте отчёт, мы посмотрим.</string>
+    <string name="diag_fix_no_internet">Нет интернета даже без IYKYK. Проверьте Wi-Fi или мобильную сеть и попробуйте снова.</string>
+    <string name="diag_fix_device_limit">Достигнут лимит устройств. Удалите старое устройство в разделе «Устройства» или напишите в поддержку.</string>
+    <string name="diag_fix_renew">Подписка закончилась или исчерпан трафик. Продлите её, и подключение заработает.</string>
+    <string name="diag_fix_switch_server">Текущий сервер не отвечает, а %1$s работает. Переключиться на него?</string>
+    <string name="diag_fix_fragment">Серверы отвечают только с фрагментацией. Похоже, сеть мешает подключению. Включить её в настройках?</string>
+    <string name="diag_fix_engine">Серверы отвечают через другое ядро. Переключить ядро в настройках?</string>
+    <string name="diag_fix_connect">Всё готово к подключению. Нажмите «Подключить».</string>
+    <string name="diag_fix_reconnect">Серверы отвечают, но через текущее подключение данные не идут. Попробуйте переподключиться.</string>
+    <string name="diag_fix_servers_down">Ни один сервер не отвечает из этой сети. Попробуйте другую сеть (Wi-Fi или мобильную) или отправьте отчёт.</string>
+    <string name="preset_banks_title">Банки и Госуслуги напрямую</string>
+    <string name="preset_banks_subtitle">Добавить установленные приложения банков, Госуслуг и маркетплейсов в исключения</string>
 </resources>

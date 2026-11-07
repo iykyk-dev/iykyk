@@ -94,6 +94,8 @@ import app.iykyk.client.core.Profiles
 import app.iykyk.client.core.ServerInfo
 import app.iykyk.client.core.SubscriptionInfo
 import app.iykyk.client.core.SUPPORT_URL
+import app.iykyk.client.core.DiagFix
+import app.iykyk.client.core.Diagnosis
 import app.iykyk.client.core.UpdateState
 import app.iykyk.client.core.daysLeft
 import app.iykyk.client.tv.TvShare
@@ -152,6 +154,12 @@ fun MainScreen(
     /** First launch: what the app sends and keeps, before any subscription is added. */
     showDataNotice: Boolean = false,
     onDataNoticeAccepted: () -> Unit = {},
+    /** "Не работает?": starts the checks; null hides the entry. */
+    onTroubleshoot: (() -> Unit)? = null,
+    /** The running or finished checks, or null when the helper is closed. */
+    diagnosis: Diagnosis? = null,
+    onDiagnosisFix: (DiagFix) -> Unit = {},
+    onDiagnosisClose: () -> Unit = {},
 ) {
     var updateHidden by remember { mutableStateOf(false) }
     var showLinkInput by remember { mutableStateOf(false) }
@@ -194,6 +202,7 @@ fun MainScreen(
                             connectedAt = connectedAt,
                             onCheck = onCheck,
                             onSendReport = onSendReport,
+                            onTroubleshoot = onTroubleshoot,
                             expanded = expanded,
                             onExpandChange = { expanded = it },
                             refreshing = refreshing,
@@ -226,6 +235,7 @@ fun MainScreen(
                             onDeleteDevice = onDeleteDevice,
                             onRenameDevice = onRenameDevice,
                             onSendReport = onSendReport,
+                            onTroubleshoot = onTroubleshoot,
                             onOpenSettings = onOpenSettings,
                         )
                     }
@@ -248,6 +258,10 @@ fun MainScreen(
 
     if (showDataNotice && !profiles.hasServers) {
         DataNoticeDialog(onAccept = onDataNoticeAccepted)
+    }
+
+    if (diagnosis != null) {
+        DiagnosisDialog(diagnosis, onFix = onDiagnosisFix, onReport = { onDiagnosisClose(); onSendReport() }, onClose = onDiagnosisClose)
     }
 
     if (whatsNew != null) {
@@ -418,6 +432,7 @@ private fun ConnectionTab(
     connectedAt: Long,
     onCheck: () -> Unit,
     onSendReport: () -> Unit,
+    onTroubleshoot: (() -> Unit)?,
     expanded: Boolean,
     onExpandChange: (Boolean) -> Unit,
     refreshing: Boolean,
@@ -487,8 +502,14 @@ private fun ConnectionTab(
             )
         }
         if (failed || (status == VpnStatus.CONNECTED && tunnel == TunnelState.Failed)) {
-            TextButton(onClick = onSendReport) {
-                Text(stringResource(Res.string.action_send_report), color = IykykColors.Accent)
+            if (onTroubleshoot != null) {
+                TextButton(onClick = onTroubleshoot) {
+                    Text(stringResource(Res.string.action_troubleshoot), color = IykykColors.Accent, fontWeight = FontWeight.SemiBold)
+                }
+            } else {
+                TextButton(onClick = onSendReport) {
+                    Text(stringResource(Res.string.action_send_report), color = IykykColors.Accent)
+                }
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -804,6 +825,7 @@ private fun SubscriptionTab(
     onDeleteDevice: (String) -> Unit,
     onRenameDevice: (String, String) -> Unit,
     onSendReport: () -> Unit,
+    onTroubleshoot: (() -> Unit)?,
     onOpenSettings: () -> Unit,
 ) {
     val sub = profiles.subscription
@@ -908,6 +930,9 @@ private fun SubscriptionTab(
             Column {
                 if (sub != null) {
                     ActionRow(Res.drawable.ic_refresh, stringResource(Res.string.sub_refresh), busy = refreshing, onClick = onRefresh)
+                }
+                if (onTroubleshoot != null) {
+                    ActionRow(Res.drawable.ic_speed, stringResource(Res.string.action_troubleshoot), onClick = onTroubleshoot)
                 }
                 ActionRow(Res.drawable.ic_help, stringResource(Res.string.action_support)) { onOpenUrl(SUPPORT_URL) }
                 if (sub?.webPageUrl?.isNotBlank() == true) {
@@ -1743,5 +1768,5 @@ internal fun Chevron() {
 
 /** A text size that ignores the system font scale: for text inside fixed shapes. */
 @Composable
-private fun androidx.compose.ui.unit.Dp.fixedSp(): androidx.compose.ui.unit.TextUnit =
+internal fun androidx.compose.ui.unit.Dp.fixedSp(): androidx.compose.ui.unit.TextUnit =
     with(androidx.compose.ui.platform.LocalDensity.current) { this@fixedSp.toSp() }

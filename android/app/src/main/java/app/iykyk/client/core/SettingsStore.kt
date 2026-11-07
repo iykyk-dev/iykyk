@@ -64,14 +64,19 @@ object SettingsStore {
     }
 
     /** Settings for the Go core, as JSON (see options in core/iykyk/options.go). */
-    fun coreOptions(context: Context): String = JSONObject()
+    /** [fragment] and [preferXray] override the settings (the "Не работает?" checks try both). */
+    fun coreOptions(
+        context: Context,
+        fragment: Boolean = _settings.value.fragment,
+        preferXray: Boolean = _settings.value.preferXray,
+    ): String = JSONObject()
         .put("bypassRussia", _settings.value.bypassRussia)
         .put("ruleSetDir", RuleSets.prepare(context))
-        .put("fragment", _settings.value.fragment)
+        .put("fragment", fragment)
         // DNS is not a user setting any more: the defaults suit everyone.
         .put("remoteDNS", "cloudflare")
         .put("directDNS", "yandex")
-        .put("preferXray", _settings.value.preferXray)
+        .put("preferXray", preferXray)
         .put("logDir", AppLog.dir(context).absolutePath)
         .apply {
             // The provider's routing from the subscription (Iykyk-Routing header).
