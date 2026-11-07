@@ -105,7 +105,10 @@ internal fun WhatsNewDialog(version: String, notes: String, onDismiss: () -> Uni
         title = { Text(stringResource(Res.string.whats_new_title, version), color = IykykColors.Text) },
         text = {
             Text(
-                notes,
+                // Release notes are written as "- item" lines: show them as a bullet list.
+                notes.lines().joinToString("\n") { line ->
+                    if (line.trimStart().startsWith("- ")) "•  " + line.trimStart().removePrefix("- ") else line
+                },
                 color = IykykColors.Text,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.verticalScroll(rememberScrollState()),
