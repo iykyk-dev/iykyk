@@ -6,6 +6,12 @@ const val SOURCE_URL = "https://github.com/iykyk-dev/iykyk"
 /** Where the app reads the newest release description (see .github/workflows/build.yml). */
 const val UPDATE_MANIFEST_URL = "https://github.com/iykyk-dev/iykyk/releases/latest/download/version.json"
 
+/** The same file mirrored on the project page, tried when GitHub is unreachable. */
+const val UPDATE_MANIFEST_MIRROR = "https://app.dlyasvoih.xyz/version.json"
+
+/** The project page. */
+const val SITE_URL = "https://app.dlyasvoih.xyz"
+
 /** What the update banner and "About" show. */
 sealed interface UpdateState {
     /** Not checked yet, or this build does not update itself (debug, store builds). */

@@ -21,6 +21,7 @@ import app.iykyk.client.MainActivity
 import app.iykyk.client.R
 import app.iykyk.client.core.AppLog
 import app.iykyk.client.core.UPDATE_MANIFEST_URL
+import app.iykyk.client.core.UPDATE_MANIFEST_MIRROR
 import app.iykyk.client.core.UpdateState
 import app.iykyk.client.vpn.VpnState
 import kotlinx.coroutines.Dispatchers
@@ -100,7 +101,13 @@ object Updater {
     private suspend fun check(context: Context, manual: Boolean): Release? = withContext(Dispatchers.IO) {
         if (manual) _state.value = UpdateState.Checking
         try {
-            val release = parse(get(manifestUrl()))
+            val text = try {
+                get(manifestUrl())
+            } catch (e: Exception) {
+                AppLog.i("update: GitHub unreachable (${e.javaClass.simpleName}), trying the site")
+                get(UPDATE_MANIFEST_MIRROR)
+            }
+            val release = parse(text)
             prefs(context).edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply()
             if (release != null && release.code > installedCode(context)) {
                 AppLog.i("update: ${release.version} is available")

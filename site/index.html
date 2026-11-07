@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IYKYK — приложение VPN «Для своих»</title>
+  <meta name="description" content="IYKYK — приложение для VPN «Для своих»: подключение в одно нажатие, автовыбор сервера, без рекламы и аналитики. Android и Windows.">
+  <link rel="icon" href="img/logo.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./"><img src="img/logo.png" alt=""><span>IYKYK<small>для своих</small></span></a>
+    <nav class="links">
+      <a href="#start">Как начать</a>
+      <a href="#install">Установка</a>
+      <a href="#faq">Вопросы</a>
+      <a href="security.html">Безопасность</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h1>VPN «Для своих» <span>в&nbsp;одно нажатие</span></h1>
+      <p class="lead">IYKYK сам выбирает лучший сервер, держит соединение и обновляется. Без рекламы, без аналитики, с открытым кодом.</p>
+      <div class="buttons" id="download">
+        <a class="btn primary" id="btn-main" href="https://github.com/iykyk-dev/iykyk/releases/latest/download/IYKYK.apk">Скачать для Android</a>
+        <a class="btn secondary" id="btn-other" href="https://github.com/iykyk-dev/iykyk/releases/latest/download/IYKYK-Setup.exe">Для Windows</a>
+      </div>
+      <div class="version" id="version">Android 8 и новее · Windows 10 и 11 · iPhone — скоро</div>
+    </div>
+    <div class="shots" aria-hidden="true">
+      <img src="img/shot-main.jpg" alt="">
+      <img src="img/shot-subscription.jpg" alt="">
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <section id="start">
+    <h2>Как начать</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="num">1</div>
+        <h3>Оформите подписку</h3>
+        <p>В Telegram-боте <a href="https://t.me/dlyasvoihVPS_bot">@dlyasvoihVPS_bot</a>. Бот пришлёт ссылку на подписку.</p>
+      </div>
+      <div class="card">
+        <div class="num">2</div>
+        <h3>Установите IYKYK</h3>
+        <p>Кнопка выше скачает версию для вашего устройства. Как установить — ниже.</p>
+      </div>
+      <div class="card">
+        <div class="num">3</div>
+        <h3>Вставьте ссылку</h3>
+        <p>Скопируйте ссылку из бота, откройте IYKYK и нажмите «Вставить ссылку на подписку». Дальше — одна кнопка подключения.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Что внутри</h2>
+    <div class="features">
+      <div class="feature"><div class="dot"></div><div><h3>Автовыбор сервера</h3><p>Режим «АВТО» сам переключается на самый быстрый сервер, если текущий начал тормозить.</p></div></div>
+      <div class="feature"><div class="dot"></div><div><h3>Российские сайты напрямую</h3><p>Банки, госуслуги и маркетплейсы открываются без VPN, остальное — через VPN. Можно выбрать приложения.</p></div></div>
+      <div class="feature"><div class="dot"></div><div><h3>Обновляется само</h3><p>Новая версия приходит уведомлением и ставится одним нажатием. Подлинность проверяется перед установкой.</p></div></div>
+      <div class="feature"><div class="dot"></div><div><h3>Ничего лишнего</h3><p>Нет рекламы, аналитики и сбора истории посещений. Подписка хранится на устройстве в зашифрованном виде.</p></div></div>
+      <div class="feature"><div class="dot"></div><div><h3>Современные протоколы</h3><p>VLESS с REALITY, Hysteria2, TUIC, WireGuard, AmneziaWG и другие — 13 протоколов в запасе на случай блокировок.</p></div></div>
+      <div class="feature"><div class="dot"></div><div><h3>Телефон, ТВ и компьютер</h3><p>Одна подписка на Android, Android TV и Windows. На телевизор подписку можно отправить с телефона по QR-коду.</p></div></div>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Установка</h2>
+    <div class="install">
+      <div class="card">
+        <h3>Android</h3>
+        <ol>
+          <li>Нажмите «Скачать для Android» и откройте скачанный файл.</li>
+          <li>Если телефон спросит, разрешите установку из браузера <span>(«Настройки → Разрешить из этого источника»)</span>.</li>
+          <li>Нажмите «Установить», затем «Открыть».</li>
+          <li>При первом подключении разрешите IYKYK создать VPN-подключение.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3>Windows 10 и 11</h3>
+        <ol>
+          <li>Скачайте и запустите <code>IYKYK-Setup.exe</code>.</li>
+          <li>Если появится синее окно «Windows защитила ваш компьютер», нажмите «Подробнее» → «Выполнить в любом случае» <span>(сертификат подписи появится в следующих версиях)</span>.</li>
+          <li>Следуйте установщику. IYKYK появится в меню «Пуск» и рядом с часами.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="news" hidden>
+    <h2 id="news-title">Что нового</h2>
+    <div class="notes" id="news-body"></div>
+  </section>
+
+  <section id="faq">
+    <h2>Вопросы</h2>
+    <details>
+      <summary>Какой файл скачать для Android?</summary>
+      <p>Кнопка на этой странице выбирает сама. Вручную: <code>IYKYK-arm64-v8a.apk</code> подходит почти всем телефонам последних лет и весит в три раза меньше; <code>IYKYK.apk</code> подходит любому устройству, включая старые телефоны и ТВ-приставки.</p>
+    </details>
+    <details>
+      <summary>С VPN не открывается банк или госуслуги</summary>
+      <p>Включите «Настройки → Российские сайты напрямую» (включено по умолчанию). Если приложение банка всё равно ругается на VPN, добавьте его в исключения: «Настройки → Приложения → Все через VPN, кроме выбранных».</p>
+    </details>
+    <details>
+      <summary>Как понять, что приложение настоящее?</summary>
+      <p>Скачивайте только с этой страницы, из бота или с <a href="https://github.com/iykyk-dev/iykyk/releases">GitHub</a>. Отпечаток подписи в «Настройки → О приложении» должен совпадать с отпечатком на странице <a href="security.html">Безопасность</a>.</p>
+    </details>
+    <details>
+      <summary>Можно ли пользоваться Happ или INCY?</summary>
+      <p>Да. Подписка работает в любом из них, IYKYK — дополнительный вариант, сделанный специально для нашего VPN.</p>
+    </details>
+    <details>
+      <summary>Что-то не работает</summary>
+      <p>В приложении откройте «Подписка → Отправить отчёт в поддержку» — так мы сразу увидим причину. Или напишите в <a href="https://t.me/dlyasvoih_support_bot">поддержку</a>.</p>
+    </details>
+  </section>
+
+  <footer class="bottom">
+    <span>© IYKYK · открытый код под лицензией GPL-3.0</span>
+    <nav>
+      <a href="privacy.html">Конфиденциальность</a>
+      <a href="terms.html">Условия</a>
+      <a href="security.html">Безопасность</a>
+      <a href="https://github.com/iykyk-dev/iykyk">GitHub</a>
+      <a href="https://t.me/dlyasvoih_support_bot">Поддержка</a>
+    </nav>
+  </footer>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

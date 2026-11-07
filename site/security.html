@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Безопасность — IYKYK</title>
+  <link rel="icon" href="img/logo.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./"><img src="img/logo.png" alt=""><span>IYKYK<small>для своих</small></span></a>
+    <nav class="links">
+      <a href="./#start">Как начать</a>
+      <a href="./#install">Установка</a>
+      <a href="./#faq">Вопросы</a>
+      <a href="security.html">Безопасность</a>
+    </nav>
+  </header>
+  <article class="page">
+    <h1>Безопасность</h1>
+
+    <h2>Где скачивать</h2>
+    <p>Настоящий IYKYK распространяется только здесь, в боте <a href="https://t.me/dlyasvoihVPS_bot">@dlyasvoihVPS_bot</a> и на странице релизов <a href="https://github.com/iykyk-dev/iykyk/releases">GitHub</a>. Не ставьте приложение из других источников: подделка может украсть вашу подписку.</p>
+
+    <h2>Как проверить подлинность на Android</h2>
+    <p>Откройте в приложении «Настройки → О приложении → Подпись приложения». Отпечаток должен совпадать с этим:</p>
+    <pre id="fingerprint">DC:D4:23:E0:5D:DE:8F:54:6F:39:0B:E7:0A:71:7E:91:41:8A:5F:B0:97:93:A6:40:BB:D0:87:67:61:E5:11:77</pre>
+    <p>Если не совпадает — удалите приложение и скачайте его отсюда. Обновления приложение проверяет само: перед установкой сверяет контрольную сумму файла и подпись, а Android дополнительно не даст поставить обновление, подписанное чужим ключом.</p>
+
+    <h2>Контрольные суммы файлов</h2>
+    <p>SHA-256 каждого файла последней версии:</p>
+    <pre id="checksums">Смотрите в описании <a href="https://github.com/iykyk-dev/iykyk/releases">релиза на GitHub</a>.</pre>
+    <p class="muted">На Windows: <code>Get-FileHash .\IYKYK-Setup.exe</code> в PowerShell. Описание версии: <a id="release-page" href="https://github.com/iykyk-dev/iykyk/releases">GitHub</a>.</p>
+
+    <h2>Как устроена защита</h2>
+    <ul>
+      <li>Подписка хранится на устройстве в зашифрованном виде; ключ шифрования не покидает защищённое хранилище Android.</li>
+      <li>Внутренний прокси приложения закрыт случайным паролем — другие приложения на телефоне не могут им воспользоваться.</li>
+      <li>Ключи сервиса от панели управления хранятся только на наших серверах и никогда не попадают в приложение.</li>
+      <li>Код открыт, а каждая версия собирается автоматически из опубликованного кода.</li>
+    </ul>
+
+    <h2>Нашли уязвимость?</h2>
+    <p>Напишите в <a href="https://t.me/dlyasvoih_support_bot">поддержку</a> с пометкой «уязвимость», не публикуя подробности до исправления. Спасибо!</p>
+  </article>
+  <footer class="bottom">
+    <span>© IYKYK · открытый код под лицензией GPL-3.0</span>
+    <nav>
+      <a href="privacy.html">Конфиденциальность</a>
+      <a href="terms.html">Условия</a>
+      <a href="security.html">Безопасность</a>
+      <a href="https://github.com/iykyk-dev/iykyk">GitHub</a>
+      <a href="https://t.me/dlyasvoih_support_bot">Поддержка</a>
+    </nav>
+  </footer>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

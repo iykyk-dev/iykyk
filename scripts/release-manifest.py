@@ -53,6 +53,10 @@ def main() -> None:
     universal = dist / "IYKYK.apk"
     android["universal"] = {"url": f"{base}/IYKYK.apk", "sha256": sha256(universal), "size": universal.stat().st_size}
 
+    signature = (dist / "signature.txt").read_text().strip() if (dist / "signature.txt").exists() else ""
+    hexdigest = signature.rsplit(":", 1)[-1].strip().upper() if signature else ""
+    fingerprint = ":".join(hexdigest[i:i + 2] for i in range(0, len(hexdigest), 2))
+
     setup = dist / "IYKYK-Setup.exe"
     manifest = {
         "version": version,
@@ -60,21 +64,19 @@ def main() -> None:
         "notes": notes,
         "android": android,
         "windows": {"url": f"{base}/{setup.name}", "sha256": sha256(setup), "size": setup.stat().st_size},
+        "signature": fingerprint,
     }
     (dist / "version.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    signature = (dist / "signature.txt").read_text().strip() if (dist / "signature.txt").exists() else ""
     sums = "\n".join(f"{sha256(p)}  {p.name}" for p in sorted(dist.glob("IYKYK*")))
     body = notes or "Исправления и улучшения."
     body += "\n\n### Какой файл скачать\n"
     body += "- **Android**: `IYKYK.apk` подходит любому телефону; `IYKYK-arm64-v8a.apk` меньше и подходит почти всем современным.\n"
     body += "- **Windows 10/11**: `IYKYK-Setup.exe`.\n"
     body += "\n### Проверка подлинности\n"
-    if signature:
+    if fingerprint:
         # Same format as Settings → "Подпись приложения": AB:CD:…
-        hexdigest = signature.rsplit(":", 1)[-1].strip().upper()
-        pretty = ":".join(hexdigest[i:i + 2] for i in range(0, len(hexdigest), 2))
-        body += f"Подпись Android-приложения (должна совпадать с «Настройки → Подпись приложения»):\n```\n{pretty}\n```\n"
+        body += f"Подпись Android-приложения (должна совпадать с «Настройки → Подпись приложения»):\n```\n{fingerprint}\n```\n"
     body += f"SHA-256 файлов:\n```\n{sums}\n```\n"
     (dist / "notes.md").write_text(body, encoding="utf-8")
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
