@@ -5,6 +5,9 @@ import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.use
 import app.iykyk.client.core.AppSettings
+import app.iykyk.client.core.DeviceInfo
+import app.iykyk.client.core.DevicesInfo
+import app.iykyk.client.core.UpdateState
 import app.iykyk.client.core.Profiles
 import app.iykyk.client.core.ServerInfo
 import app.iykyk.client.core.SubscriptionInfo
@@ -48,7 +51,14 @@ class Screenshots {
     private val pings = mapOf("a" to 215, "b" to 174, "c" to 371, "d" to -1, "e" to 516, "f" to 88)
 
     @Composable
-    private fun Main(status: VpnStatus, profiles: Profiles = this.profiles, tab: Int = 0) {
+    private fun Main(
+        status: VpnStatus,
+        profiles: Profiles = this.profiles,
+        tab: Int = 0,
+        update: UpdateState = UpdateState.Idle,
+        dataNotice: Boolean = false,
+        whatsNew: Pair<String, String>? = null,
+    ) {
         MainScreen(
             status = status,
             profiles = profiles,
@@ -69,6 +79,9 @@ class Screenshots {
             onImportText = {}, onClipboardDismiss = {}, onCheck = {}, onSendReport = {},
             onCopyLink = {}, onDelete = {}, onLoadDevices = {}, onDeleteDevice = {}, onOpenSettings = {},
             initialTab = tab,
+            update = update,
+            showDataNotice = dataNotice,
+            whatsNew = whatsNew,
         )
     }
 
@@ -93,10 +106,34 @@ class Screenshots {
                 }
             },
         )
+        val devices = DevicesInfo(
+            used = 4, limit = 5,
+            devices = listOf(
+                DeviceInfo("1", "Windows", "10.0", "DESKTOP-9EROEH1", "IYKYK/1.1.1", "2026-11-05T10:00:00Z", "2026-11-07T10:00:00Z", current = true),
+                DeviceInfo("2", "Android", "17", "Google Pixel 9 Pro XL", "IYKYK/1.1.1", "2026-11-01T10:00:00Z", "2026-11-07T09:00:00Z", current = false),
+                DeviceInfo("3", "iOS", "26.6.1", "iPhone 15 Pro", "Happ/3.2", "2026-10-01T10:00:00Z", "2026-11-05T10:00:00Z", current = false, name = "Дочкин айфон"),
+                DeviceInfo("4", "Android", "14", "Xiaomi Redmi Note 13 Pro+ 5G", "Happ/3.0", "2026-09-01T10:00:00Z", "2026-10-20T10:00:00Z", current = false),
+            ),
+        )
+        val dialogs: List<Pair<String, @Composable () -> Unit>> = listOf(
+            "devices-light" to { IykykTheme(dark = false) { DevicesDialog(devices, onDelete = {}, onRename = { _, _ -> }, onDismiss = {}) } },
+            "devices-dark" to { IykykTheme(dark = true) { DevicesDialog(devices, onDelete = {}, onRename = { _, _ -> }, onDismiss = {}) } },
+            "update-banner-light" to {
+                IykykTheme(dark = false) { Main(VpnStatus.CONNECTED, update = UpdateState.Available("1.2.0", "")) }
+            },
+            "data-notice-light" to { IykykTheme(dark = false) { Main(VpnStatus.DISCONNECTED, Profiles(), dataNotice = true) } },
+            "whats-new-dark" to {
+                IykykTheme(dark = true) {
+                    Main(VpnStatus.CONNECTED, whatsNew = "1.2.0" to "- Помощник «Не работает?»\n- Названия устройств\n- Быстрее подключение")
+                }
+            },
+        )
         // The same screens with the largest common system font (130%), where cut text shows up.
-        val large = shots.filter { it.first in setOf("main-connected-light", "subscription-dark", "welcome-light") }
+        val large = (shots + dialogs).filter {
+            it.first in setOf("main-connected-light", "subscription-dark", "welcome-light", "devices-light", "data-notice-light", "settings-light")
+        }
             .map { (name, content) -> "$name-font130" to content }
-        for ((name, content) in shots + large) {
+        for ((name, content) in shots + dialogs + large) {
             // 412 x 915 dp (a common phone) at density 2.
             val density = if (name.endsWith("-font130")) Density(2f, fontScale = 1.3f) else Density(2f)
             ImageComposeScene(width = 824, height = 1830, density = density, content = content).use { scene ->

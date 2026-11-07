@@ -869,7 +869,7 @@ private fun SubscriptionTab(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                // No clip here: the text starts at the edge, a clip would cut its first letter.
                                 .clickable { showDevices = true }
                                 .padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -958,7 +958,7 @@ private fun SubscriptionTab(
 
 /** The subscription's devices; any but this one can be removed to free a slot. */
 @Composable
-private fun DevicesDialog(
+internal fun DevicesDialog(
     devices: DevicesInfo,
     onDelete: (String) -> Unit,
     onRename: (String, String) -> Unit,
@@ -1062,12 +1062,14 @@ private fun DeviceRow(device: DeviceInfo, onRemove: () -> Unit, onName: () -> Un
                 modifier = Modifier.size(20.dp),
             )
         }
-        Spacer(Modifier.size(12.dp))
+        Spacer(Modifier.size(6.dp))
         Column(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onName),
+                .clickable(onClick = onName)
+                // Room inside the clip: bold «Д» reaches left of its origin and was cut.
+                .padding(horizontal = 6.dp, vertical = 2.dp),
         ) {
             val model = device.model.ifBlank { device.platform.ifBlank { "?" } }
             Text(
