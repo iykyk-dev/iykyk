@@ -52,7 +52,7 @@ class CoreClient {
     }
 
     companion object {
-        const val SERVICE_NOT_RUNNING =
+        val SERVICE_NOT_RUNNING: String get() =
             Lang.t("служба IYKYK не запущена. Перезагрузите компьютер или переустановите приложение", "the IYKYK service is not running. Restart the computer or reinstall the app")
     }
 }
