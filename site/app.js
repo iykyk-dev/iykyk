@@ -48,9 +48,12 @@
       set(main, "Скачать для Android", android, true);
       set(other, "Для Windows", windows, false);
     } else if (platform === "ios" || platform === "mac") {
-      // No iPhone/Mac app yet: offer the others plainly, none highlighted.
-      set(main, "Скачать для Android", android, false);
-      set(other, "Скачать для Windows", windows, false);
+      // No iPhone/Mac app yet: Android is what works, iPhone/Mac is shown as coming.
+      set(main, "Скачать для Android", android, true);
+      set(other, "iPhone и Mac — скоро", null, false);
+      other.removeAttribute("href");
+      other.className = "btn secondary soon";
+      other.setAttribute("aria-disabled", "true");
     } else {
       set(main, "Скачать для Windows", windows, true);
       set(other, "Для Android", android, false);

@@ -95,6 +95,8 @@ nav.links a:hover { color: var(--text); text-decoration: none; }
 .btn.primary { background: var(--orange); color: var(--on-accent); box-shadow: 0 8px 20px rgba(237, 133, 50, .35); }
 .btn.secondary { border-color: var(--surface-high); color: var(--text); background: var(--surface); }
 .btn svg { width: 20px; height: 20px; }
+.btn.soon { color: var(--muted); cursor: default; box-shadow: none; }
+.btn.soon:hover, .btn.soon:active { transform: none; }
 .platforms { margin-top: 18px; font-size: 14px; color: var(--muted); }
 .platforms .soon { white-space: nowrap; }
 .version { margin-top: 4px; font-size: 14px; color: var(--muted); }
