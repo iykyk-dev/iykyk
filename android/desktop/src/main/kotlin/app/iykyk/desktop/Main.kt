@@ -1,5 +1,6 @@
 package app.iykyk.desktop
 
+import app.iykyk.client.core.AboutInfo
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -158,7 +159,7 @@ private fun App(app: DesktopController) {
                     onChooseApps = {},
                     onThemeChange = { mode -> app.updateSettings { it.copy(themeMode = mode) } },
                     mobile = false,
-                    about = app.iykyk.client.core.AboutInfo(System.getProperty("iykyk.version") ?: "dev", ""),
+                    about = AboutInfo(System.getProperty("iykyk.version") ?: "dev", ""),
                     onOpenUrl = app::openUrl,
                 )
             }
