@@ -48,7 +48,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: android/app/libs/iykyk-core.aar
-          key: core-android-${{ env.ANDROID_TARGETS }}-${{ hashFiles('core/**') }}
+          key: core-android-arm64-arm-amd64-${{ hashFiles('core/**') }}
 
       - name: Set up Go
         if: steps.cache.outputs.cache-hit != 'true'
