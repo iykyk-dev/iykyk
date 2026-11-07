@@ -1,6 +1,8 @@
 package app.iykyk.client.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
@@ -85,6 +87,8 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = MAX_CONTENT_WIDTH)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {

@@ -24,6 +24,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -87,6 +91,7 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.iykyk.shared.resources.*
@@ -454,23 +459,7 @@ private fun ConnectionTab(
     onManual: () -> Unit,
     onReceive: () -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize().then(topInsets)) {
-    val scroll = rememberScrollState()
-    // The map sits behind the connect button (8 + 48 top row + 28 + 80 dp to its
-    // centre) and scrolls away with it.
-    WorldMapBackground(
-        serverName = profiles.current?.name,
-        status = status,
-        anchorY = 164.dp - with(androidx.compose.ui.platform.LocalDensity.current) { scroll.value.toDp() },
-        modifier = Modifier.fillMaxSize(),
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scroll)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    val controls: @Composable () -> Unit = {
         TopRow(
             onOpenSettings = onOpenSettings,
             onPaste = onPaste,
@@ -515,7 +504,8 @@ private fun ConnectionTab(
                 }
             }
         }
-        Spacer(Modifier.height(24.dp))
+    }
+    val card: @Composable () -> Unit = {
         SubscriptionCard(
             profiles = profiles,
             expanded = expanded,
@@ -530,12 +520,75 @@ private fun ConnectionTab(
             actions = actions,
             onSelectServer = onSelectServer,
         )
-        Spacer(Modifier.height(16.dp))
     }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().then(topInsets)) {
+        if (isWide(maxWidth, maxHeight)) {
+            // Tablet or TV in landscape: the button on the left, the servers on the right.
+            Row(modifier = Modifier.fillMaxSize()) {
+                val leftScroll = rememberScrollState()
+                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                    WorldMapBackground(
+                        serverName = profiles.current?.name,
+                        status = status,
+                        anchorY = 164.dp - with(androidx.compose.ui.platform.LocalDensity.current) { leftScroll.value.toDp() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(leftScroll)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) { controls() }
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .widthIn(max = 640.dp)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 8.dp, end = 24.dp, top = 24.dp, bottom = 16.dp),
+                ) { card() }
+            }
+        } else {
+            val scroll = rememberScrollState()
+            // The map sits behind the connect button (8 + 48 top row + 28 + 80 dp to its
+            // centre) and scrolls away with it.
+            WorldMapBackground(
+                serverName = profiles.current?.name,
+                status = status,
+                anchorY = 164.dp - with(androidx.compose.ui.platform.LocalDensity.current) { scroll.value.toDp() },
+                modifier = Modifier.fillMaxSize(),
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scroll)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // A portrait tablet: phone layout, but not stretched edge to edge.
+                Column(
+                    modifier = Modifier.widthIn(max = MAX_CONTENT_WIDTH),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    controls()
+                    Spacer(Modifier.height(24.dp))
+                    card()
+                    Spacer(Modifier.height(16.dp))
+                }
+            }
+        }
     }
 }
 
-/** ⚙ on the left, the name in the middle, + (add a subscription) on the right. */
+/** Landscape tablets and TVs get two columns. */
+internal fun isWide(width: Dp, height: Dp): Boolean = width >= 840.dp && width > height
+
+/** Lists and cards stop growing past this width on big screens. */
+internal val MAX_CONTENT_WIDTH = 680.dp
+
 @Composable
 private fun TopRow(
     onOpenSettings: () -> Unit,
@@ -841,6 +894,8 @@ private fun SubscriptionTab(
         modifier = Modifier
             .fillMaxSize()
             .then(topInsets)
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = MAX_CONTENT_WIDTH)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
@@ -1356,6 +1411,8 @@ private fun WelcomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .safeDrawingPadding()
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = 560.dp)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
