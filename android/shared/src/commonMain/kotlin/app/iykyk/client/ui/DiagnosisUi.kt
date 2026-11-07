@@ -1,5 +1,6 @@
 package app.iykyk.client.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +26,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.iykyk.client.core.DiagCheck
@@ -110,24 +116,7 @@ private fun CheckRow(title: String, state: DiagState, detail: String) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(top = 2.dp).size(20.dp)) {
             when (state) {
                 DiagState.RUNNING -> CircularProgressIndicator(color = IykykColors.Accent, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
-                else -> Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(18.dp).clip(CircleShape).background(stateColor(state).copy(alpha = 0.18f)),
-                ) {
-                    Text(
-                        when (state) {
-                            DiagState.OK -> "✓"
-                            DiagState.FAIL -> "✕"
-                            DiagState.WARN -> "!"
-                            DiagState.SKIPPED -> "–"
-                            else -> ""
-                        },
-                        color = stateColor(state),
-                        fontSize = 12.dp.fixedSp(),
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                    )
-                }
+                else -> StateMark(state, stateColor(state))
             }
         }
         Spacer(Modifier.size(12.dp))
@@ -141,6 +130,37 @@ private fun CheckRow(title: String, state: DiagState, detail: String) {
             if (detail.isNotBlank()) {
                 Text(detail, color = IykykColors.Muted, style = MaterialTheme.typography.bodySmall)
             }
+        }
+    }
+}
+
+@Composable
+/** A drawn mark (not a font glyph, which sits off-centre in some fonts). */
+@Composable
+private fun StateMark(state: DiagState, color: Color) {
+    Canvas(Modifier.size(20.dp)) {
+        val w = size.width
+        drawCircle(color.copy(alpha = if (state == DiagState.WAITING) 0.25f else 0.18f))
+        val stroke = Stroke(width = w * 0.11f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        when (state) {
+            DiagState.OK -> drawPath(
+                Path().apply {
+                    moveTo(w * 0.29f, w * 0.52f)
+                    lineTo(w * 0.44f, w * 0.66f)
+                    lineTo(w * 0.72f, w * 0.36f)
+                },
+                color, style = stroke,
+            )
+            DiagState.FAIL -> {
+                drawLine(color, Offset(w * 0.34f, w * 0.34f), Offset(w * 0.66f, w * 0.66f), stroke.width, StrokeCap.Round)
+                drawLine(color, Offset(w * 0.66f, w * 0.34f), Offset(w * 0.34f, w * 0.66f), stroke.width, StrokeCap.Round)
+            }
+            DiagState.WARN -> {
+                drawLine(color, Offset(w * 0.5f, w * 0.28f), Offset(w * 0.5f, w * 0.56f), stroke.width, StrokeCap.Round)
+                drawCircle(color, radius = stroke.width * 0.6f, center = Offset(w * 0.5f, w * 0.72f))
+            }
+            DiagState.SKIPPED -> drawLine(color, Offset(w * 0.34f, w * 0.5f), Offset(w * 0.66f, w * 0.5f), stroke.width, StrokeCap.Round)
+            else -> {}
         }
     }
 }
