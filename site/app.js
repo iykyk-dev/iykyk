@@ -38,22 +38,22 @@
     var android = (apk.universal || {}).url;
     var windows = (release.windows || {}).url;
 
-    if (platform === "windows" && windows) {
-      main.textContent = "Скачать для Windows";
-      main.href = windows;
-      other.textContent = "Для Android";
-      other.href = android || other.href;
+    // Both downloads are always offered; the one for this device comes first.
+    function set(button, label, url, primary) {
+      button.textContent = label;
+      if (url) button.href = url;
+      button.className = "btn " + (primary ? "primary" : "secondary");
+    }
+    if (platform === "android") {
+      set(main, "Скачать для Android", android, true);
+      set(other, "Для Windows", windows, false);
     } else if (platform === "ios" || platform === "mac") {
-      main.textContent = "Для iPhone и Mac — скоро";
-      main.removeAttribute("href");
-      main.style.opacity = ".6";
-      other.textContent = "Скачать для Android";
-      other.href = android || other.href;
+      // No iPhone/Mac app yet: offer the others plainly, none highlighted.
+      set(main, "Скачать для Android", android, false);
+      set(other, "Скачать для Windows", windows, false);
     } else {
-      // The universal APK: a browser cannot tell a 32-bit phone or an x86 device
-      // reliably, and the wrong file crashes on start. Updates then come per processor.
-      main.href = android || main.href;
-      other.href = windows || other.href;
+      set(main, "Скачать для Windows", windows, true);
+      set(other, "Для Android", android, false);
     }
 
     var version = document.getElementById("version");
