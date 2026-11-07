@@ -93,9 +93,13 @@ class Screenshots {
                 }
             },
         )
-        for ((name, content) in shots) {
+        // The same screens with the largest common system font (130%), where cut text shows up.
+        val large = shots.filter { it.first in setOf("main-connected-light", "subscription-dark", "welcome-light") }
+            .map { (name, content) -> "$name-font130" to content }
+        for ((name, content) in shots + large) {
             // 412 x 915 dp (a common phone) at density 2.
-            ImageComposeScene(width = 824, height = 1830, density = Density(2f), content = content).use { scene ->
+            val density = if (name.endsWith("-font130")) Density(2f, fontScale = 1.3f) else Density(2f)
+            ImageComposeScene(width = 824, height = 1830, density = density, content = content).use { scene ->
                 var image = scene.render(0)
                 // Let resources load and animations settle (map fly-in, waves).
                 for (frame in 1..40) {

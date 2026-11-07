@@ -570,7 +570,8 @@ private fun MenuItem(
         },
         onClick = onClick,
         contentPadding = PaddingValues(horizontal = 12.dp),
-        modifier = Modifier.height(40.dp),
+        // Grows with a large system font instead of cutting the text.
+        modifier = Modifier.heightIn(min = 40.dp),
     )
 }
 
@@ -1267,7 +1268,8 @@ private fun ServerRow(server: ServerInfo, delay: Int?, selected: Boolean, onClic
                 .clip(CircleShape)
                 .background(IykykColors.SurfaceHigh),
         ) {
-            Text(flag ?: "🌐", fontSize = 20.sp)
+            // The flag fills a fixed circle: sized in dp, so a large system font cannot crop it.
+            Text(flag ?: "🌐", fontSize = 20.dp.fixedSp(), maxLines = 1)
         }
         Spacer(Modifier.size(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -1421,11 +1423,11 @@ private fun Steps(vararg steps: String) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
                         .background(IykykColors.Accent.copy(alpha = 0.15f)),
                 ) {
-                    Text("${index + 1}", color = IykykColors.Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("${index + 1}", color = IykykColors.Accent, fontSize = 13.dp.fixedSp(), fontWeight = FontWeight.Bold, maxLines = 1)
                 }
                 Spacer(Modifier.size(10.dp))
                 Text(step, color = IykykColors.Text, style = MaterialTheme.typography.bodyMedium)
@@ -1612,8 +1614,12 @@ private fun ConnectButton(status: VpnStatus, enabled: Boolean, onClick: () -> Un
                     },
                 ),
                 color = iconTint,
-                style = MaterialTheme.typography.titleSmall,
+                // Inside a fixed 160 dp circle: dp-sized and one line, so «Подключение…»
+                // is never cut by the circle's edge with a large system font.
+                style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.dp.fixedSp(), lineHeight = 20.dp.fixedSp()),
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                softWrap = false,
             )
             }
         }
@@ -1732,3 +1738,8 @@ internal fun Chevron() {
         modifier = Modifier.size(20.dp).rotate(-90f),
     )
 }
+
+/** A text size that ignores the system font scale: for text inside fixed shapes. */
+@Composable
+private fun androidx.compose.ui.unit.Dp.fixedSp(): androidx.compose.ui.unit.TextUnit =
+    with(androidx.compose.ui.platform.LocalDensity.current) { this@fixedSp.toSp() }

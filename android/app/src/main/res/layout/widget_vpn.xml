@@ -6,7 +6,8 @@
     android:background="@drawable/widget_background"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="12dp">
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="8dp">
 
     <FrameLayout
         android:id="@+id/widget_button"
@@ -35,9 +36,11 @@
             android:id="@+id/widget_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/app_name"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/status_disconnected"
             android:textColor="@color/widget_text"
-            android:textSize="16sp"
+            android:textSize="15sp"
             android:textStyle="bold" />
 
         <TextView
@@ -46,19 +49,9 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="@string/status_disconnected"
+            android:fontFeatureSettings="tnum"
+            android:text="@string/widget_tap_to_connect"
             android:textColor="@color/widget_muted"
             android:textSize="13sp" />
-
-        <TextView
-            android:id="@+id/widget_speed"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:fontFeatureSettings="tnum"
-            android:maxLines="1"
-            android:textColor="@color/brand_orange"
-            android:textSize="13sp"
-            android:visibility="gone" />
     </LinearLayout>
 </LinearLayout>

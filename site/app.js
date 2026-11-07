@@ -50,7 +50,7 @@
     } else if (platform === "ios" || platform === "mac") {
       // No iPhone/Mac app yet: Android is what works, iPhone/Mac is shown as coming.
       set(main, "Скачать для Android", android, true);
-      set(other, "iPhone и Mac — скоро", null, false);
+      set(other, "iPhone и Mac скоро", null, false);
       other.removeAttribute("href");
       other.className = "btn secondary soon";
       other.setAttribute("aria-disabled", "true");

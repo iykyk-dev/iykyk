@@ -71,18 +71,26 @@ class VpnWidget : AppWidgetProvider() {
                 VpnStatus.CONNECTED -> R.string.status_connected
                 VpnStatus.DISCONNECTING -> R.string.status_disconnecting
             }
+            // Two lines fit a one-row widget at any font size: what is on, and how fast.
             val server = ProfileStore.profiles.value.current?.name
+            val speed = VpnState.speed.value
+            views.setTextViewText(
+                R.id.widget_title,
+                if (connected && server != null) server else context.getString(text),
+            )
             views.setTextViewText(
                 R.id.widget_status,
-                if (connected && server != null) "${context.getString(text)} · $server" else context.getString(text),
+                when {
+                    connected && speed != null -> speed
+                    connected -> context.getString(R.string.status_connected)
+                    status == VpnStatus.DISCONNECTED -> context.getString(R.string.widget_tap_to_connect)
+                    else -> context.getString(R.string.app_name)
+                },
             )
-            val speed = VpnState.speed.value
-            if (connected && speed != null) {
-                views.setTextViewText(R.id.widget_speed, speed)
-                views.setViewVisibility(R.id.widget_speed, android.view.View.VISIBLE)
-            } else {
-                views.setViewVisibility(R.id.widget_speed, android.view.View.GONE)
-            }
+            views.setTextColor(
+                R.id.widget_status,
+                ContextCompat.getColor(context, if (connected) R.color.brand_orange else R.color.widget_muted),
+            )
             val toggle = PendingIntent.getBroadcast(
                 context,
                 0,

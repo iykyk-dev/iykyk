@@ -41,7 +41,7 @@ compose.desktop {
             targetFormats(TargetFormat.AppImage)
             packageName = "IYKYK"
             packageVersion = appVersion
-            description = "IYKYK — VPN «Для своих»"
+            description = "IYKYK, VPN «Для своих»"
             vendor = "IYKYK"
             copyright = "GPL-3.0-or-later"
             modules("java.net.http", "jdk.crypto.ec")
