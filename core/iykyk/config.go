@@ -239,6 +239,11 @@ func singBoxConfig(servers []*server, proxyOutbounds, proxyEndpoints []any, opts
 		"mtu":          9000,
 		"auto_route":   true,
 		"strict_route": true,
+		// The home network stays outside the tunnel. Inside it, gvisor answers
+		// every TCP connection itself before dialling, so a network scanner on
+		// the phone saw every LAN address as a live device ("100 iPhones on my
+		// Wi-Fi"). Printers, TVs and casting also work better this way.
+		"route_exclude_address": lanRanges,
 		// gvisor: all of TCP and UDP is handled inside the app. With "mixed"/
 		// "system", TCP goes through the kernel, and since IYKYK excludes itself
 		// from its own VPN, Android sent the kernel stack's replies around the
@@ -666,4 +671,19 @@ func randomToken() string {
 func marshal(v any) (string, error) {
 	data, err := json.Marshal(v)
 	return string(data), err
+}
+
+// lanRanges are the private and link-local networks routed around the tunnel.
+// 172.19.0.0/16 holds the tunnel's own address and DNS, so 172.16.0.0/12 is
+// listed without it.
+var lanRanges = []string{
+	"10.0.0.0/8",
+	"172.16.0.0/15",
+	"172.18.0.0/16",
+	"172.20.0.0/14",
+	"172.24.0.0/13",
+	"192.168.0.0/16",
+	"169.254.0.0/16",
+	"fc00::/7",
+	"fe80::/10",
 }

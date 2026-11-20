@@ -232,3 +232,23 @@ func TestDesktopAppsAndSystemProxy(t *testing.T) {
 		t.Fatal("no app rules in 'all' mode")
 	}
 }
+
+func TestLanOutsideTunnel(t *testing.T) {
+	p, err := BuildProfileWithOptions("hysteria2://pass@fi.example.com:443#FI", `{}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := path(t, decode(t, p.SingBoxConfig), "inbounds", 0)
+	excluded := map[string]bool{}
+	for _, r := range path(t, in, "route_exclude_address").([]any) {
+		excluded[r.(string)] = true
+	}
+	if !excluded["192.168.0.0/16"] || !excluded["10.0.0.0/8"] || !excluded["fe80::/10"] {
+		t.Fatalf("LAN is not excluded: %v", excluded)
+	}
+	for r := range excluded {
+		if r == "172.16.0.0/12" || r == "172.19.0.0/16" {
+			t.Fatalf("%s would take the tunnel's own address out of the tunnel", r)
+		}
+	}
+}
